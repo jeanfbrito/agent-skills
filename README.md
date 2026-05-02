@@ -7,6 +7,10 @@ Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code
 - **learn** — Capture knowledge from coding sessions into project + global `lessons.md` files. Triggered by `/learn`.
 - **commit** — Smart git committing that groups related changes into separate, well-described commits. Triggered by `/commit`.
 
+## Commands
+
+- **ticket** — Ticket/task workflow. Triggered by `/ticket`.
+
 ## Install
 
 Clone and symlink each skill into `~/.claude/skills/`:
