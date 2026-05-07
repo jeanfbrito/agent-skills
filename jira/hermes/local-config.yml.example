@@ -1,0 +1,22 @@
+# ⚠️ DO NOT commit the real local-config.yml — this is the template.
+# Copy to local-config.yml, fill in your values, and run setup.sh
+# or populate manually. local-config.yml is gitignored.
+
+atlassian:
+  # Your Atlassian account email (required)
+  email: "you@company.com"
+  # Your Jira site host (required, e.g. yourcompany.atlassian.net)
+  site: "yourcompany.atlassian.net"
+  # API token generated at https://id.atlassian.com/manage-profile/security/api-tokens
+  # (required)
+  api_token: "YOUR_ATLASSIAN_API_TOKEN"
+
+defaults:
+  # Primary project key (optional) — the project you spend most time in
+  primary_project: "PROJ"
+  # Default component for primary-project tickets (optional)
+  default_component: "Backend"
+  # Default assignee email (optional, empty = use currentUser())
+  default_assignee: "you@company.com"
+
+workflow_statuses: []
