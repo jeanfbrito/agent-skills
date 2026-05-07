@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# Self-contained installer for the jira skill.
+#
+# - Installs jira-cli via Homebrew if missing
+# - Stores the Atlassian API token in macOS Keychain
+# - Writes ~/.config/.jira/.config.yml stub (then runs `jira init`
+#   interactively to populate issue.types, fields, board, epic)
+# - Writes a per-user local config at ~/.claude/skills/jira/local-config.yml
+#   (gitignored) that captures your defaults — primary project, default
+#   component, valid issue types, status workflow names — so the skill can
+#   reference them without baking them into the shared SKILL.md
+# - Verifies with `jira me`
+#
+# Idempotent. Safe to re-run after rotating the API token, switching jobs,
+# or changing your default project.
+#
+# Required inputs (env vars, prompted if missing):
+#   ATLASSIAN_API_TOKEN  — mint at https://id.atlassian.com/manage-profile/security/api-tokens
+#   ATLASSIAN_EMAIL      — Atlassian account email
+#   ATLASSIAN_SITE       — site host (e.g. yourcompany.atlassian.net)
+#
+# Optional inputs (prompted if missing — used to populate local-config.yml):
+#   JIRA_PRIMARY_PROJECT  — your most-used project key (e.g. CORE)
+#   JIRA_DEFAULT_COMPONENT — component you usually carry (or empty if N/A)
+#   JIRA_DEFAULT_ASSIGNEE  — leave blank to default to currentUser()
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Auto-load .env at the repo root if present (recovery seed for re-bootstrap).
+ENV_FILE="$SCRIPT_DIR/../../.env"
+if [[ -f "$ENV_FILE" ]]; then
+  echo "==> Loading $ENV_FILE"
+  set -a; source "$ENV_FILE"; set +a
+fi
+
+prompt_if_missing() {
+  local var="$1"
+  local prompt_text="$2"
+  local secret="${3:-no}"
+  if [[ -z "${!var:-}" ]]; then
+    if [[ "$secret" == "yes" ]]; then
+      read -r -s -p "$prompt_text: " value; echo
+    else
+      read -r -p "$prompt_text: " value
+    fi
+    declare -g "$var=$value"
+  fi
+}
+
+prompt_optional() {
+  local var="$1"
+  local prompt_text="$2"
+  if [[ -z "${!var:-}" ]]; then
+    read -r -p "$prompt_text (optional, press Enter to skip): " value
+    declare -g "$var=$value"
+  fi
+}
+
+echo "=== Atlassian credentials ==="
+prompt_if_missing ATLASSIAN_EMAIL  "Atlassian email"
+prompt_if_missing ATLASSIAN_SITE   "Atlassian site host (e.g. yourcompany.atlassian.net)"
+prompt_if_missing ATLASSIAN_API_TOKEN "Atlassian API token (input hidden)" yes
+
+for v in ATLASSIAN_API_TOKEN ATLASSIAN_EMAIL ATLASSIAN_SITE; do
+  if [[ -z "${!v}" ]]; then
+    echo "ERROR: $v is empty" >&2
+    exit 1
+  fi
+done
+
+echo ""
+echo "=== Workflow defaults (used by the skill, written to a local-only file) ==="
+prompt_optional JIRA_PRIMARY_PROJECT  "Primary project key (e.g. CORE)"
+prompt_optional JIRA_DEFAULT_COMPONENT "Default component for primary-project tickets"
+prompt_optional JIRA_DEFAULT_ASSIGNEE  "Default assignee email (leave blank for currentUser())"
+
+# 1. Install jira-cli
+if ! command -v jira >/dev/null 2>&1; then
+  echo ""
+  echo "==> Installing jira-cli via Homebrew..."
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "ERROR: Homebrew not installed. Install from https://brew.sh first." >&2
+    exit 1
+  fi
+  brew tap ankitpokhrel/jira-cli
+  brew install jira-cli
+else
+  echo ""
+  echo "==> jira-cli already installed: $(jira version 2>/dev/null | head -1)"
+fi
+
+# 2. Write jira-cli config stub
+CONFIG_DIR="$HOME/.config/.jira"
+CONFIG_FILE="$CONFIG_DIR/.config.yml"
+mkdir -p "$CONFIG_DIR"
+if [[ -f "$CONFIG_FILE" ]]; then
+  echo "==> Backing up existing config to $CONFIG_FILE.bak.$(date +%s)"
+  cp "$CONFIG_FILE" "$CONFIG_FILE.bak.$(date +%s)"
+fi
+cat > "$CONFIG_FILE" <<YAML
+installation: cloud
+auth_type: basic
+server: https://${ATLASSIAN_SITE}
+login: ${ATLASSIAN_EMAIL}
+YAML
+chmod 600 "$CONFIG_FILE"
+echo "==> Wrote $CONFIG_FILE (stub)"
+
+# 3. Store token in macOS Keychain
+KEYCHAIN_SERVICE="jira-cli"
+KEYCHAIN_ACCOUNT="$ATLASSIAN_EMAIL"
+if security find-generic-password -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" >/dev/null 2>&1; then
+  echo "==> Updating existing Keychain entry ($KEYCHAIN_SERVICE / $KEYCHAIN_ACCOUNT)"
+  security delete-generic-password -s "$KEYCHAIN_SERVICE" -a "$KEYCHAIN_ACCOUNT" >/dev/null
+fi
+security add-generic-password \
+  -s "$KEYCHAIN_SERVICE" \
+  -a "$KEYCHAIN_ACCOUNT" \
+  -w "$ATLASSIAN_API_TOKEN" \
+  -U
+echo "==> Stored token in macOS Keychain (service=$KEYCHAIN_SERVICE, account=$KEYCHAIN_ACCOUNT)"
+
+# 4. Smoke test
+echo ""
+echo "==> Verifying with 'jira me'..."
+JIRA_API_TOKEN="$ATLASSIAN_API_TOKEN" jira me
+
+# 5. Run jira init to populate issue.types, fields, board, epic schema
+echo ""
+echo "==> Running 'jira init' to populate issue types, custom fields, board, epic schema."
+echo "    Pick your primary project as the default. This is interactive — answer the prompts."
+echo ""
+JIRA_API_TOKEN="$ATLASSIAN_API_TOKEN" jira init
+
+# 6. Write local-config.yml with personal defaults (gitignored)
+LOCAL_CONFIG="$SCRIPT_DIR/local-config.yml"
+{
+  echo "# Generated by setup.sh — gitignored, safe to edit by hand."
+  echo "# Read by jira-env.sh and used by SKILL.md to apply your defaults."
+  echo ""
+  echo "atlassian:"
+  echo "  email: \"${ATLASSIAN_EMAIL}\""
+  echo "  site: \"${ATLASSIAN_SITE}\""
+  echo "  keychain_service: \"${KEYCHAIN_SERVICE}\""
+  echo "  keychain_account: \"${KEYCHAIN_ACCOUNT}\""
+  echo ""
+  echo "defaults:"
+  if [[ -n "${JIRA_PRIMARY_PROJECT:-}" ]]; then
+    echo "  primary_project: \"${JIRA_PRIMARY_PROJECT}\""
+  else
+    echo "  primary_project: \"\""
+  fi
+  if [[ -n "${JIRA_DEFAULT_COMPONENT:-}" ]]; then
+    echo "  default_component: \"${JIRA_DEFAULT_COMPONENT}\""
+  else
+    echo "  default_component: \"\""
+  fi
+  if [[ -n "${JIRA_DEFAULT_ASSIGNEE:-}" ]]; then
+    echo "  default_assignee: \"${JIRA_DEFAULT_ASSIGNEE}\""
+  else
+    echo "  default_assignee: \"\"   # empty = use \$(jira me) / currentUser()"
+  fi
+  echo ""
+  echo "# Optional: discover and pin your project's status workflow names by running"
+  echo "#   jira issue view <KEY> --raw | jq '.fields.status'"
+  echo "# and listing them here. The skill uses these as exact names for"
+  echo "# 'jira issue move <KEY> \"<status>\"'."
+  echo "workflow_statuses: []"
+} > "$LOCAL_CONFIG"
+chmod 600 "$LOCAL_CONFIG"
+echo ""
+echo "==> Wrote $LOCAL_CONFIG (gitignored)"
+
+echo ""
+echo "Setup complete."
+echo ""
+echo "Per-session usage (already wired into the skill's commands):"
+echo "    source $SCRIPT_DIR/jira-env.sh"
+echo ""
+echo "Optional: add the source line to your ~/.zshrc to skip the per-call source."
