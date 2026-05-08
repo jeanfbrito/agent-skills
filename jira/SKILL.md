@@ -130,11 +130,24 @@ Don't hard-code sprint IDs in commands you write for the user. Always look them 
 
 The user is a software engineer, so favor concise, scriptable forms. Default to `--plain` when piping to other tools, default to TUI/styled output when showing the user something to skim.
 
-**"What am I working on" / "open tickets":**
+**"What am I working on" / "open tickets" / "what's on my plate":**
+
+The default view is a **cross-project, priority-sorted** list excluding terminal statuses (Done, Mitigated, Parking Lot, Cancelled). This is what the user expects when they ask "what's open for me":
 
 ```bash
-jira issue list -q "assignee = currentUser() AND resolution = Unresolved" --order-by updated --reverse
+# Step 1: fetch all open tickets across all projects
+jira issue list -q "assignee = currentUser() AND resolution = Unresolved AND status NOT IN ('Done', 'Mitigated', 'Parking Lot', 'Cancelled')" \
+  --order-by priority --reverse --plain --columns key,summary,status,priority
+
+# Step 2: present as a single table sorted by priority (Highest → Unprioritized), grouped visually
 ```
+
+Display rules:
+- **Exclude** tickets with status: Done, Mitigated, Parking Lot, Cancelled
+- **Sort by priority**: Highest → High → Medium → Low → Lowest → Unprioritized
+- **Include project column** (infer from key prefix) so cross-project view is clear
+- **Show status column** — the user wants to see To Do vs Ready for Dev vs Specifying etc.
+- Present as a markdown table with columns: Priority, Key, Project, Summary, Status
 
 **Filter to current sprint:**
 
