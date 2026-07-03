@@ -1,6 +1,9 @@
 ---
 name: commit
 description: Smart git committing that groups related changes into separate, well-described commits. Use this skill whenever the user says "commit", "/commit", "save my changes", "commit my work", "create commits", or anything that implies they want their current modifications committed to git. Also trigger when the user finishes a task and asks to wrap up or save progress.
+model: claude-haiku-4-5-20251001
+effort: high
+allowed-tools: Bash(git add *) Bash(git commit *) Bash(git status *) Bash(git diff *) Bash(git log *) mcp__plugin_context-mode_context-mode__ctx_batch_execute mcp__plugin_context-mode_context-mode__ctx_search
 ---
 
 # Commit
