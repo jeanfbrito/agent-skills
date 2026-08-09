@@ -1,8 +1,11 @@
+---
+name: learn
+description: Capture durable lessons from the current session into project and global lessons.md files. Use when the user types /learn, says "remember this", "capture this lesson", "add this to lessons", or "write this down so we don't repeat it" — and proactively offer it after any session where the agent was corrected repeatedly, burned multiple attempts on the same problem, or discovered a non-obvious behavior worth keeping.
+---
+
 # /learn — Capture Knowledge
 
-Trigger: `/learn`
-
-When the user invokes `/learn`, there's something worth remembering. This covers ANY kind of learning:
+When this skill triggers, there's something worth remembering. This covers ANY kind of learning:
 
 **From struggles:**
 - The user had to correct or guide the agent

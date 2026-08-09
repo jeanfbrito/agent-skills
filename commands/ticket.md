@@ -1,14 +1,19 @@
+---
+description: Structured workflow to solve a ticket, Jira task, bug report, or feature request — analyze, research, branch, plan, implement, validate, self-review.
+argument-hint: [ticket key, Jira URL, or pasted ticket content]
+---
+
 # Ticket/Task Workflow
 
 You are starting a structured workflow to solve a ticket, Jira task, bug report, or feature request.
 
 ## Step 1: Receive the Ticket
 
-Ask the user to paste the ticket/task content. Say:
+The user may have passed the ticket as an argument: $ARGUMENTS
 
-"Paste the ticket, Jira task, bug report, or feature request below. I'll analyze it and create a plan."
-
-Wait for the user to paste the content. Do NOT proceed until they do.
+- **Jira key or URL** (e.g. `PROJ-123`, `https://…/browse/PROJ-123`): fetch it yourself — use the jira skill / `jira issue view <KEY>` if available. Only ask the user to paste if the fetch fails.
+- **Pasted ticket text**: use it directly.
+- **Nothing provided**: say "Paste the ticket, Jira task, bug report, or feature request below. I'll analyze it and create a plan." and wait. Do NOT proceed until they do.
 
 ## Step 2: Analyze the Ticket
 
@@ -30,11 +35,16 @@ Before planning, deeply research the relevant parts of the codebase:
 
 ## Step 4: Create a Branch
 
-**IMPORTANT**: The `dev` branch is the primary working branch for this project — all feature and fix branches MUST be created from `dev`. Do NOT reuse the current branch, do NOT branch from `master`, and do NOT skip this step even if you are already on a branch. Always start fresh from `dev`.
+**IMPORTANT**: Always start fresh from the project's integration branch. Do NOT reuse the current branch and do NOT skip this step even if you are already on a branch.
+
+Resolve the integration branch in this order:
+1. What the project's CLAUDE.md / CONTRIBUTING.md says (some projects branch off `dev`, never `master`)
+2. `origin/dev` if it exists
+3. The repo default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`)
 
 ```
-git fetch origin dev
-git checkout -b <branch-name> origin/dev
+git fetch origin <base>
+git checkout -b <branch-name> origin/<base>
 ```
 
 Branch naming convention: `<type>/<short-description>` (e.g., `fix/screen-picker-crash`, `feat/outlook-calendar-sync`)
