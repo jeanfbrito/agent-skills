@@ -105,14 +105,15 @@ Rules:
 
 ## 4. Compose two drafts
 
-**Team/manager version (default)** — 3–6 impact bullets, one optional
-"next week" line. No SHAs, no file paths, no jargon. This is the one you
-lead with.
+Two versions exist; `local-config.yml`'s `lead:` key decides which one you
+compose and present first (`team` if unset). Offer the other one after
+presenting the lead version — don't compose both unprompted.
 
-**Technical version (offer, don't force)** — same items, but with PR links
-and a brief technical note per bullet, suitable for an engineering channel.
-Offer it after presenting the team version; don't compose it unprompted if
-the user only wants the quick version.
+**Team/manager version** — 3–6 impact bullets, one optional "next week"
+line. No SHAs, no file paths, no jargon.
+
+**Technical version** — same items, but with PR links and a brief technical
+note per bullet, suitable for an engineering channel.
 
 ## 5. The empty-week rule
 
@@ -147,6 +148,7 @@ digest is approved. Gitignored (see repo `.gitignore`).
 
 ```yaml
 last_run: 2026-08-12 # window start for the next digest
+lead: team # which version to compose first: team | technical
 projects: # optional extra repos to sweep
   - /Users/jean/Github/Rocket.Chat.Electron
 channel: "" # optional: team channel name for the offer-to-post step
@@ -168,7 +170,7 @@ Before presenting the drafts, verify:
 - [ ] Every number in every bullet traces to a source (git, ledger, ticket)
 - [ ] Tone rules loaded from `shared/tone.md` and applied — no invented
       metrics, no defensive framing, outcome leads every bullet
-- [ ] 6 bullets or fewer in the team version
+- [ ] 6 bullets or fewer in the lead version
 - [ ] Empty-week rule honored if fewer than 2 items survived translation
 - [ ] Nothing posted anywhere without explicit approval of the exact text
 - [ ] `last_run` updated only after the user approved a digest (or agreed to
