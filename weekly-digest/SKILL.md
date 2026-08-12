@@ -131,8 +131,9 @@ should NOT advance `last_run`.
 
 ## 6. Deliver (draft-first, ALWAYS)
 
-Present both drafts in the conversation for the user to review and copy
-into their team channel themselves. If a Rocket.Chat or Slack connector is
+Present the draft inside a fenced code block (raw markdown, no blockquote
+`>` prefixes, no inline `[text](url)` links — bare URLs only) so the user
+can copy it wholesale from the terminal and paste it into their chat tool. If a Rocket.Chat or Slack connector is
 available in the session, OFFER to post the approved draft directly — but
 NEVER post without the user approving the exact final text first, word for
 word. No auto-sending, no "posting now unless you object."
