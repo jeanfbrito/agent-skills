@@ -8,7 +8,9 @@ Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code
 - **commit** — Smart git committing that groups related changes into separate, well-described commits. Triggered by `/commit`.
 - **jira** — Drive an Atlassian Cloud Jira workspace via [ankitpokhrel/jira-cli](https://github.com/ankitpokhrel/jira-cli) from Claude Code. Triggered by any Jira-related question. Personal defaults (site, email, primary project, default component, workflow status names) live in a gitignored `local-config.yml` populated by `setup.sh` — the skill itself ships only the generic playbook. A Linux-adapted variant for Hermes lives in `jira/hermes/`.
 - **grok-build** — Delegate coding tasks to xAI's Grok CLI (`grok`) running headless: implement, review, or diagnose code with verification patterns, session resume, and worktree isolation. Triggered by "use grok", "ask grok", "grok this". Requires the `grok` binary installed and authenticated (`grok login`).
-- **postmortem** — Write a post-mortem after a challenging task: full timeline including failed attempts, root causes, customer-safe framing rules, and durable lesson extraction into AGENTS.md and memory. Triggered by `/postmortem`, "write a post-mortem", "document what we learned".
+- **postmortem** — Write a post-mortem after a challenging task: full timeline including failed attempts, root causes, durable lesson extraction into AGENTS.md/memory/mastermind, and draft-first distribution (Confluence write-up, team-channel summary, optional blog handoff). Triggered by `/postmortem`, "write a post-mortem", "document what we learned". Loads the shared tone rules from `shared/tone.md`.
+
+Shared references live in `shared/` — currently `tone.md`, the tone/framing rules for any outward-facing text (post-mortems, PR descriptions, channel posts, replies to bug reports). Skills reference it by absolute path so it works through the symlink install.
 
 ## Commands
 
