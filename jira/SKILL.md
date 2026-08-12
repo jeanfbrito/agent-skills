@@ -143,6 +143,7 @@ jira issue list -q "assignee = currentUser() AND resolution = Unresolved AND sta
 ```
 
 Display rules:
+
 - **Exclude** tickets with status: Done, Mitigated, Parking Lot, Cancelled
 - **Sort by priority**: Highest → High → Medium → Low → Lowest → Unprioritized
 - **Include project column** (infer from key prefix) so cross-project view is clear
@@ -181,6 +182,11 @@ jira sprint list --project <KEY> --state future,active
 ## Write operations — confirm first, then act
 
 Mutations are cheap to perform but expensive to undo (especially in projects with many watchers). Before any of these, **echo the exact command back to the user and ask "shall I run this?"** unless the user explicitly said "go ahead and X" with the specifics.
+
+Before drafting any comment, description, or worklog note a human will read, load
+`~/Github/agent-skills/shared/tone.md` and apply it — especially no defensive lead
+when replying to a raised issue (investigate first, explain after) and real
+numbers only, no invented metrics.
 
 **Comment on an issue:**
 
@@ -233,7 +239,7 @@ jira issue edit <KEY> --custom story-points=3
 
 ## Workflow: synthesize session work into a ticket update
 
-When the user says any variant of *"update <KEY> with what we did"*, *"log today's work to the ticket"*, *"leave a status note on this issue"*, *"summarize what we shipped on the JIRA"*, or hands you a ticket key after a working session — this is the highest-value workflow this skill exists for. Don't just paste back the user's last message as a comment; the user already knew what they did. The job is to **synthesize the session's actual work into a comment future-you would want to read.**
+When the user says any variant of _"update <KEY> with what we did"_, _"log today's work to the ticket"_, _"leave a status note on this issue"_, _"summarize what we shipped on the JIRA"_, or hands you a ticket key after a working session — this is the highest-value workflow this skill exists for. Don't just paste back the user's last message as a comment; the user already knew what they did. The job is to **synthesize the session's actual work into a comment future-you would want to read.**
 
 ### What "session context" means
 
@@ -253,21 +259,21 @@ A comment written from this synthesis is dramatically more useful than one parap
 2. **Draft a comment** that's concise, factual, past-tense, and mentions concrete artifacts (PR link, commit SHA, file paths, version numbers). Aim for 1–3 short paragraphs. No greetings, no sign-offs, no thanks.
 3. **Echo the proposed comment AND the exact command** back to the user, formatted as a block quote followed by the bash. This is the contract — they see the wording before it lands on a ticket their team watches.
 4. **Wait for explicit confirmation.** "shall I post?" — and stop. Don't run the write until they say yes/go/post/ship/do it. Editing the wording on request is fine and expected.
-5. **Offer adjacent updates as a follow-up** in the same response: *"also want me to (a) log a worklog of Xh, (b) move it to Ready for QA, (c) link the PR via Smart Commits?"* — but as a question, not an assumed next step.
+5. **Offer adjacent updates as a follow-up** in the same response: _"also want me to (a) log a worklog of Xh, (b) move it to Ready for QA, (c) link the PR via Smart Commits?"_ — but as a question, not an assumed next step.
 
 ### Comment style guide
 
-| Do | Don't |
-|---|---|
+| Do                                                                 | Don't                                      |
+| ------------------------------------------------------------------ | ------------------------------------------ |
 | Past tense, declarative ("Bumped electron 28→30, patched 7 CVEs.") | Future/aspirational ("Will work on CVEs.") |
-| Concrete artifacts (PR #1234, file paths, commit SHAs, versions) | Vague ("did some work on the deps") |
-| Lead with the outcome, then context if needed | Bury the outcome in setup |
-| Skip greetings/signoffs — Jira knows who you are | "Hi team," / "Thanks!" / "— Name" |
-| Mention follow-ups explicitly if any | Leave them implied |
+| Concrete artifacts (PR #1234, file paths, commit SHAs, versions)   | Vague ("did some work on the deps")        |
+| Lead with the outcome, then context if needed                      | Bury the outcome in setup                  |
+| Skip greetings/signoffs — Jira knows who you are                   | "Hi team," / "Thanks!" / "— Name"          |
+| Mention follow-ups explicitly if any                               | Leave them implied                         |
 
 ### Worked example
 
-**User:** *(after a session)* update PROJ-1755 with what we shipped today
+**User:** _(after a session)_ update PROJ-1755 with what we shipped today
 
 **You (good):**
 
@@ -301,11 +307,11 @@ The bad version wastes the context Claude Code has. The good version captures wh
 
 ### When the user IS the source of truth
 
-If the user explicitly dictates the comment ("post 'PR coming today' on PROJ-1755"), don't editorialize — use their wording verbatim. Synthesis is for when they ask you to capture *what we did*, not when they're handing you a literal message to send.
+If the user explicitly dictates the comment ("post 'PR coming today' on PROJ-1755"), don't editorialize — use their wording verbatim. Synthesis is for when they ask you to capture _what we did_, not when they're handing you a literal message to send.
 
 ## Workflow: open a new ticket for in-flight work
 
-The mirror image of "synthesize → update": the user is mid-work on something that doesn't have a ticket yet, and asks you to create one. Triggers: *"open a ticket for this"*, *"create a jira task for what I'm working on"*, *"there's no ticket yet — can you make one"*, *"file a bug for what we just hit"*. This is a write — same safety posture as comments.
+The mirror image of "synthesize → update": the user is mid-work on something that doesn't have a ticket yet, and asks you to create one. Triggers: _"open a ticket for this"_, _"create a jira task for what I'm working on"_, _"there's no ticket yet — can you make one"_, _"file a bug for what we just hit"_. This is a write — same safety posture as comments.
 
 ### Decisions you have to make first
 
@@ -325,10 +331,12 @@ The mirror image of "synthesize → update": the user is mid-work on something t
    If genuinely unsure about which type fits, ASK. Default-guessing wrong clutters the wrong reports.
 
 3. **Component.** If `defaults.default_component` is set in `local-config.yml` AND you're filing in the primary project, pass `--component <value>`. To list a project's components:
+
    ```bash
    curl -sS -u "$ATLASSIAN_EMAIL:$JIRA_API_TOKEN" \
      "https://$ATLASSIAN_SITE/rest/api/3/project/<KEY>/components" | jq '.[].name'
    ```
+
    Other projects often don't use components — don't force one in.
 
 4. **Parent / epic link.** Many projects organize Stories/Improvements/Bugs under an Epic. If you've been working in a feature branch named like `feat/PROJ-1234-foo`, that issue key is probably the parent epic — use `--parent PROJ-1234`. If you can't tell, omit the flag and the user can add it after.
@@ -337,11 +345,11 @@ The mirror image of "synthesize → update": the user is mid-work on something t
 
 **Summary** — one line, imperative, ≤ 80 chars, no period. Lead with the verb. Include enough specifics that someone scanning a backlog gets it without opening the ticket.
 
-| Good summary | Bad summary |
-|---|---|
-| "Audio echoes after Bluetooth headset reconnects mid-call" | "Audio bug" |
-| "Bump framework 28 → 30 and patch 7 transitive CVEs" | "Update dependencies" |
-| "Crash on macOS arm64 when opening Settings while in DND" | "Settings crash" |
+| Good summary                                               | Bad summary           |
+| ---------------------------------------------------------- | --------------------- |
+| "Audio echoes after Bluetooth headset reconnects mid-call" | "Audio bug"           |
+| "Bump framework 28 → 30 and patch 7 transitive CVEs"       | "Update dependencies" |
+| "Crash on macOS arm64 when opening Settings while in DND"  | "Settings crash"      |
 
 **Description** — three short sections, no headers needed unless the description gets long:
 
@@ -378,7 +386,7 @@ Status: investigating, no PR yet." \
 3. Draft summary + description.
 4. Echo the proposed `jira issue create` command back to the user **including** the rendered summary + description as a block quote so they can read what's about to land.
 5. Wait for confirmation. Stop.
-6. After creation, jira-cli prints the new key. Capture it and offer follow-ups: *"Created PROJ-2117. Want me to (a) assign it to you, (b) link the PR via Smart Commits, (c) add it to the active sprint?"*
+6. After creation, jira-cli prints the new key. Capture it and offer follow-ups: _"Created PROJ-2117. Want me to (a) assign it to you, (b) link the PR via Smart Commits, (c) add it to the active sprint?"_
 
 ### Common slips to avoid
 
@@ -394,7 +402,7 @@ A common pattern: a customer-reported issue lives in a support project; the engi
 
 ### When the user mentions a ticket by URL or key
 
-If the user says *"I'm working on SUPP-1025"* or pastes a Jira URL, **load the ticket context first** before doing anything else. The user may assume you already know what's in it; you don't.
+If the user says _"I'm working on SUPP-1025"_ or pastes a Jira URL, **load the ticket context first** before doing anything else. The user may assume you already know what's in it; you don't.
 
 ```bash
 source ~/.claude/skills/jira/jira-env.sh && jira issue view SUPP-1025
@@ -407,17 +415,17 @@ curl -sS -u "$ATLASSIAN_EMAIL:$JIRA_API_TOKEN" \
   "https://$ATLASSIAN_SITE/rest/api/3/issue/SUPP-1025?fields=summary,status,description,issuelinks" | jq .
 ```
 
-Also scan the **summary text for bare ticket references** like *"PROJ-595 is Done, worked for a while, but now it doesn't work anymore."* — those are informal links the team relies on but Jira doesn't treat as formal `issuelinks`. When you see them, mention the related tickets to the user and offer to view them too.
+Also scan the **summary text for bare ticket references** like _"PROJ-595 is Done, worked for a while, but now it doesn't work anymore."_ — those are informal links the team relies on but Jira doesn't treat as formal `issuelinks`. When you see them, mention the related tickets to the user and offer to view them too.
 
 ### Comment voice depends on audience
 
-| Project audience | Voice |
-|---|---|
+| Project audience                                                          | Voice                                                                                                                                                                      |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Customer-facing (support tickets often visible to the customer who filed) | Plain English, no internal jargon, no PR/SHA gunk, customer-progress-oriented ("Confirmed the regression on Windows 11. Working on a fix; expect it in the next release.") |
-| Internal engineering | Technical, precise, artifact-heavy (PR, commit, file paths, version numbers) |
-| Mixed (PM, eng, occasionally exec) | Outcome-oriented; technical detail in collapsibles or links |
+| Internal engineering                                                      | Technical, precise, artifact-heavy (PR, commit, file paths, version numbers)                                                                                               |
+| Mixed (PM, eng, occasionally exec)                                        | Outcome-oriented; technical detail in collapsibles or links                                                                                                                |
 
-When the user asks you to *"comment on SUPP-1025 with what I'm doing"*, draft for the customer audience even though they framed it as their own work — strip jargon, lead with outcome. When they ask you to comment on the engineering-side fix ticket, use the technical voice.
+When the user asks you to _"comment on SUPP-1025 with what I'm doing"_, draft for the customer audience even though they framed it as their own work — strip jargon, lead with outcome. When they ask you to comment on the engineering-side fix ticket, use the technical voice.
 
 ### Spawning an engineering follow-up linked to a support ticket
 
@@ -445,14 +453,14 @@ to enumerate what's actually configured, and ask the user which direction makes 
 
 ## Output discipline
 
-| Goal | Flags |
-|---|---|
-| Show the user a readable list | (defaults — TUI table) |
-| Pipe to `head`, `awk`, etc. | `--plain --no-headers` |
-| Pick specific columns | `--plain --no-headers --columns key,summary,status,assignee` |
-| Get raw JSON for further processing | `--raw` |
-| CSV for spreadsheet export | `--csv` |
-| Fixed pagination | `--paginate 1:N` (page:size) |
+| Goal                                | Flags                                                        |
+| ----------------------------------- | ------------------------------------------------------------ |
+| Show the user a readable list       | (defaults — TUI table)                                       |
+| Pipe to `head`, `awk`, etc.         | `--plain --no-headers`                                       |
+| Pick specific columns               | `--plain --no-headers --columns key,summary,status,assignee` |
+| Get raw JSON for further processing | `--raw`                                                      |
+| CSV for spreadsheet export          | `--csv`                                                      |
+| Fixed pagination                    | `--paginate 1:N` (page:size)                                 |
 
 ## JQL cookbook
 
