@@ -8,6 +8,7 @@ Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code
 - **commit** — Smart git committing that groups related changes into separate, well-described commits. Triggered by `/commit`.
 - **jira** — Drive an Atlassian Cloud Jira workspace via [ankitpokhrel/jira-cli](https://github.com/ankitpokhrel/jira-cli) from Claude Code. Triggered by any Jira-related question. Personal defaults (site, email, primary project, default component, workflow status names) live in a gitignored `local-config.yml` populated by `setup.sh` — the skill itself ships only the generic playbook. A Linux-adapted variant for Hermes lives in `jira/hermes/`.
 - **grok-build** — Delegate coding tasks to xAI's Grok CLI (`grok`) running headless: implement, review, or diagnose code with verification patterns, session resume, and worktree isolation. Triggered by "use grok", "ask grok", "grok this". Requires the `grok` binary installed and authenticated (`grok login`).
+- **postmortem** — Write a post-mortem after a challenging task: full timeline including failed attempts, root causes, customer-safe framing rules, and durable lesson extraction into AGENTS.md and memory. Triggered by `/postmortem`, "write a post-mortem", "document what we learned".
 
 ## Commands
 
@@ -24,6 +25,7 @@ ln -s ~/Github/agent-skills/learn ~/.claude/skills/learn
 ln -s ~/Github/agent-skills/commit ~/.claude/skills/commit
 ln -s ~/Github/agent-skills/jira ~/.claude/skills/jira
 ln -s ~/Github/agent-skills/grok-build ~/.claude/skills/grok-build
+ln -s ~/Github/agent-skills/postmortem ~/.claude/skills/postmortem
 ln -s ~/Github/agent-skills/commands/ticket.md ~/.claude/commands/ticket.md
 ```
 
