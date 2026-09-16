@@ -6,6 +6,7 @@ Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code
 
 - **learn** — Capture knowledge from coding sessions into project + global `lessons.md` files. Triggered by `/learn`.
 - **commit** — Smart git committing that groups related changes into separate, well-described commits. Triggered by `/commit`.
+- **babysit** — Monitor an open PR after it is filed: triage incoming review-bot comments and failing checks through `superpowers:receiving-code-review`, push the fixes worth making, and loop until a cycle produces no actionable feedback — stopping immediately when a human reviewer comments. Triggered by `/babysit`, "babysit this PR", "watch the PR", "handle the review bots". Agrees an explicit autonomy contract before the first push; batches all PR prose into one summary comment approved before posting. Loads the shared tone rules from `shared/tone.md`; optional cadence/bot-allowlist state lives in a gitignored `local-config.yml` created on first run.
 - **jira** — Drive an Atlassian Cloud Jira workspace via [ankitpokhrel/jira-cli](https://github.com/ankitpokhrel/jira-cli) from Claude Code. Triggered by any Jira-related question. Personal defaults (site, email, primary project, default component, workflow status names) live in a gitignored `local-config.yml` populated by `setup.sh` — the skill itself ships only the generic playbook. A Linux-adapted variant for Hermes lives in `jira/hermes/`.
 - **grok-build** — Delegate coding tasks to xAI's Grok CLI (`grok`) running headless: implement, review, or diagnose code with verification patterns, session resume, and worktree isolation. Triggered by "use grok", "ask grok", "grok this". Requires the `grok` binary installed and authenticated (`grok login`).
 - **postmortem** — Write a post-mortem after a challenging task: full timeline including failed attempts, root causes, durable lesson extraction into AGENTS.md/memory/mastermind, and draft-first distribution (Confluence write-up, team-channel summary, optional blog handoff). Triggered by `/postmortem`, "write a post-mortem", "document what we learned". Loads the shared tone rules from `shared/tone.md`.
@@ -13,6 +14,9 @@ Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code
 - **proposal** — Draft a one-page technical initiative proposal backed by real evidence mined from the project (known issues, git history, ledger, CI patterns). Triggered by `/proposal`, "draft a proposal", "propose an initiative", "write an improvement proposal", "make the case for X". Draft-first, never files or posts without approval. Loads the shared tone rules from `shared/tone.md`. Intended cadence: roughly quarterly.
 - **update-skill** — Create or update a skill in this repo (`~/Github/agent-skills`), keeping SKILL.md frontmatter, README wiring, and symlink install in sync. Triggered by `/update-skill`, "create a skill", "new skill", "update the X skill", "fix the description of skill Y", "add a skill for Z".
 - **skill-checkup** — Grades the skills in this repo against recent local Claude Code session history (efficiency + code-quality rubrics, real skill-invocation coverage), then drafts concrete SKILL.md edits and a local, shareable HTML report. Triggered by `/skill-checkup`, "skill checkup", "grade my skills", "how are my skills doing", "which skills never trigger", "audit my skills". Adapted from [warpdotdev/common-skills](https://github.com/warpdotdev/common-skills) `skill-doctor` (MIT License). Everything runs locally; edits are draft-first, applied only via `update-skill` after approval.
+- **procedural-animation** — Character and procedural animation reference corpus (Daniel Holden / orangeduck, 2017-2026): a task-to-reference routing table for foot sliding, leg-chain and two-bone IK, locomotion models, springs/dampers/inertialization, motion matching, and rotation representations for networks, plus the working code and an explicit list of what it does not cover. Triggered by "foot sliding", "foot locking", "two-bone IK", "inverse kinematics", "locomotion model", "character feels floaty", "spring damper", "inertialization", "motion matching", "unroll rotations", "procedural animation". Self-contained (no vault or network needed); detail lives in `procedural-animation/references/`. Compiled from 12 sources captured in the Obsidian vault at `~/Github/mindness`.
+- **worktree-gc** — Find and remove git worktrees, local branches, and stashes left behind by merged or abandoned work, with a dry-run report first and deletion only of what the user confirms. Triggered by `/worktree-gc`, "clean up worktrees", "gc worktrees", "remove merged worktrees".
+- **yt-transcript** — moved to its own repo, `~/Github/yt2txt` (`skill/yt-transcript`); `./install.sh` there installs the `yt2txt` / `yt2frame` CLIs and links the skill.
 
 Shared references live in `shared/` — currently `tone.md`, the tone/framing rules for any outward-facing text (post-mortems, PR descriptions, channel posts, replies to bug reports). Skills reference it by absolute path so it works through the symlink install.
 
@@ -29,6 +33,7 @@ git clone https://github.com/jeanfbrito/agent-skills.git ~/Github/agent-skills
 mkdir -p ~/.claude/skills ~/.claude/commands
 ln -s ~/Github/agent-skills/learn ~/.claude/skills/learn
 ln -s ~/Github/agent-skills/commit ~/.claude/skills/commit
+ln -s ~/Github/agent-skills/babysit ~/.claude/skills/babysit
 ln -s ~/Github/agent-skills/jira ~/.claude/skills/jira
 ln -s ~/Github/agent-skills/grok-build ~/.claude/skills/grok-build
 ln -s ~/Github/agent-skills/postmortem ~/.claude/skills/postmortem
@@ -36,6 +41,8 @@ ln -s ~/Github/agent-skills/weekly-digest ~/.claude/skills/weekly-digest
 ln -s ~/Github/agent-skills/proposal ~/.claude/skills/proposal
 ln -s ~/Github/agent-skills/update-skill ~/.claude/skills/update-skill
 ln -s ~/Github/agent-skills/skill-checkup ~/.claude/skills/skill-checkup
+ln -s ~/Github/agent-skills/worktree-gc ~/.claude/skills/worktree-gc
+ln -s ~/Github/agent-skills/procedural-animation ~/.claude/skills/procedural-animation
 ln -s ~/Github/agent-skills/commands/ticket.md ~/.claude/commands/ticket.md
 ```
 

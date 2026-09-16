@@ -3,3 +3,5 @@ weekly-digest/local-config.yml.bak.*
 __pycache__/
 jira/local-config.yml
 jira/local-config.yml.bak.*
+babysit/local-config.yml
+babysit/local-config.yml.bak.*
