@@ -5,3 +5,5 @@ jira/local-config.yml
 jira/local-config.yml.bak.*
 babysit/local-config.yml
 babysit/local-config.yml.bak.*
+.DS_Store
+.knowledge/
