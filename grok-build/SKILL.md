@@ -40,6 +40,7 @@ Grok tasks take minutes. NEVER run in foreground Bash (the smoke-test-sized prom
     > /path/to/scratchpad/grok-result.json 2> /path/to/scratchpad/grok-stderr.log
   ```
 - Or dispatch a `watcher` agent to run it and return a digest (per AGENTIC.md rule 4b).
+- **A subagent driving the CLI must run it in the FOREGROUND** (`run_in_background: false`, generous Bash `timeout`). Backgrounding only works for the main session, which can receive the completion notification. A subagent that backgrounds the run ends its turn immediately and reports something like "the job is running, I'll verify when it completes" — but the notification is delivered to the *parent*, so the subagent is never resumed and its verification never happens. Observed three times in one session. If the foreground call times out, resume in the foreground with `-r <sessionId>` rather than switching to background.
 - Liveness check on a long run: use `--output-format streaming-json` (NDJSON of session updates; `streaming-messages-json` for Anthropic wire format, `--include-partial-messages` for deltas) and `tail` the log — a growing file means it's working.
 - On completion, read only the parsed `.text` (and the git diff) — not the raw log.
 
@@ -88,6 +89,29 @@ Constrains the model to schema-valid JSON (implies `--output-format json`).
 - Write the brief like a builder-agent brief: task, constraints/contracts, files in scope, verification command, definition of done.
 - `--rules "<extra>"` appends ad-hoc rules to its system prompt without editing files; `--system-prompt-override` replaces it entirely (rarely wanted).
 - `--disable-web-search` when the task must stay offline; `--no-subagents` to keep it single-agent and cheaper; `--no-plan` to skip plan mode on small tasks.
+
+## Invariants must be mechanical, not prompt text
+
+`--rules`, `--system-prompt-override` and brief text are *requests*. Anything you would be unhappy to discover afterwards needs an enforcement mechanism the agent cannot talk its way past.
+
+Worked example: a project whose orchestrator owns the task ledger told Grok, in `--rules` and again in the brief, never to write `.localdev/workflow/*.md`. It did anyway, twice, in separate runs — each time writing an accurate entry, which is precisely why prose failed to stop it: the action looked helpful. The fix that worked was three lines in the wrapper:
+
+```bash
+LEDGER=(todo.md done.md blockers.md findings.md)   # resolve to real paths first
+trap 'chmod u+w "${LEDGER[@]}" 2>/dev/null' EXIT INT TERM
+chmod a-w "${LEDGER[@]}"
+"${CMD[@]}" > result.json 2> stderr.log
+chmod u+w "${LEDGER[@]}"
+```
+
+Generalise it:
+
+- **Files that must not change** → make them read-only for the duration of the run and restore on any exit (`trap ... EXIT INT TERM`, so a kill or a timeout still restores them).
+- **Calls that must not appear** → a grep-based check in the repo's own test suite, whitelisting by *enclosing function name* rather than line number so it survives edits, failing non-zero on any hit. Keep it in the suite the DoD already runs.
+- **Paths that must not be touched** → `--deny` rules plus worktree isolation (`-w`), not a sentence in the brief.
+- **Numbers that must not move** → record them before the run and diff after; "behaviour-neutral" is a claim to verify, not to accept.
+
+Corollary for briefs: state the invariant anyway (it helps Grok cooperate), but never let it be the *only* thing standing between the run and an outcome you cannot undo.
 
 ## After Grok finishes
 
