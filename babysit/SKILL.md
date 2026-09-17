@@ -1,184 +1,179 @@
 ---
 name: babysit
-description: Monitors an open pull request after it is filed, triages incoming automated review-bot comments and CI failures through `superpowers:receiving-code-review`, pushes the fixes worth making, and loops until a full cycle produces no actionable feedback. Stops and hands back the moment a human reviewer comments. Triggered by "/babysit", "babysit this PR", "babysit PR #123", "watch the PR", "keep an eye on that PR", "handle the review bots", or immediately after a skill opens a PR. Draft-first: agrees an explicit autonomy contract before the first push, and batches all outward-facing PR prose into one summary comment approved before posting.
+description: Babysits an open pull request until every check is green — always in its own git worktree, never asking first — by dispatching a background haiku watcher that polls for new review-bot comments and check results, then reading the whole batch, triaging all of it through `superpowers:receiving-code-review`, planning every change before editing, pushing, and re-dispatching the watcher. Stops and hands back the moment a human reviewer comments. Triggered by "/babysit", "babysit this PR", "babysit PR #123", "watch the PR", "keep an eye on that PR", "get the PR green", "handle the review bots", or immediately after a skill opens a PR. Draft-first for anything posted to the PR.
 ---
 
 # Babysit
 
-Take a PR from "filed" to "the bots have nothing left to say" without the
-user relaying comments by hand.
+Take a PR from "filed" to **green** without the user relaying comments by
+hand. Green — every check concluded successfully, no unanswered bot finding —
+is the only condition under which this skill reports "done". Everything else
+is a hand-back with a reason.
 
 ## Purpose
 
-The loop being replaced is: PR opens → review bots comment → user reads the
-comments → user copy-pastes the ones they agree with into a session → agent
-fixes → push → bots comment again. Three or four rounds of that is normal,
-and every round costs a context switch.
+The loop being replaced: PR opens → bots comment / CI fails → user reads →
+user pastes what they agree with into a session → agent fixes → push → repeat.
 
-This skill closes that loop. The failure mode it must avoid is the obvious
-one: an agent that implements every bot suggestion is not reviewing, it is
-laundering bot noise into commits. **Judgment is the point.** A cycle that
-declines four of five suggestions with reasons is a successful cycle.
+The failure mode to avoid: an agent that implements every bot suggestion is
+not reviewing, it is laundering noise into commits. **Judgment is the point.**
+A batch that declines four of five suggestions with reasons is a good batch.
 
-## 0. Agree the autonomy contract (REQUIRED, before anything else)
+## 0. State the contract (once, before the first push)
 
-This skill pushes commits without per-commit approval, so the scope has to be
-explicit once, up front. Present this and get a clear yes:
+This skill pushes commits without per-commit approval, so scope is stated
+once. Present this and get a clear yes — the worktree line is a statement,
+not a question:
 
-> Babysitting PR #N (`<title>`), branch `<headRefName>`.
-> I will: read new bot comments and failing checks each cycle, decide which
-> are worth acting on, commit and push fixes to that branch.
+> Babysitting PR #N (`<title>`), branch `<headRefName>`, in its own worktree.
+> Each round I read every new bot comment and failing check, decide which are
+> worth acting on, plan all fixes together, commit, push, and go back to
+> watching. I keep going until every check is green.
 > I will NOT: force-push, rebase, touch the base branch, resolve review
 > threads, merge, or post any comment until you approve the text.
-> I will stop and hand back if a human comments, if CI fails for a reason
-> unrelated to my changes, or after <N> cycles.
-> Cadence: every <interval>. Proceed?
+> I stop and hand back the moment a human comments or the branch moves under
+> me. Proceed?
 
-If the user declines any part, adjust the contract, don't proceed around it.
-If they want zero autonomous pushes, degrade gracefully: run the same triage
-and hand back a patch per cycle instead of pushing.
+If the user wants zero autonomous pushes, degrade gracefully: same triage,
+hand back a patch per round instead of pushing.
 
-## Tone (applies to every word that lands on the PR)
+## Tone (every word that lands on the PR)
 
 **Read the full rules first**: `~/Github/agent-skills/shared/tone.md`
-(REQUIRED — load it with Read; absolute path, this skill is symlink-installed
-and a relative path breaks).
-
-Called out inline, because declining review feedback is exactly where tone
-goes wrong:
+(REQUIRED — load it with Read; absolute path, this skill is symlink-installed).
+Inline, because declining review feedback is where tone goes wrong:
 
 - **No defensive lead.** A declined suggestion opens with what was checked,
-  then the reason. Never "as the code already shows" or "that's not how it
-  works".
+  then the reason. Never "as the code already shows".
 - **Real numbers only.** "Runs on every keystroke" needs a line reference or
-  a measurement, not an impression.
-- **Frame gaps as scope**, not failure — per Rule 1 of the tone doc.
+  a measurement.
+- **Frame gaps as scope**, not failure — Rule 1 of the tone doc.
 
 ## 1. Resolve the PR
 
-If the user gave a number, use it. If they said "this PR" or the skill was
-chained after one was opened, resolve from the branch:
-
 ```bash
-gh pr view --json number,url,title,state,headRefName,headRefOid,mergeStateStatus,reviewDecision
+gh pr view <n> --json number,url,title,state,headRefName,headRefOid,author
 ```
 
-Confirm `state` is `OPEN`. A closed or merged PR is nothing to babysit — say
-so and stop. Record `headRefOid`; it is how you detect that someone else
-pushed underneath you.
+`state` must be `OPEN`; a closed or merged PR is nothing to babysit. Record
+`headRefOid` (detects someone else pushing) and `author.login` (excluded
+from the poll — the author is the person directing the loop, not a reviewer).
 
-## 2. Each cycle: gather
+## 2. Worktree — always, without asking
 
-```bash
-# issue-level comments (review bots usually post here)
-gh pr view <n> --json comments,reviews,statusCheckRollup,headRefOid
+Every babysit runs in an isolated worktree on the PR's head branch. Do not
+ask; the user has declared this preference here. Follow
+`superpowers:using-git-worktrees` with that preference already answered:
 
-# inline review comments — this endpoint carries user.type, which the
-# above does not reliably expose
-gh api repos/{owner}/{repo}/pulls/<n>/comments --paginate
+- Already in a linked worktree on `<headRefName>` → use it.
+- Native tool available (`EnterWorktree`) → use it, checking out the
+  **existing** branch `<headRefName>`.
+- Otherwise `git worktree add .worktrees/<headRefName> <headRefName>` (no
+  `-b`; the branch exists), after confirming `.worktrees` is gitignored.
 
-# check status, human-readable
-gh pr checks <n>
-```
+Skip the full baseline test run — a monorepo baseline is not what this skill
+verifies. Install dependencies lazily, the first time a focused check needs
+them. All edits, checks, commits and pushes happen inside this worktree; the
+user's main checkout is never touched.
 
-Process only what is **new since the last cycle** — track the highest comment
-id and the last `headRefOid` you saw. Re-triaging the same comment every
-cycle is the main way this skill wastes tokens.
+## 3. Dispatch the haiku watcher
 
-Prefer routing the raw output through context-mode so full comment bodies and
-CI logs stay out of the conversation; surface only the triaged items.
+The main model does **not** poll. It dispatches one background watcher and
+waits for the notification:
 
-When a check has failed and you need the actual log to triage it, do not pull
-`gh run view --log` into this loop. Dispatch a `watcher` agent (when delegation
-is authorized) pointed at the failing run and keep only what it returns — a
-`STATUS:` line plus the verbatim error. Over six cycles that is the difference
-between a lean loop and one slowly filling with build output.
+- Agent tool, `subagent_type: "watcher"`, `model: "haiku"`, background.
+- Prompt from `~/Github/agent-skills/babysit/references/watcher-brief.md`,
+  filled with PR number, `headRefOid`, the three id cursors (0 on the first
+  round), `bot_authors` from `local-config.yml`, and the poll interval.
+- The watcher loops `~/Github/agent-skills/babysit/watch-pr.sh` and returns
+  one structured report: `STATUS`, `HEAD`, `CURSORS`, `HUMANS`, `CHECKS`,
+  every new feedback item verbatim, and ≤ 40 lines of verbatim error per
+  failed check. Raw comment bodies and CI logs stay in the watcher.
 
-## 3. Each cycle: classify the author
+Never predict the watcher's result. If the user asks before it returns, say
+it is still watching. Carry the returned `CURSORS` and `HEAD` into the next
+dispatch so nothing is re-triaged; track **ids only** — GitHub re-anchors an
+inline comment's `commit_id` onto later commits, so `commit_id` is not
+evidence of anything new.
 
-| Author | Action |
+## 4. On report: classify before anything else
+
+| `STATUS` | Action |
 | --- | --- |
-| `user.type == "Bot"`, or login ends in `[bot]` | Triage autonomously |
-| Known bot account in `local-config.yml` | Triage autonomously |
-| Anyone else — a human | **STOP the loop.** Summarize and hand back. |
+| `human` | **STOP.** Summarize what arrived and hand back. A human reviewer is owed the user's reply, not an agent's. |
+| `sha_moved` | **STOP.** Someone else pushed; the user decides how to reconcile. |
+| `closed` | Stop; nothing to babysit. |
+| `checks-green` with no new feedback | **Done** — go to §7. |
+| `feedback`, `checks-failed`, `deadline` | Continue to §5. |
 
-A human reviewer spent real attention and is owed a real reply from the user,
-not an agent's. Ending the loop on the first human comment is a feature.
+A bot is `user.type == "Bot"`, a login ending in `[bot]`, or a login listed
+in `bot_authors`. `gh pr comment` posts as the authenticated user, which is
+the PR author — already excluded by the poll, so the loop cannot stop on its
+own output.
 
-## 4. Each cycle: triage
+## 5. Read everything, then plan everything, then edit
 
-**Route every item through `superpowers:receiving-code-review`** before
-touching code. That skill exists to keep review feedback from being
-implemented on reflex, and it is the difference between this loop improving
-the PR and it degrading the PR. Do not skip it because the suggestion looks
-obvious.
+No file is touched until the whole batch has been read and planned.
 
-For each item, land on one of:
+1. **Read every item** in the report — every comment, every review body,
+   every inline finding, every failed-check excerpt. Not the first few.
+2. **Route every item through `superpowers:receiving-code-review`.** It
+   exists to stop feedback being implemented on reflex. Do not skip it
+   because a suggestion looks obvious.
+3. **Write the plan** — one table for the batch, one row per item:
+   `#id | source | verdict | evidence | commit group`. Verdicts:
+   - **Act** — the finding is real. Say which files change.
+   - **Decline** — wrong, already handled, out of scope. Record the
+     evidence (file:line, a test, a doc link).
+   - **Escalate** — correct but bigger than this PR or changes a contract.
+     Goes to the user in the final report, not fixed silently.
+   A failing check is a row too: caused by this PR → Act; flaky or
+   pre-existing → rerun it once (`gh run rerun <run-id> --failed`), and if it
+   fails again → Escalate, because the PR cannot go green without the user.
+4. Group the Act rows into coherent commits — one per fix, not one per
+   comment — and note where two items touch the same code so one edit
+   resolves both.
+5. Only now start editing, working the plan in order.
 
-- **Act** — the finding is real. Fix it.
-- **Decline** — wrong, already handled, or out of scope. Record the reason
-  and the evidence (file:line, a test, a doc link).
-- **Escalate** — correct but larger than this PR, or it changes a contract.
-  Do not fix it silently; it goes to the user in the final report.
+Planning the batch as a whole is what stops item 3 undoing item 1's fix.
 
-A failing check is triaged the same way: if the failure is caused by this
-PR, fix it. If it is a flaky or pre-existing failure, that is an Escalate,
-not something to paper over by touching unrelated code.
+## 6. Fix, verify, push, watch again
 
-## 5. Each cycle: fix and push
+- Run the project's focused checks on what changed. Dispatch a `watcher`
+  (haiku) to run them and return `STATUS:` plus verbatim failures; never let
+  a full test log into this loop. Never push an unverified fix.
+- `git push` from the worktree to the existing branch. Never `--force`,
+  never rebase.
+- Record the new `headRefOid`, then **re-dispatch the watcher (§3)** with the
+  new HEAD and the cursors from the last report. Go back to §4.
+- Round bookkeeping: if the same finding has now survived two of your
+  fixes, stop trying variants — per AGENTIC.md, diagnose the root constraint
+  before a third attempt, and say so in the report.
+- Every `cycle_cap` rounds, post a short progress note to the user (rounds,
+  commits, what is still red) and keep going. The cap is a check-in, not an
+  exit.
 
-- One commit per coherent fix, not one commit per bot comment.
-- Run the project's own focused checks on what changed before pushing. Same
-  rule as §2: dispatch a `watcher` to run them and return the verdict, rather
-  than letting a full test or build log into the loop. If delegation is not
-  authorized, run them directly but keep only the verdict and any verbatim
-  failure. Never push on an unverified fix.
-- `git push` to the existing branch. Never `--force`, never rebase — the
-  user or a reviewer may be reading the diff while you work.
-- If `headRefOid` moved without you, someone else pushed: stop, report, and
-  let the user decide. Do not merge or reconcile on your own.
+## 7. Finish: green only
 
-## 6. Exit conditions
+Done means: the latest report is `checks-green`, it carried no new bot
+feedback, and every Act row from every batch is pushed. Then:
 
-Stop and report when any of these hit — whichever comes first:
+**The one comment.** If anything was declined or escalated across all
+rounds, draft **one** PR comment: fixed / declined with reasons / escalated.
+Run the tone doc's reread gate and grep check. Show the exact text, get
+explicit approval, then `gh pr comment <n> --body-file <file>`. If nothing
+was declined or escalated, skip the comment and say so.
 
-- A full cycle produced no new actionable bot feedback **and** checks pass.
-- A human commented (§3).
-- The branch moved underneath you (§5).
-- The cycle cap from the contract is reached.
-- The same finding has now failed to be resolved twice — per AGENTIC.md,
-  that is a root-constraint problem, not a third-attempt problem.
-
-## 7. The one comment
-
-Do not reply per item during the loop; batch it. On exit, if anything was
-declined or escalated, draft **one** summary comment covering all of it:
-what was fixed, what was declined and why, what was escalated.
-
-Show the user the exact final text and get explicit approval before posting.
-Run the tone doc's reread gate and its grep check on the draft first. Post
-with `gh pr comment <n> --body-file <file>` only after approval.
-
-If everything was acted on and nothing declined, there is nothing worth
-posting. Say so and skip the comment.
-
-## 8. Final report
-
-Lead with plain language, then detail:
-
-- Cycles run, commits pushed, current check status
-- **Acted**: one line each
-- **Declined**: one line each, with the reason
-- **Escalated**: what needs the user's decision — this is the section they
-  actually have to read
+**Final report**, plain language first:
+- Rounds run, commits pushed, check status (green)
+- **Acted** / **Declined** (with reason) / **Escalated** — one line each;
+  Escalated is the section the user has to read
+- Worktree path, and whether it can be removed
 - Whether the PR now looks ready for a human
 
-## Cadence
-
-`/loop <interval> /babysit <n>` is the natural driver. Match the interval to
-the project's CI duration — polling every minute while a 12-minute pipeline
-runs burns tokens for no signal. When the CI time is unknown, 5 minutes is a
-reasonable first guess; widen it once the real duration is observed.
+Any exit other than green is a **hand-back**, not a finish: lead with the
+reason (`human`, `sha_moved`, root-constraint, un-rerunnable failure), then
+the same report.
 
 ## local-config.yml (optional, gitignored)
 
@@ -186,9 +181,13 @@ Created lazily on first run, next to this file. Ships with no real values.
 
 ```yaml
 # ~/Github/agent-skills/babysit/local-config.yml
-poll_interval: 5m       # default cadence
-cycle_cap: 6            # max cycles before handing back
+poll_interval: 120      # seconds between polls inside the watcher
+watcher_deadline: 45    # minutes a single watcher dispatch lives before reporting "deadline"
+cycle_cap: 6            # rounds between progress check-ins (not an exit)
 bot_authors:            # extra non-"[bot]" accounts to treat as automated
   - coderabbitai
   - sonarcloud
 ```
+
+Match `poll_interval` to the project's CI duration: polling every minute
+during a 12-minute pipeline burns tokens for no signal.
