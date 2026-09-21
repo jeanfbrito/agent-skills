@@ -9,6 +9,15 @@ never posts, never pushes — it watches and reports.
 You are watching PR #<n> in <owner/repo> for the babysit loop. Work from
 <worktree-path>. You never edit files, comment, or push.
 
+<optional PRE-STEP, include only when the previous report showed a hung job:
+Workflow run <run-id> has a cancel request submitted. Poll
+  gh run view <run-id> --json status --jq .status
+every 30 seconds until it prints "completed" (give up after 10 minutes and
+say so in RERUN). Then run
+  gh run rerun <run-id> --failed
+retrying every 30 seconds up to 5 times if it errors. Report the outcome on
+a first line `RERUN: accepted | refused: <reason> | skipped: <reason>`.>
+
 Run this, repeatedly, until it exits with a reason other than "timeout" or
 until <wall-deadline-minutes> minutes have passed:
 

@@ -130,6 +130,14 @@ No file is touched until the whole batch has been read and planned.
    A failing check is a row too: caused by this PR → Act; flaky or
    pre-existing → rerun it once (`gh run rerun <run-id> --failed`), and if it
    fails again → Escalate, because the PR cannot go green without the user.
+   A check stuck `in_progress` is a failing check: compare its elapsed time
+   with the same job on recent base-branch runs (`gh run list --branch
+   <base>`, then `gh run view <id> --json jobs`); past ~2× that norm, with
+   the sibling OS jobs already green on the same SHA, treat it as hung.
+   `gh run rerun` is refused while a run is in progress, so the sequence is
+   `gh run cancel <run-id>` → poll until `status == completed` → `gh run
+   rerun <run-id> --failed`. Hand that sequence to the watcher as the
+   pre-step in the brief rather than sleeping in the main loop.
 4. Group the Act rows into coherent commits — one per fix, not one per
    comment — and note where two items touch the same code so one edit
    resolves both.
