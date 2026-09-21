@@ -129,10 +129,13 @@ transition):
 jira issue move <KEY> "In Progress"
 ```
 
-**Comment** (draft-first — see below):
+**Comment** (draft-first — see below). Always pass `--no-input`; without it
+the CLI opens an interactive prompt that hangs a non-TTY session. For
+multi-line bodies write the text to a file and use `--template`:
 
 ```bash
-jira issue comment add <KEY> "Shipped the dep bumps in PR #1234"
+jira issue comment add <KEY> "Shipped the dep bumps in PR #1234" --no-input
+jira issue comment add <KEY> --template /path/to/comment.md --no-input
 ```
 
 **Worklog:**

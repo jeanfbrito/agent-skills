@@ -150,9 +150,15 @@ the exact draft first:
 - **Internal write-up**: offer to create a Confluence page from the
   post-mortem (Atlassian MCP, `createConfluencePage`). Ask which space, or
   reuse the space from a previous run. Link it from the done.md entry.
+  If an `updateConfluencePage` call **times out, re-read the page before
+  retrying** — the write usually applied (a 2026-09-21 timeout had already
+  bumped the page to v2) and a blind retry creates a needless version.
 - **Team-channel summary**: draft a 5–10 line post for the team channel —
   what happened, impact, one key lesson, link to the full doc. Run it through
-  the tone rules; hand the draft to the user to send.
+  the tone rules. Before offering to send it yourself, check the target
+  profile is writable (`rocket-cli --profile <name> send` refuses on a
+  read-only profile such as `work`); if it is not, hand the exact text to
+  the user to paste and say so — do not present it as sent.
 - **Public blog** (optional): if the story generalizes beyond the company,
   offer a handoff to the `blog-post` skill, which strips private/proprietary
   content and drafts for the personal blog.

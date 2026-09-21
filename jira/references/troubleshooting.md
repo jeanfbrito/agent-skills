@@ -98,6 +98,16 @@ be found with key '<KEY>'`) when called with the API token. Browse
   default). If you see `fatal: The current branch ... has no upstream
 branch`, retry with `git push -u origin <branch>`.
 
+## `comment add` never returns (hangs)
+
+Symptom: `jira issue comment add KEY "..."` runs for minutes with no output;
+`pgrep` shows the process alive. Cause: without `--no-input` the CLI opens
+an interactive prompt (editor / confirmation) that has no TTY to read from
+in an agent session. Fix: kill it (`pkill -f 'jira issue comment add'`),
+check the ticket did not receive a partial comment, then re-run with
+`--no-input`. For multi-line or table-heavy bodies write the text to a
+file and pass `--template <file> --no-input`. Seen 2026-09-21 on CORE-2657.
+
 ## When to escape to direct REST
 
 The `jira` CLI covers ~90% of needs. Reach for `curl` against
