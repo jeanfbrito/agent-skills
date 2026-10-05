@@ -6,6 +6,7 @@ Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code
 
 - **learn** — Capture knowledge from coding sessions into project + global `lessons.md` files. Triggered by `/learn`.
 - **commit** — Smart git committing that groups related changes into separate, well-described commits. Triggered by `/commit`.
+- **pr-description** — Draft a PR title and body in the house style (prose Summary or Problem/Cause, a What changed list with bold lead-ins, optional Behaviour change / Known limitations / Out of scope, and a Verification or Test plan with real numbers) from the branch diff and the verification actually run. Triggered by `/pr-description`, "write the PR description", "draft the PR body", "open a PR", "faça o PR". Draft-first: opens or edits the PR only after the exact text is approved. Loads the shared tone rules from `shared/tone.md`. Replaces the `pr` skill from `mattpocock/skills`.
 - **babysit** — Babysit an open PR until every check is green, always in its own git worktree (no prompt): a background haiku watcher polls for new review-bot comments and check results, the main model reads the whole batch, triages it through `superpowers:receiving-code-review`, plans every change before editing, pushes, and re-dispatches the watcher — stopping immediately when a human reviewer comments. Triggered by `/babysit`, "babysit this PR", "watch the PR", "get the PR green", "handle the review bots". Batches all PR prose into one summary comment approved before posting. Loads the shared tone rules from `shared/tone.md`; optional poll cadence/bot-allowlist state lives in a gitignored `local-config.yml` created on first run.
 - **jira** — Drive an Atlassian Cloud Jira workspace via [ankitpokhrel/jira-cli](https://github.com/ankitpokhrel/jira-cli) from Claude Code. Triggered by any Jira-related question. Personal defaults (site, email, primary project, default component, workflow status names) live in a gitignored `local-config.yml` populated by `setup.sh` — the skill itself ships only the generic playbook. A Linux-adapted variant for Hermes lives in `jira/hermes/`.
 - **grok-build** — Delegate coding tasks to xAI's Grok CLI (`grok`) running headless: implement, review, or diagnose code with verification patterns, session resume, and worktree isolation. Triggered by "use grok", "ask grok", "grok this". Requires the `grok` binary installed and authenticated (`grok login`).
@@ -34,6 +35,7 @@ git clone https://github.com/jeanfbrito/agent-skills.git ~/Github/agent-skills
 mkdir -p ~/.claude/skills ~/.claude/commands
 ln -s ~/Github/agent-skills/learn ~/.claude/skills/learn
 ln -s ~/Github/agent-skills/commit ~/.claude/skills/commit
+ln -s ~/Github/agent-skills/pr-description ~/.claude/skills/pr-description
 ln -s ~/Github/agent-skills/babysit ~/.claude/skills/babysit
 ln -s ~/Github/agent-skills/jira ~/.claude/skills/jira
 ln -s ~/Github/agent-skills/grok-build ~/.claude/skills/grok-build
