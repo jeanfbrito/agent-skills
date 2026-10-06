@@ -166,8 +166,8 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
       a missing commit, missing evidence, or a disagreement with the journal.
 30. **A session with no driver stopped when its turn ended.**
     - Sign: 5 cycles, then 8 hours idle, until the human came back.
-    - Rule: choose a driver at the start. The `inline` driver says once that
-      the loop ends with the turn (`references/drivers.md`).
+    - Rule: the skill starts its own driver at the end of the Start steps.
+    - Mechanism: `drive.sh --agent <cli> --detach` (`references/drivers.md`).
 31. **The loop wrote its state only at the end of a cycle.**
     - Sign: a run that stopped in the middle left no record. The next run
       started that cycle from zero, and the report was a job at the end.

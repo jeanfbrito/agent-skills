@@ -12,9 +12,9 @@ description: >-
   3 cycles forces a step back: split it, change the approach, ask the critic,
   or block it. So the loop moves forward and does not circle. A harsh blind
   critic runs only at the done gate. Past full
-  parity it invents additions behind toggles until a human gives a verdict. A
-  self-continuing session, a scheduler or an external shell driver repeats the
-  cycle. Only the human stops it. Adapted from the gauntlet loop. Triggered by
+  parity it invents additions behind toggles until a human gives a verdict. The
+  human types only the skill command. The skill starts its own driver, and
+  the driver runs each cycle as a new process of the same agent CLI. Only the human stops it. Adapted from the gauntlet loop. Triggered by
   '/awesomeness-incremental-loop', 'awesomeness loop', 'run the awesome loop',
   'what is next from the references', 'find what is missing versus the
   reference', 'keep improving until I stop you'.
@@ -93,9 +93,16 @@ the files that the loop changed.
 5. **Git**: on the default branch, create `awesomeness/<YYYY-MM-DD>`. Add the
    data root `.localdev/awesomeness/` to `.gitignore`. With `--no-commit`, do
    not commit.
-6. **Driver**: choose it (`references/drivers.md`), write it in Setup, start
-   it, and print one line:
-   `Awesomeness loop: [PROJECT] against [REFERENCE]. Driver: [driver]. Next: [row]. You are the brake.`
+6. **Start the driver yourself.** The human only types the skill command. Run
+   your own CLI as the driver, detached, so each cycle is a new process:
+   `~/Github/agent-skills/awesomeness-incremental-loop/tools/drive.sh --project <repo> --agent <grok|claude|codex> --detach`
+   Use the name of the CLI that runs you. If a driver already runs for this
+   project, the command says so: keep it. If your CLI has no preset or cannot
+   run headless, use the next driver in `references/drivers.md`. Write the
+   driver in Setup. Then print one line, with the stop command from the output:
+   `Awesomeness loop: [PROJECT] against [REFERENCE]. Driver: [driver]. Next: [row]. Report: [path]. Stop: [command]. You are the brake.`
+   After that, this session is the watcher (`references/drivers.md`). It does
+   not do cycles itself.
 
 ## One cycle
 
