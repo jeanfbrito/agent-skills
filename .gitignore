@@ -7,3 +7,7 @@ babysit/local-config.yml
 babysit/local-config.yml.bak.*
 .DS_Store
 .knowledge/
+
+# ASD-STE100 is copyrighted and not redistributable. Never commit a copy.
+*STE100*.pdf
+*ste100*.pdf

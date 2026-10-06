@@ -63,3 +63,17 @@ grep -inE 'broken|regression|silently non-functional|never worked|failed in prod
 Every hit needs review — either rewrite it per the table above, or consciously
 confirm it's inside a technical root-cause description where it's accurate
 and necessary.
+
+Then run the Simplified Technical English linter from the `asd-ste100` skill
+(STE-flavored mode):
+
+```
+python3 ~/.claude/skills/asd-ste100/scripts/ste-lint.py <draft>
+```
+
+Fix each hard finding (semicolon, sentence over 25 words, phrasal verb,
+nominalization, marketing adjective, synonym rotation), or keep it and say
+why. Passive voice, compound tenses, and `plain-word` suggestions (a plain
+alternative from the public-domain US plain-language list) are advisory. For an
+exact STE answer on one word, the skill opens the user's own copy of the
+official dictionary at that page. Never cut a hedge to pass the check.

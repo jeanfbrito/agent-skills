@@ -1,0 +1,33 @@
+# Software terms the plain-word check skips. STE permits project technical
+# nouns and verbs beyond its base dictionary; in software these words name a
+# specific thing (an HTTP request, a TypeScript type, a React component), so the
+# plain alternative from plain-words.tsv would change the meaning.
+# One word per line. Add project terms with ste-lint.py --allow word1,word2.
+address
+attempt
+component
+delete
+function
+implement
+initial
+interface
+maintain
+maximum
+minimize
+minimum
+monitor
+notify
+operate
+option
+parameters
+permit
+render
+request
+require
+requirement
+selection
+submit
+terminate
+transmit
+type
+validate
