@@ -1,6 +1,6 @@
 ---
 name: proposal
-description: Drafts a one-page technical initiative proposal backed by real evidence mined from the project (known issues, git history, ledger, CI patterns). Triggered by "/proposal", "draft a proposal", "propose an initiative", "write an improvement proposal", "make the case for X". Draft-first: nothing is filed or posted without explicit approval. Intended cadence: roughly quarterly.
+description: 'Drafts a one-page technical initiative proposal backed by real evidence mined from the project (known issues, git history, ledger, CI patterns). Triggered by "/proposal", "draft a proposal", "propose an initiative", "write an improvement proposal", "make the case for X". Draft-first: nothing is filed or posted without explicit approval. Intended cadence: roughly quarterly.'
 ---
 
 # Proposal

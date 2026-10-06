@@ -1,6 +1,6 @@
 ---
 name: weekly-digest
-description: Drafts a short weekly work digest, translated from commit/ticket language into impact language a manager or teammate can read in 30 seconds. Pulls from real sources only — the project ledger (`.localdev/workflow/done.md`), merged PRs, git history, and optionally Jira — never invents metrics. Triggered by "/weekly-digest", "weekly digest", "draft my weekly update", "what did I ship this week", "status update for the team". Draft-first: never posts anywhere without explicit approval. Personal window state (`last_run`, optional extra project paths, target channel) lives in `local-config.yml` next to this file (gitignored), created on first run.
+description: 'Drafts a short weekly work digest, translated from commit/ticket language into impact language a manager or teammate can read in 30 seconds. Pulls from real sources only — the project ledger (`.localdev/workflow/done.md`), merged PRs, git history, and optionally Jira — never invents metrics. Triggered by "/weekly-digest", "weekly digest", "draft my weekly update", "what did I ship this week", "status update for the team". Draft-first: never posts anywhere without explicit approval. Personal window state (`last_run`, optional extra project paths, target channel) lives in `local-config.yml` next to this file (gitignored), created on first run.'
 ---
 
 # Weekly Digest
