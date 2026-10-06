@@ -2,34 +2,49 @@
 name: awesomeness-incremental-loop
 description: >-
   Runs an endless improvement loop on a project that has reference material in
-  its docs. Each cycle finds the most important gap in the references and
-  priority docs (set priorities first, quick wins next) and builds it. The
-  agent checks each change itself with cheap senses: metrics, gizmos and one
-  clean capture. A harsh blind critic runs only when a row is about to be
-  called done. Everything starts small and grows only when stable. When the
-  project matches the reference, it invents additions, each behind a toggle until a human gives a verdict. It can restart at any
-  moment from a journal. Only the human stops it. Adapted from the gauntlet
-  loop. Triggered by '/awesomeness-incremental-loop', 'awesomeness loop', 'run
-  the awesome loop', 'what is next from the references', 'find what is missing
-  versus the reference', 'keep improving until I stop you'.
+  its docs, on any agent harness. Each cycle is a self-contained run. It reads
+  its state from a journal and picks the most important gap against the
+  references: human priorities first, then quick wins. It builds the smallest
+  change that moves that gap's "done when" target. It checks the change with
+  cheap senses and commits. It writes each step to a trail as it happens. A
+  later run continues where the last one stopped, and the trail is the live
+  report. A row that stays open for
+  3 cycles forces a step back: split it, change the approach, ask the critic,
+  or block it. So the loop moves forward and does not circle. A harsh blind
+  critic runs only at the done gate. Past full
+  parity it invents additions behind toggles until a human gives a verdict. A
+  self-continuing session, a scheduler or an external shell driver repeats the
+  cycle. Only the human stops it. Adapted from the gauntlet loop. Triggered by
+  '/awesomeness-incremental-loop', 'awesomeness loop', 'run the awesome loop',
+  'what is next from the references', 'find what is missing versus the
+  reference', 'keep improving until I stop you'.
 argument-hint: "[optional: focus area] [optional: --no-commit] [optional: --reference NAME]"
 ---
 
 # Awesomeness Incremental Loop
 
-The gauntlet loop builds toward a named reference until the human stops it.
-This skill keeps that engine and adds these rules. It finds its own work in
-the repo docs. It restarts from a journal. It checks itself with cheap senses
-and calls the blind critic only at the "done" gate. It works in labs before
-it integrates. It adds toggled inventions past 100%. It starts small.
+The loop is one **cycle**, repeated without end. A **driver** starts the next
+cycle (`references/drivers.md`). No cycle keeps anything in memory, so the
+loop runs the same on every agent harness.
+
+**Write as you work.** Each step of a cycle writes one note to the **trail**
+(`S note`, below) at the moment it happens. The notes are the pick, the
+prediction, each attempt, each capture and measure, keep or revert, the
+commit and the end. Do not
+save notes for the end of the cycle. A later run reads the trail and continues
+the open cycle from its last note, so a kill loses at most the step in
+progress. Each note also rebuilds the HTML report. The trail is the report:
+it organizes the screenshots and metrics so anyone can see where the work is
+and recall what happened. Nobody builds the report as a separate job.
 
 **The human is the brake.** The loop has no "done" state. Do not ask "continue?".
 
 ## Start small, grow when stable
 
-This is the "incremental" in the name. Every dimension starts at its smallest
-useful size. It grows one step only when the current step is stable: its checks
-pass on two runs in a row, and no new invariant breaks.
+Every dimension starts at its smallest useful size. It grows one step only
+when the current step is stable: its checks pass on two runs in a row, and no
+new invariant breaks. Small is about scope. Small is not a reason to keep an
+approach that cannot reach the reference (see "Step back").
 
 | Dimension | Start | Grow to |
 | --- | --- | --- |
@@ -41,192 +56,185 @@ pass on two runs in a row, and no new invariant breaks.
 | Reference | The bar the project can reach | A harder bar when ours wins |
 | Senses, invariants, report | The few that the item needs | More as blockers and complaints show gaps |
 
-Files (in `~/Github/agent-skills/awesomeness-incremental-loop/`):
+Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 
 | File | Use |
 | --- | --- |
-| `references/checks.md` | The check ladder: self-check, integration check, blind critic gate, human |
-| `senses/README.md` | How to control, measure and see the project. One guide per topic. |
-| `references/labs.md` | Spike, lab, integrate |
-| `references/lessons.md` | Traps from past runs. Read at every start. |
-| `references/gap-matrix.md` | Where to find sources, and the gap matrix columns and statuses |
-| `references/report.md` | The local HTML report and `report-data.json` for recall |
-| `references/beyond.md` | Beyond mode and toggles |
-| `references/schemas.md` | Data formats for captures, events, metrics and critic rounds |
-| `references/critic-brief.md` | The blind critic brief and how to keep the key hidden |
-| `tools/report.py` | Builds the HTML report and `report-data.json` from the data |
-| `journal-template.md`, `examples.md` | Journal and example fills |
+| `tools/state.py` | `lock`, `brief`, `note`, `unlock`, `pause`, `resume`. The brief is the state, the open cycle and the SIGNALS that are due |
+| `tools/drive.sh` | The shell driver for any agent CLI |
+| `tools/report.py` | Builds the HTML report and `report-data.json`. Each note runs it |
+| `references/drivers.md` | How each harness repeats the cycle, and the watcher role |
+| `references/fire-prompt.md` | The fixed prompt that each scheduled or shell run gets |
+| `references/checks.md`, `critic-brief.md` | The check ladder and the blind critic |
+| `references/gap-matrix.md` | Sources, coverage, `Done when`, statuses |
+| `references/lessons.md` | Traps from past runs |
+| `references/labs.md`, `beyond.md`, `report.md`, `schemas.md` | Labs, toggles, report, data formats |
+| `senses/README.md` | How to control, measure and see the project |
+| `journal-template.md` | The journal |
+| `examples.md` | The gauntlet-style prompt that this procedure carries out, with example fills |
 
-## The prompt (fill it, then run it as your own instructions)
+## Start (in the session that the human started, and on every restart)
 
-```text
-I want [PROJECT] to reach the level of [REFERENCE], and then go past it.
-Read every reference and priority doc in the repo. Find the most important
-thing that is missing, broken or below the reference. Do the human's set
-priorities first. When there are none, take the quick wins with the highest
-visible effect.
+Start in any state: mid-work, dirty tree, open cards, no journal. Do not ask
+about uncommitted changes. The user owns the state they leave. Commit only
+the files that the loop changed.
 
-Fan out sub-agents. Give each sub-agent one item. Check every change yourself
-with cheap senses: metrics, gizmos and one clean capture. Do not repeat a check
-when nothing it measures changed. Only when a row is about to be called done,
-have a separate sub-agent check it [CHECK] against [REFERENCE]. That critic
-must be really harsh. It compares the two side by side, blind, and says which
-one is better. If ours is not better, turn each deficit into a sense check and
-a next item. Keep going.
-
-When nothing is missing, do not stop. Invent what would make [PROJECT] more
-awesome than [REFERENCE]. Put every invention behind a toggle until a human
-says keep or kill. [LOOP_VERB] until the human stops you. Fan out sub-agents[CLOSING_TAIL].
-```
-
-Slots: `PROJECT` and `REFERENCE` come from the repo docs. `CHECK` is `visually`
-for visual work, `by running it` for behavior, `against the spec` for contracts.
-Claude Code: `LOOP_VERB` = `/loop`, `CLOSING_TAIL` = ` and ultracode`.
-Codex: `LOOP_VERB` = `/goal`, `CLOSING_TAIL` is empty.
-
-## On invoke (every start is also a restart)
-
-Start in any state of any project: mid-work, dirty tree, open cards, no
-journal. Do not stop to ask about uncommitted changes or work in progress.
-Read the state, take it as the starting point, and start. The user owns the
-state they leave. Commit only the files that the loop changed.
-
-1. **Read the project rules.** Read `AGENTS.md`, `CLAUDE.md` and project memory.
-   Their verification, capture, delegation and "do not" rules apply to every
-   cycle. If a rule and this skill disagree, the project rule wins. Then read
+1. **Read the project rules**: `AGENTS.md`, `CLAUDE.md`, project memory. If
+   a project rule and this skill disagree, the project rule wins. Read
    `references/lessons.md` and `references/checks.md`.
-2. **Read the journal.** Default path: `docs/awesomeness-loop.md`. If it is
-   missing, create it from the journal template. Read the human verdicts first.
-3. **Apply the verdicts.** `keep`: make the toggle default ON, or remove the
-   toggle when the human says so. `kill`: remove the feature and its toggle.
-   `tweak: <note>`: queue a new item with that note. Record each one as applied.
-4. **Find the sources** (`references/gap-matrix.md`). Write their paths in
-   the journal. For the history of a row, read `report-data.json`.
-5. **Adopt the senses that exist.** On the first start, list the project's
-   own tools before you build any. Look for capture, test, gate and analysis
-   scripts, debug servers, MCP tools, and docs about them. Add each one to the
-   journal's "Senses" table. Build only what is missing, and write new data in
-   the formats of `references/schemas.md`. On each start, run each sense in
-   the table once and make sure that it still works.
-6. **Rebuild the gap matrix**. Check again each row that
-   says `matches` but is older than 10 cycles, or that a later change touched.
-7. **Keep git clean.** If the current branch is the default branch, create
-   `awesomeness/<YYYY-MM-DD>` and work there. Commit each verified item at
-   once. Give parallel builders their own worktrees. Add the data root
-   (`.localdev/awesomeness/`) to `.gitignore`. Leave no stray files. With
-   `--no-commit`, do not commit.
-8. Print one status line, then start the cycles:
-
-```text
-Awesomeness loop: [PROJECT] against [REFERENCE]. Mode: [gap | beyond]. Next: [item]. You are the brake.
-```
-
-## Sources and gap matrix
-
-Details: `references/gap-matrix.md`. Use every human priority, known problem,
-reference and product-focus doc you can find. Tag each reference `quality bar`
-or `functional only`. If no reference exists, ask one question: "What is the
-reference?" This is the only start condition that can block.
-
-One gap-matrix row per thing the reference has, does or looks like. Statuses:
-`missing`, `partial`, `below`, `lab-only`, `queued`, `matches`, `exceeds`,
-`blocked`. Each status needs evidence. A `quality bar` row reaches `matches`
-only through the critic gate.
-
-## Picking the next item
-
-Take the first rule that gives an item:
-
-1. A regression or failing check that the loop caused. Fix it first.
-2. An item the human put first: the focus in the arguments, recent feedback,
-   then open cards (`[doing]` first, then `[todo]` in order), then explicit
-   priorities. Human feedback is the authority. The critic is not.
-3. A full critic queue (about 5 rows) or a mode change: run the critic gate.
-4. A `lab-only` row. Integrate it before you start new lab work.
-5. A `missing` or `below` row with high impact and small effort (a quick win).
-6. The highest-impact `missing`, `partial` or `below` row, even if the effort is L.
-7. Beyond mode (the matrix has no gap rows): the best idea in the journal
-   backlog. If the backlog is empty, make new ideas first (`references/beyond.md`).
-
-**Anti-lazy rule:** after 3 quick wins in a row, the next item must come from
-rule 2, 4 or 6. Do not let small cosmetic items take all the cycles.
+2. **Journal**: `docs/awesomeness-loop.md`. If it is missing, create it from
+   the journal template. If it has old columns, add the template's new
+   sections and columns. Keep the rows.
+3. **Sources and coverage** (`references/gap-matrix.md`). Make one gap row
+   for each feature area of the reference, not only for the open items. Give
+   each open row a `Done when`.
+4. **Senses**: list the project's own capture, test, gate and analysis tools
+   before you build any. Write them in the Senses table. Run each one once.
+5. **Git**: on the default branch, create `awesomeness/<YYYY-MM-DD>`. Add the
+   data root `.localdev/awesomeness/` to `.gitignore`. With `--no-commit`, do
+   not commit.
+6. **Driver**: choose it (`references/drivers.md`), write it in Setup, start
+   it, and print one line:
+   `Awesomeness loop: [PROJECT] against [REFERENCE]. Driver: [driver]. Next: [row]. You are the brake.`
 
 ## One cycle
 
-1. **Write the acceptance check and the prediction.** One sentence that a sense
-   can pass or fail, and the result you expect. Example: "Foot slide per
-   contact under 2 cm in the walk shot, and the gizmo shows the foot on the
-   target marker".
-2. **Isolate it and perceive it.** If the item lives in a busy project, work on
-   it in a lab first (`references/labs.md`). If no sense can judge the item,
-   build that sense first. For visual work, start with debug gizmos that you
-   and the human can toggle in a UI panel.
-3. **Build.** Fan out builders for independent items, at most 3 at a time.
-   The harness or the project decides who builds. This skill does not. Give
-   each builder its item, the reference evidence and the acceptance check.
-4. **Self-check (level 0).** Run the focused senses again yourself on the real
-   artifact. A builder's report is not proof. Read the invariant breaks
-   first (`senses/invariants.md`). Look once at the frame or the
-   gizmo view behind each new PASS. For 3D, look from at least two angles,
-   with everything that is not measured hidden (`senses/3d-views.md`). Run only the checks that the change can
-   affect.
-5. **Decide.**
-   - Lab senses pass: set `lab-only`. Commit. The integration is the next item.
-   - Full-project senses pass: `functional only` row, set `matches`. Commit.
-     `quality bar` row, set `queued` and add it to the critic queue. Commit.
-   - Senses fail: fix and run the self-check again. Revert a change that made
-     the result worse.
-   - Two failed attempts at the same item: send it to an auditor to find the
-     root constraint. If no path remains, set `blocked` with the reason. Go to
-     the next item. Do not stop the loop.
-   - When you solve a blocker on a sense, write a guide in `senses/`.
-6. **Journal, ledgers and report.** Add one line to the cycle log. Give the
-   item, change, evidence path, check level and result, and commit hash. If the
-   project keeps its own ledgers, update them too: one completion line per
-   cycle (for example `.localdev/workflow/done.md`), and the card that the
-   item came from. Run
-   `python3 ~/Github/agent-skills/awesomeness-incremental-loop/tools/report.py`.
-   Then start the next cycle at once.
+`S` means `python3 ~/Github/agent-skills/awesomeness-incremental-loop/tools/state.py --project <repo>`.
 
-**The critic gate** (`references/checks.md`, brief in
-`references/critic-brief.md`): one blind round for the whole queue. Reuse the last captures. Rows that win or tie go to `matches` or
-`exceeds`. Rows that lose go back to `below`, and each deficit becomes a sense
-check where one can catch it. If ours wins on most rows, the reference is too
-easy: pick a harder one, write it in the journal, and continue.
+Each step names its note. Write the note right after the step, with the
+files and the numbers it produced: `S note <kind> "<what>" [--file <capture>]
+[--metric name=value]`. Kinds: `pick`, `predict`, `try`, `see`, `keep`,
+`revert`, `commit`, `step-back`, `blocked`, `end`.
 
-## Beyond mode
+1. **Lock and read.** Run `S lock`. If it exits with 3 (busy) or 4 (paused),
+   print its line and end the run. Do not unlock a lock that you did not take.
+   Keep the token from the `LOCKED` line. Each note renews the lock. Before a
+   step that can take more than an hour, write its `try` note first. Run `S brief`. If it says `IN PROGRESS`,
+   continue that cycle from its last note. Do not repeat a step that has a
+   note, and do not retry what it lists under `DO NOT RETRY`. The brief also
+   gives the open rows and the SIGNALS. A signal comes before the item rules:
+   `APPLY` verdicts and answers first (`keep`: toggle default ON, `kill`:
+   delete it and its toggle, `tweak: <note>`: queue it). Then `MISMATCH`, `STALL` (this
+   cycle is the step back), `EXHAUSTED`, `CRITIC-DUE`, `SENSE-DRIFT`,
+   `NO-DONE-WHEN` and `JOURNAL-LONG`, each as the brief says.
+2. **Pick the item** (next section). If its row has no `Done when`, write one
+   first: a measurable target from the reference evidence.
+   Note: `S note pick "<item>" --row "<gap row>"`.
+3. **Write the acceptance check and the prediction.** Name the done-when
+   metric, its value now, and the value that you expect after this step.
+   Note: `predict`, with the current value as `--metric`.
+4. **Isolate and perceive.** In a busy project, use a lab first
+   (`references/labs.md`). If no sense can judge the item, build that sense
+   first. For visual work, start with debug gizmos.
+5. **Fix the sense before the change.** A new or changed check goes in its
+   own commit, with the reason in the commit body. A change commit can add
+   checks. It does not loosen or rewrite an existing check to fit its own
+   output (lesson 26). A sense measures the distance to the reference, not
+   the numbers that the current code makes.
+6. **Build** the smallest change that moves the done-when metric. Drive the
+   cause, not the visible output (lesson 11). Fan out at most 3 builders. The
+   harness or the project decides who builds. Note: `try`, one per attempt.
+7. **Self-check (level 0)** on the real artifact. A builder's report is not
+   proof. Read the invariant breaks first (`senses/invariants.md`). Look once
+   at the frame or the gizmo view behind each new PASS. For 3D, use two angles
+   (`senses/3d-views.md`). Run only the checks that the change can affect.
+   Note: `see`, one per capture or measure, with `--file` and `--metric`.
+8. **Decide.** Note: `keep` or `revert` with the reason, and `commit` with
+   `--commit <sha>` after each commit. A revert note is what later runs do not retry.
+   - Lab senses pass: set `lab-only`. Commit. The integration is the next step.
+   - Full-project senses pass and `Done when` holds: a `functional only` row
+     goes to `matches`. A `quality bar` row goes to `queued` and the critic
+     queue. Commit.
+   - Senses pass and `Done when` does not hold yet: the row stays open.
+     Commit. Progress is the metric's move toward `Done when`. A cycle that
+     leaves that metric the same made no progress, even when every check passes.
+   - Senses fail: fix and check again. Revert a change that made it worse.
+     After two failed attempts at the same step, do the step back.
+   Write a status change in the gap matrix when you decide it, not later.
+9. **End the cycle.** `S note end --status "<before> -> <after>" --progress
+   "<metric before> -> <after>"` (or `--progress none`) `--next "<next step>"`.
+   Update the project's own ledgers. Run `S unlock --token <token>`. Print the status line,
+   then end the run:
+   `cycle N | <row> | <status before → after> | progress: <before → after> | <commit> | next: <step> | report: <path>`
 
-When the matrix has no gap rows, invent. Every invention ships behind a toggle,
-default OFF, with sense evidence, in the "Pending verdicts" table. Do not wait
-for verdicts. Details: `references/beyond.md`.
+## Picking the item
+
+Take the first rule that gives an item:
+
+1. A regression or a failing check that the loop caused.
+2. An item that the human put first: the focus argument, recent feedback, open
+   cards (`[doing]`, then `[todo]`), explicit priorities. The human is the
+   authority. The critic is not.
+3. The row of the last cycle (`NOW` in the brief), while it is open and has
+   no `STALL`. Finish a row before you start a new one.
+4. A full critic queue (about 5 rows) or a mode change: the critic gate.
+5. A `lab-only` row. Integrate it before new lab work.
+6. A quick win: a `missing` or `below` row with high impact and small effort.
+7. The highest-impact open row, even when its effort is L.
+
+**Anti-lazy rule:** after 3 quick wins in a row, the next item comes from rule
+2, 5 or 7.
+
+## Step back (signal `STALL`)
+
+A row can stay open for 3 cycles, or for 2 cycles in a row with no progress.
+Then the row is too big, or its approach is wrong. More cycles of the same kind
+will not close it. This cycle does no build. It does this:
+
+1. Read the row's `Done when`, its trail notes, its commits, and
+   `references/lessons.md`.
+2. Write the one sentence that every cycle on this row assumed. Test it. Ask:
+   can this approach reach `Done when` at all? Does it drive the cause, or
+   does it pose the output?
+3. Choose one result and write it in the journal:
+   - **Split**: replace the row with smaller rows that can each close in 1–2
+     cycles. Give each one its own `Done when`.
+   - **Change the approach**: write the new approach and why the old one
+     cannot reach the target. You can make a structural change here. Do it in
+     a lab when the project is busy.
+   - **Ask the critic**: for a `quality bar` row, run one direction round on
+     the current state (`references/critic-brief.md`).
+   - **Block**: no path remains. Set `blocked` with the root constraint.
+4. Note it: `S note step-back "<result and why>"`. Commit the journal, and
+   end the cycle. The step-back note resets the row's cycle count.
+
+## When no row is open (signal `EXHAUSTED`)
+
+`EXHAUSTED` means that no row is open or queued, and some rows are `blocked`
+or `held` (the human froze them). Do not stop the loop and do not delete a
+schedule. Do the first step that gives work:
+
+1. **Coverage**: compare the matrix with the reference, area by area. Add a
+   row for each area with no row.
+2. **Unblock**: take the oldest `blocked` row. Attack its premise, or send it
+   to an auditor. A new path sets the row back to `partial`.
+3. **Beyond mode**: invent (`references/beyond.md`).
+
+## Critic gate and beyond mode
+
+The critic gate (`references/checks.md`): one blind round for the whole queue,
+with the last captures. Wins and ties go to `matches` or `exceeds`. A loss goes
+to `below`, and each deficit becomes a sense check. If ours wins on most rows,
+choose a harder reference. In beyond mode (`references/beyond.md`), every
+invention ships behind a toggle, default OFF. When the sources leave a value
+open, choose one, write it under "Assumptions and asks", and continue.
 
 ## Do not
 
-- Do not stop, ask "continue?", or write "ready for review". Only the human ends the loop.
-- Do not finish a cycle with only analysis or a plan. Each cycle ships a proven change, a reverted attempt, or a `blocked` row with its reason.
-- Do not call the blind critic for a work-in-progress change, a lab result, or what a sense already shows. Do not capture again what did not change.
-- Do not soften the critic, lower the reference, or accept a builder's report as proof.
-- Do not mark a row `matches` without evidence.
-- Do not push, open PRs, post, or send anything outside the repo. Those still need explicit approval.
-- Do not break the project's rules to get a capture. Do not take the user's mouse or focus, and do not run capture farms that slow the machine.
-- Do not remove or change a human-approved feature because the critic prefers something else. Put the alternative behind a toggle.
-- Do not build tooling for its own sake. Build a sense only when an item needs it.
-- Do not chase frame rate or physics rate. Lock 30 fps for slow games and 60 fps for fast ones, with physics at the same low rate. Raise physics only when a lab proves the step size causes a failing metric (`senses/metrics.md`).
-- Do not bring raw logs, full consoles or full-desktop screenshots into the context. Use a digest and a clean, cropped capture.
-
-## Running it without end
-
-The loop has no exit. The human stops it with Ctrl-C or by ending the
-session, at any moment. So:
-
-- Never plan a stop, a summary turn or a hand-off. Finish a cycle, then start
-  the next one.
-- Keep the state safe for a kill at any time: commit each verified item, and
-  write the journal at the end of each cycle. A kill loses only the item in
-  progress.
-- **Claude Code:** start it as `/loop /awesomeness-incremental-loop` with no
-  interval. When a turn ends, schedule the next wakeup with the same prompt at
-  the minimum delay.
-- **Codex:** run it under `/goal`.
-- **Restart:** the next start rebuilds everything from the journal,
-  `report-data.json`, git history and the sources.
+- Do not stop, ask "continue?", or write "ready for review". Each cycle ships
+  a proven step, a reverted attempt, a step back, or a `blocked` row.
+- Do not put state in a stored prompt. Do not create, change or delete a
+  schedule from a cycle. The journal holds the state.
+- Do not resume the transcript of an earlier run. Start each run new, and
+  continue the work from the trail.
+- Do not soften the critic, lower the reference, loosen a check, or accept a
+  builder's report as proof. Do not mark a row `matches` without evidence.
+- Do not push, open PRs, post, or send anything outside the repo. Those need
+  explicit approval.
+- Do not take the user's mouse or focus, and do not run capture farms that
+  slow the machine. Do not break the project's rules to get a capture.
+- Do not change a human-approved feature because the critic prefers another.
+  Put the alternative behind a toggle.
+- Do not build tooling for its own sake. Build a sense when an item needs it.
+- Do not bring raw logs, full consoles or full-desktop screenshots into the
+  context. Use a digest (`senses/digest.md`) and a clean, cropped capture.

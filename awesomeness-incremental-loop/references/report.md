@@ -7,11 +7,11 @@ evidence. It is not a deliverable and not a work item.
 
 ## Rules
 
-1. **A script makes it.** One script in the project's dev tools builds the
-   report from the data on disk, for example `tools/awesomeness_report.py`.
-   It reads the journal, `captures.jsonl` and the sidecars, `events.jsonl`,
-   the metric digests and the critic rounds. Do not write or edit the HTML by
-   hand.
+1. **The trail writes it.** Each `state.py note` rebuilds the report with
+   `tools/report.py`, from the journal, the trail, `captures.jsonl` and the
+   sidecars, `events.jsonl`, the metric digests and the critic rounds. So the
+   report is current after every step, and no cycle builds it as a job. Do not
+   write or edit the HTML by hand.
 2. **Cheap.** The script runs in seconds at the end of each cycle. If it gets
    slow, make it read only the new runs. Do not spend a cycle on its style.
 3. **Local and private.** Put it in a gitignored folder, for example
@@ -22,7 +22,9 @@ evidence. It is not a deliverable and not a work item.
    facts in a short form. The agent reads or searches that file to recall
    history. Examples: "When did the wheels first go below the ground?" and
    "What did row 12 look like five cycles ago?". It does not read the HTML.
-5. **Grow it with the data.** Start with the gap table and the latest image
+5. **Say where it is.** Each cycle's status line ends with the report path,
+   so the human never has to search for it.
+6. **Grow it with the data.** Start with the gap table and the latest image
    per shot. Add a section only when the loop writes the data for it.
 
 ## Sections
@@ -30,6 +32,9 @@ evidence. It is not a deliverable and not a work item.
 | Section | Content |
 | --- | --- |
 | Header | Project, reference, mode, cycle number, commit, frame-rate and physics targets, time of the last update |
+| Now | The open cycle, or the last one, with each of its notes, captures and metrics |
+| Trail | Every earlier cycle, newest first: its notes, captures, metrics, status, progress and commit |
+| Assumptions and asks | Values the loop chose where the sources are open, and what it needs from the human |
 | Gap matrix | Each row with a status colour, its last evidence, and a link to its row section |
 | Row sections | A timeline of the cycles on that row. Each cycle shows its contact sheets as thumbnails, the metric trend as a small inline SVG line, the invariant breaks, the check level and result, and the commit. |
 | Invariant breaks | Each break: the rule, the object, the worst value, the first frame, and the snapshot |

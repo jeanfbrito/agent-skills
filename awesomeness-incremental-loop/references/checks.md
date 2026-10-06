@@ -51,7 +51,14 @@ Call the critic only for one of these gates:
    no metric covers it, and the agent's own look is not sure.
 3. **A mode change.** Before beyond mode starts, or before you raise the
    reference.
-4. **The human asks for it.**
+4. **A step back on a `quality bar` row** (signal `STALL`). Run one direction
+   round on the current state (`references/critic-brief.md`). It answers "is
+   this approach getting closer to the reference?", not "is it done?".
+5. **The human asks for it.**
+
+If a `quality bar` reference has no frames or clips in the repo, the critic
+has nothing to compare. Add an `ask` row under "Assumptions and asks" for the
+frames that you need. Until the human answers, those rows stop at `queued`.
 
 Do not call the critic for a work-in-progress change, for a lab result, or to
 repeat what a sense already showed.
@@ -76,6 +83,10 @@ repeat what a sense already showed.
 Stop and change the method when one of these happens:
 
 - Two critic rounds in a row on the same row. A sense is missing. Build it.
+- A row stays open for 3 cycles. Step back (SKILL.md). More cycles of the
+  same kind will not close it.
+- A check changes in the same commit as the code that it judges. The check
+  now follows the code (lesson 26). `state.py` reports it as `SENSE-DRIFT`.
 - A capture takes longer than the change. Use a lab, a smaller shot or the
   measurement view.
 - The context fills with raw data. Write a digest script.

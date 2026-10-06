@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Build the awesomeness-loop report from loop data on disk.
 
-Reads the journal (Markdown) and the data root described in
+Reads the journal (Markdown), the trail that `state.py note` writes as the
+loop works (<root>/trail.jsonl), and the data root described in
 references/schemas.md. Writes <out>/index.html (one static page, inline CSS,
 no network) and <out>/report-data.json (the same facts for the agent).
+`state.py note` calls build() after each note, so the page is always current.
 
 Usage:
   report.py [--root .localdev/awesomeness] [--journal docs/awesomeness-loop.md]
@@ -23,7 +25,7 @@ from datetime import datetime
 STATUS_COLORS = {
     "missing": "#d9534f", "partial": "#e8963a", "below": "#e8963a",
     "unknown": "#e8963a", "lab-only": "#5b8def", "queued": "#8a6fd1",
-    "matches": "#3c9a5f", "exceeds": "#1f7a45", "blocked": "#777777",
+    "matches": "#3c9a5f", "exceeds": "#1f7a45", "blocked": "#777777", "held": "#999999",
 }
 
 
@@ -156,8 +158,16 @@ def build(root, journal, out):
     setup = md_setup(text)
     gap_rows = find_table(tables, "Gap matrix")
     verdicts = find_table(tables, "Pending verdicts")
+    asks = find_table(tables, "Assumptions")
+    cycle_log = find_table(tables, "Cycle log")
+    now_m = re.search(r"^## Now[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+    now = [l[2:] for l in (now_m.group(1).splitlines() if now_m else []) if l.startswith("- ")]
     runs = load_runs(root)
     critic = load_critic(root)
+    trail = read_jsonl(os.path.join(root, "trail.jsonl"))
+    cycles = defaultdict(list)
+    for e in trail:
+        cycles[e.get("cycle", 0)].append(e)
 
     by_row = defaultdict(lambda: {"captures": [], "metrics": [], "events": [], "critic": []})
     breaks = []
@@ -183,6 +193,10 @@ def build(root, journal, out):
         "setup": setup,
         "gap_matrix": gap_rows,
         "pending_verdicts": verdicts,
+        "now": now,
+        "assumptions_and_asks": asks,
+        "cycle_log": cycle_log,
+        "trail_cycles": len(cycles),
         "runs": [r["id"] for r in runs],
         "invariant_breaks": breaks,
         "rows": by_row,
@@ -212,7 +226,33 @@ a{{color:var(--acc)}} .bad{{color:#d9534f}} .ok{{color:#3c9a5f}} .wrap{{overflow
 <p class="meta">{esc(' · '.join(f'{k}: {v}' for k, v in setup.items() if v) or 'No journal setup found')}<br>
 Generated {esc(data['generated'])} · {len(runs)} runs · {len(critic)} critic rounds</p>"""]
 
-    parts.append("<h2>Gap matrix</h2><div class='wrap'><table><tr><th>Item</th><th>Status</th><th>Evidence</th><th>Impact</th><th>Effort</th></tr>")
+    def note_html(e):
+        bits = [f"<b>{esc(e.get('kind', ''))}</b> {esc(e.get('text', ''))}"]
+        if e.get("metrics"):
+            bits.append("<code>" + esc(" ".join(f"{k}={v}" for k, v in e["metrics"].items())) + "</code>")
+        for k in ("status", "progress", "commit", "next"):
+            if e.get(k):
+                bits.append(f"{k}: {esc(str(e[k]))}")
+        imgs = [f for f in e.get("files", []) if re.search(r"\.(png|jpe?g|webp|gif)$", f, re.I)]
+        other = [f for f in e.get("files", []) if f not in imgs]
+        if other:
+            bits.append(" ".join(f"<a href='{esc(os.path.relpath(f, out))}'>{esc(os.path.basename(f))}</a>" for f in other))
+        html_ = " · ".join(bits)
+        if imgs:
+            html_ += "<div class='thumbs'>" + "".join(
+                f"<figure><a href='{esc(os.path.relpath(f, out))}'><img loading='lazy' src='{esc(os.path.relpath(f, out))}'></a>"
+                f"<figcaption>{esc(os.path.basename(f))}</figcaption></figure>" for f in imgs) + "</div>"
+        return f"<li><span class='meta'>{esc(e.get('t', '')[11:16])}</span> {html_}</li>"
+
+    if cycles:
+        last = max(cycles)
+        notes = cycles[last]
+        done = any(e.get("kind") == "end" for e in notes)
+        title = f"Cycle {last} · {notes[0].get('row', '')}" + ("" if done else " · in progress")
+        parts.append(f"<h2>Now</h2><div class='row'><h3>{esc(title)}</h3><ul>" + "".join(note_html(e) for e in notes) + "</ul></div>")
+    elif now:
+        parts.append("<h2>Now</h2><ul>" + "".join(f"<li>{esc(l)}</li>" for l in now) + "</ul>")
+    parts.append("<h2>Gap matrix</h2><div class='wrap'><table><tr><th>Item</th><th>Status</th><th>Done when</th><th>Evidence</th><th>Impact</th><th>Effort</th></tr>")
     for r in gap_rows:
         item = r.get("Item", "")
         st = r.get("Status", "").strip("` ").lower() or "unknown"
@@ -220,7 +260,7 @@ Generated {esc(data['generated'])} · {len(runs)} runs · {len(critic)} critic r
         ev = r.get("Full-project result") or r.get("Lab result") or r.get("Evidence for status", "")
         parts.append(f"<tr><td><a href='#row-{esc(item)}'>{esc(item)}</a></td>"
                      f"<td><span class='st' style='background:{color}'>{esc(st)}</span></td>"
-                     f"<td>{esc(ev)}</td><td>{esc(r.get('Impact', ''))}</td><td>{esc(r.get('Effort', ''))}</td></tr>")
+                     f"<td>{esc(r.get('Done when', ''))}</td><td>{esc(ev)}</td><td>{esc(r.get('Impact', ''))}</td><td>{esc(r.get('Effort', ''))}</td></tr>")
     parts.append("</table></div>")
 
     if breaks:
@@ -229,6 +269,23 @@ Generated {esc(data['generated'])} · {len(runs)} runs · {len(critic)} critic r
             parts.append(f"<tr><td>{esc(e['run'])}</td><td>{esc(str(e.get('frame', '')))}</td><td class='bad'>{esc(e.get('name', ''))}</td>"
                          f"<td>{esc(e.get('object', ''))}</td><td>{esc(str(e.get('value', '')))} / {esc(str(e.get('limit', '')))}</td></tr>")
         parts.append("</table></div>")
+
+    if len(cycles) > 1:
+        parts.append("<h2>Trail</h2>")
+        for n in sorted(cycles, reverse=True)[1:60]:
+            notes = cycles[n]
+            end = next((e for e in notes if e.get("kind") == "end"), {})
+            head = f"Cycle {n} · {notes[0].get('row', '')}"
+            if end:
+                head += f" · {end.get('status', '')} · progress {end.get('progress', '')} · {end.get('commit', '')}"
+            parts.append(f"<details class='row'><summary>{esc(head)}</summary><ul>" + "".join(note_html(e) for e in notes) + "</ul></details>")
+
+    for title, rows in (("Assumptions and asks", asks), ("Cycle log (before the trail)", cycle_log)):
+        if rows:
+            parts.append(f"<h2>{title}</h2><div class='wrap'><table><tr>" + "".join(f"<th>{esc(k)}</th>" for k in rows[0]) + "</tr>")
+            for v in (rows if title.startswith("Assumptions") else rows[::-1]):
+                parts.append("<tr>" + "".join(f"<td>{esc(x)}</td>" for x in v.values()) + "</tr>")
+            parts.append("</table></div>")
 
     if verdicts:
         parts.append("<h2>Pending verdicts</h2><div class='wrap'><table><tr>" + "".join(f"<th>{esc(k)}</th>" for k in verdicts[0]) + "</tr>")
@@ -295,8 +352,8 @@ def main():
     a = ap.parse_args()
     out = a.out or os.path.join(a.root, "report")
     data, runs, critic, breaks = build(a.root, a.journal, out)
-    print(f"REPORT OK: {len(data['gap_matrix'])} gap rows, {len(runs)} runs, "
-          f"{len(critic)} critic rounds, {len(breaks)} invariant breaks")
+    print(f"REPORT OK: {len(data['gap_matrix'])} gap rows, {data['trail_cycles']} trail cycles, "
+          f"{len(runs)} runs, {len(critic)} critic rounds, {len(breaks)} invariant breaks")
     print(f"html: {os.path.join(out, 'index.html')}")
     print(f"data: {os.path.join(out, 'report-data.json')}")
     return 0

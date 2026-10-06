@@ -39,6 +39,22 @@ A deficit must name what is wrong and where. "Looks fake" is not a deficit.
 Do not be polite. If the two are the same, say "tie".
 ```
 
+## Direction round (step back on a stalled row)
+
+Use the same brief and the same blind pairs. Put the current state of the row
+beside the reference. Replace the answer format with this one:
+
+```text
+{"pair": 1, "better": "left" | "right" | "tie",
+ "biggest_difference": "<the one visible difference that matters most, and where>",
+ "fixable_by_tuning": true | false}
+```
+
+`fixable_by_tuning: false` means that the critic sees a difference in kind,
+for example posed limbs beside a physical fall. That result supports "change
+the approach" in the step back. Write the round file as for a normal round.
+It does not change the row's status.
+
 ## After the answer
 
 1. Add the key to each pair. A pair where `better` is our side, or `tie`,

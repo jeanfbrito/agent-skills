@@ -123,3 +123,56 @@ start. When the loop hits a new trap, add it here with the same three parts.
     - Rule: keep invariants on in every run (`senses/invariants.md`), and
       give every capture a metadata record (`senses/capture-metadata.md`).
       Each such complaint becomes a new invariant.
+
+## Loop mechanics
+
+These came from three overnight runs on 2026-10-06 (Grok, scheduled runs, 119
+cycles). Each one now has a mechanism. The prose is for the judgment around it.
+
+24. **A run resumed the transcripts of the runs before it.**
+    - Sign: each run costs more (0.72 to 4.46 USD over 10 runs). Then a run
+      fails at its start on a resume limit (204,800 tokens). Seen in 2 of 3 runs.
+    - Rule: each cycle is a new run, and the state lives on disk.
+    - Mechanism: `references/drivers.md`, `tools/drive.sh`.
+25. **The next item lived in the stored prompt.**
+    - Sign: the watcher rewrote the prompt after each run. A run that started
+      before the rewrite did finished work again: 31 of 84 runs, about 19 USD.
+    - Rule: the stored prompt never changes. The next step is in the trail.
+    - Mechanism: `references/fire-prompt.md`, `state.py brief`.
+26. **A check followed the code.**
+    - Sign: the test changes in the same commit as the code. Its assertions
+      turn to fit the new output, or a tolerance opens (0.05 to 0.08). Every
+      cycle is green and the row does not move. Seen in 32 of 33 commits of
+      one pose test.
+    - Rule: a check changes only in its own commit, with the reason. A sense
+      measures the distance to the reference, not the current output.
+    - Mechanism: `state.py` signal `SENSE-DRIFT`.
+27. **A row stayed open for ever.**
+    - Sign: about 60 green cycles over 10 hours on one row, each one posing
+      one more limb (rule 11), and the row still `partial`.
+    - Rule: each row has a `Done when`. After 3 cycles, step back: split it,
+      change the approach, ask the critic, or block it.
+    - Mechanism: `state.py` signals `STALL` and `NO-DONE-WHEN`.
+28. **The loop stopped itself when no row was open.**
+    - Sign: a run reported "no unblocked gap remains", and the watcher
+      removed the schedule. The machine stood idle for 6 hours.
+    - Rule: do the exhausted procedure: coverage, unblock, beyond mode.
+    - Mechanism: `state.py` signal `EXHAUSTED`. The run prompt forbids
+      schedule changes.
+29. **The watcher did the work again.**
+    - Sign: the session that started the scheduler ran each run's checks
+      again: 62 USD of 138, and no false claim found.
+    - Rule: the watcher reads the status line. It opens the evidence only on
+      a missing commit, missing evidence, or a disagreement with the journal.
+30. **A session with no driver stopped when its turn ended.**
+    - Sign: 5 cycles, then 8 hours idle, until the human came back.
+    - Rule: choose a driver at the start. The `inline` driver says once that
+      the loop ends with the turn (`references/drivers.md`).
+31. **The loop wrote its state only at the end of a cycle.**
+    - Sign: a run that stopped in the middle left no record. The next run
+      started that cycle from zero, and the report was a job at the end.
+    - Rule: write each step to the trail when it happens. The trail is the
+      report: it keeps the screenshots and metrics in one place to recall.
+    - Mechanism: `state.py note` (it rebuilds the report), and the
+      `IN PROGRESS` part of `state.py brief`. A new `pick` is refused while a
+      cycle is open.

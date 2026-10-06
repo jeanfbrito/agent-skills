@@ -1,7 +1,10 @@
 # Beyond mode and toggles
 
-Beyond mode starts when no row is `missing`, `partial` or `below`. The same
-toggle rules also apply to any change that has no reference evidence behind it.
+Beyond mode starts when no row is open or queued. The exhausted procedure
+(SKILL.md) must first find no new coverage row and no way past a blocked row.
+The same toggle rules also apply to any change that has no reference evidence
+behind it. A value that the sources leave open (a price, a timer, a size) is
+not an invention: write it under "Assumptions and asks".
 
 - **Find ideas** in: other best-in-class references for the same domain, the
   reference's own weak points, themes in user feedback, and things the critic
