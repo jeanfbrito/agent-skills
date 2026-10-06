@@ -38,6 +38,30 @@ Capture it NOW before the context scrolls away.
    - Tool/API capabilities that weren't obvious
    - Things the user had to repeat or emphasize
    - A skill that fired (or failed to fire) and left a gap
+   - Context the user pasted that a connected tool could have fetched (a Jira
+     key, a Rocket.Chat thread, a PR, a log). The lesson goes to the skill
+     that owns that workflow: fetch it next time
+
+1b. **Enforce before you write.** For each candidate, ask whether a mechanism
+   can make the mistake impossible or make it fail loud. The mechanisms,
+   strongest first:
+   - Architecture: one owner, one way, internals unreachable.
+   - A type.
+   - A lint or CI check whose error names the fix.
+   - A test.
+   - A hook.
+
+   If one can, the lesson is that mechanism. Propose it (or build it when the
+   user asked for fixes) and record only a one-line pointer to it. Text is for
+   judgment calls nothing can check.
+
+1c. **Filter.** Drop a candidate unless it passes all of these:
+   - **Durable**: still true after paths, SHAs, and versions change.
+   - **Decision-changing**: a future agent acts differently because of it.
+   - **Not already covered**: read the target file first. If the rule exists
+     and was skipped, the fix is wording or placement that makes it fire, not
+     a second copy. A rule broken twice despite being written down goes to 1b.
+   - **Not a one-off**: one weird session is an anecdote.
 
 2. **Classify and write to the appropriate locations. There are FOUR levels:**
    - **Project-specific** → project memory `lessons.md`

@@ -60,6 +60,8 @@ grok -p "Review the uncommitted diff for bugs and risky changes. Do not modify a
 ```
 Omit `--always-approve`; add `--deny` rules so it stays read-only. `--no-memory` makes it a clean-room opinion (Grok has cross-session memory that could bias re-reviews).
 
+**Two-model review** (only when asked): give the `reviewer` agent and Grok the same prompt file. The file holds one intent paragraph, the diff scope, and "report concrete execution paths, not preferences". Run both in parallel, then judge as the lead with the context they lack. Sort every finding into **Act on**, **Consider**, **Noted**, **Dismissed** (each dismissal with its reason, so the user can override it). A finding both models raise independently carries weight. A security or correctness finding from one model still gets its call path traced before dismissal. Dismiss hypotheticals the callers cannot reach, "I'd have done it differently", premature-abstraction advice, and patterns consistent with the rest of the codebase. More than 5 Act-on items means the filter is too loose. Adapted from [cursor/plugins](https://github.com/cursor/plugins) `pstack/interrogate` (MIT License).
+
 ### Risky/parallel work → worktree isolation
 ```bash
 grok -w grok-attempt -p "<task>" --always-approve --output-format json
