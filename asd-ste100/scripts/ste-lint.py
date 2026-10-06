@@ -83,6 +83,9 @@ SYNONYM_GROUPS = [
 
 MAX_WORDS = 25  # descriptions cap; instructions cap is 20 but undetectable without context
 
+# A sentence ends at . ! or ? before whitespace, also when the mark closes a
+# bold or italic span ("**Lead-in sentence.** Next sentence").
+SENTENCE_BREAK = re.compile(r"(?<=[.!?])\s+|(?<=[.!?]\*\*)\s+|(?<=[.!?][*_])\s+")
 CODE_FENCE = re.compile(r"^(```|~~~)")
 INLINE_CODE = re.compile(r"`[^`]*`")
 LIST_ITEM_START = re.compile(
@@ -389,7 +392,7 @@ def lint(text, filename="<stdin>", plain_words=()):
                                      "match": f"{n} words",
                                      "message": f"Sentence has {n} words (cap {MAX_WORDS}). Split it."})
     for start_line, block in _prose_blocks(lines, table_cells):
-        for sent in re.split(r"(?<=[.!?])\s+", block):
+        for sent in SENTENCE_BREAK.split(block):
             n = len(sent.split())
             if n > MAX_WORDS:
                 findings.append({"file": filename, "line": start_line, "col": 1,
@@ -540,6 +543,10 @@ def selftest():
     findings, _ = lint(f"- {half}\n  {half}.")
     assert sum(f["rule"] == "long-sentence" for f in findings) == 1, findings
     findings, _ = lint(f"```\n{half}\n{half}\n```")
+    assert not any(f["rule"] == "long-sentence" for f in findings), findings
+    # a bold lead-in that ends in a period is its own sentence
+    lead = " ".join(["word"] * 14)
+    findings, _ = lint(f"- **{lead}.** {lead}.")
     assert not any(f["rule"] == "long-sentence" for f in findings), findings
     # plain-word: advisory, inflections, phrases, allow-list, phrasal suggestions
     rows = ["utilize\tuse", "in order to\tto", "accomplish\tcarry out, do",

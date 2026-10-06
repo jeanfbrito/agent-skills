@@ -15,6 +15,10 @@ dictionary. Request the standard at https://www.asd-ste100.org/STE_downloads.htm
   per-cell check. Selftest cases cover wrapped prose, list items, headings,
   blank lines, and fenced code.
 
+- `scripts/ste-lint.py` ends a sentence at `.`, `!` or `?` that closes a bold or
+  italic span, so a bold lead-in ("**Lead-in.** Next sentence") is counted as
+  its own sentence.
+
 - `scripts/ste-lint.py` `plain-word` rule (advisory): flags words and phrases
   from `references/plain-words.tsv`, the public-domain list from the US Federal
   Plain Language Guidelines (credit: PLAIN, www.plainlanguage.gov), and skips
