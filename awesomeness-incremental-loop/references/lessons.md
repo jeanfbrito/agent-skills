@@ -1,0 +1,125 @@
+# Lessons: traps that cost real cycles
+
+Each rule below came from a long run that went wrong. Read this file at every
+start. When the loop hits a new trap, add it here with the same three parts.
+
+## Measuring
+
+1. **The engine number passed, but the delivered result failed.**
+   - Sign: the builder reports green probes, and the blind critic still loses.
+     Each time someone measured the delivered clip again, the critic was right.
+   - Rule: measure what the human and the critic see. For a video, decode the
+     whole clip and measure the frames. Do not seek with a keyframe jump (for
+     example `ffmpeg -ss` before `-i`), because it can return the wrong frames.
+     The engine state is not the deliverable.
+2. **The metric passed through a cheat.**
+   - Sign: a number goes green, but the frames show a different behavior. For
+     example, a "foot plant" that is a slide, or a "load" signal that only
+     repeats the command that the code sent.
+   - Rule: after each new PASS, look at the frames once to make sure the pass
+     shows the real behavior. Measure the effect, not the command. When one
+     signal can be faked, require two or three independent signals together.
+3. **The change is too small to see.**
+   - Sign: the probe reports motion, and the critic says "nothing moves".
+     A few millimetres at a distance can be less than one pixel at capture size.
+   - Rule: check that a change is visible at the capture resolution and frame
+     rate before you tune it. If the critic cannot see it, it does not exist.
+4. **A threshold from one scene does not work in another scene.**
+   - Sign: a brightness or colour mask finds the object in our scene, but in
+     the reference it finds walls and shadows.
+   - Rule: for masks, render a measurement view in flat colours (each part one
+     unshaded colour, lossless frames). Compare to the reference only with
+     metrics that transfer, such as motion.
+5. **The gate was never calibrated.**
+   - Rule: run each gate on the reference too, and keep that row in the gate
+     file. Fix the method in writing before a run. Do not change the method or
+     the limits during a run to make a result pass.
+
+## Targets
+
+6. **The target came from a description, not from the reference.**
+   - Sign: many rounds chase a behavior that the reference does not show.
+   - Rule: measure the primary reference frame by frame before you set a
+     target. Write the result in a reference breakdown doc. Second-hand
+     descriptions and articles are hints, not targets.
+7. **One number for a target that varies.**
+   - Rule: when the reference shows a range, gate on a band (for example
+     0.5 to 2.7 s), not on one value.
+8. **Plumbing became a goal.**
+   - Sign: a "reference gap" for a behavior that the harness needs (a reset, a
+     respawn, a debug pose) but the reference never shows.
+   - Rule: harness plumbing is never a target. Do not log a gap that the agent
+     assumed. Ask the human when the objective is not clear.
+9. **The reference has a role.**
+   - Rule: tag each reference as `quality bar` or `functional only`. A
+     functional reference shows what exists and how it works. It does not set
+     the quality level. Human feedback beats both.
+10. **Nothing can satisfy the rule.**
+    - Sign: an enforced invariant pushes the result into a worse state. For
+      example, a clearance rule pushes a part away from where it must sit.
+    - Rule: check that the geometry or the math allows the rule before you
+      enforce it. If it does not, measure the value and guard only real bugs.
+11. **Someone tuned the output in place of its cause.**
+    - Sign: the code places a visible part directly, and the parts that
+      should drive it bend to follow. The result breaks limits (folded joints, clipping).
+    - Rule: model the causal chain. Drive the cause (intent, then body, then
+      the tool), inside real limits. The visible result is the output.
+
+## Checks and gates
+
+12. **Someone loosened a check to make it green.**
+    - Rule: a check that passed only because of a cheat can go red when the
+      cheat goes. Mark it `expected red` in the journal with the step that
+      must make it green. Report its numbers. Do not loosen it.
+13. **Too many tests for each attempt.**
+    - Sign: hours go to full gate sweeps before and after each small try.
+    - Rule: while you iterate, run only the one or two checks that the change
+      can affect, on one variant. Run the affected gates once at the end. To
+      prove "default unchanged", compare output bytes. Do not run a sweep.
+14. **The capture recorded old frames.**
+    - Sign: the file count is right, but some images repeat. A hidden or occluded
+      window can stop painting.
+    - Rule: stamp a frame number in each image and require numbers in sequence.
+      Use the app's state (DOM, engine state) as the truth for logic, and the
+      frames only for the look.
+
+## Agents
+
+15. **A builder's success report is not proof.**
+    - Rule: check every builder result yourself: the diff, the focused checks
+      and the frames. A builder must not grade its own work.
+16. **A report can arrive before the files are final.**
+    - Rule: before a timing-sensitive run, wait until the files stop changing.
+17. **A guess about the cause is not a finding.**
+    - Rule: look at the artifact (frame, log line, file) before you pass on a
+      cause that a sub-agent gave.
+18. **More builder rounds after repeated losses.**
+    - Rule: after 2 failed attempts on one item, send it to an auditor, not
+      to another builder round. The auditor finds the root constraint.
+19. **Parts are missing from the lab rig.**
+    - Sign: the subject passes in the lab. In the full project it changes.
+    - Rule: keep a stand-in for each part that touches the subject, for
+      example a prop in the hands. Then the lab pose matches the real one.
+20. **A rule that only lives in prose.**
+    - Rule: when a lesson repeats, move it into the strongest mechanism that
+      works: a gate, a check, a test or a hook. Prose is for judgment only.
+21. **A blind critic for every small change.**
+    - Sign: each little change waits for a new capture and a critic round.
+      Tokens and hours go to checks that a metric or a gizmo could do in
+      seconds.
+    - Rule: check each change with senses. Call the critic only at the gate
+      (`references/checks.md`): a row about to be called done, a question no
+      sense can answer, or a mode change. Batch the rows. Turn each critic
+      deficit into a sense check, so the next fix does not need the critic.
+22. **One camera angle for a 3D check.**
+    - Sign: a part looks right in the check view and is wrong in depth. A
+      capture full of the room and the HUD hides the small error under test.
+    - Rule: check 3D from at least two views at 90 degrees, plus the real
+      view. Hide everything that is not measured, but do not remove it: a
+      removed part can change the behavior (`senses/3d-views.md`).
+23. **The human found a defect that any person would call wrong.**
+    - Sign: wheels below the ground, a hand through a wall, text off the
+      button. The agent did not see it because it checked only its item.
+    - Rule: keep invariants on in every run (`senses/invariants.md`), and
+      give every capture a metadata record (`senses/capture-metadata.md`).
+      Each such complaint becomes a new invariant.
