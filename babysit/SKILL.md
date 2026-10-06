@@ -1,6 +1,6 @@
 ---
 name: babysit
-description: Babysits an open pull request until every check is green, always in its own git worktree and never asking first. It runs a background watch script that polls for new review-bot comments, check results and mergeability, and exits with a state code. Then it reads the whole batch, triages all of it through `superpowers:receiving-code-review`, plans every change before editing, pushes, and re-runs the watcher. Stops and hands back the moment a human reviewer comments. Triggered by "/babysit", "babysit this PR", "babysit PR #123", "watch the PR", "keep an eye on that PR", "get the PR green", "handle the review bots", or immediately after a skill opens a PR. Draft-first for anything posted to the PR.
+description: 'Babysits an open pull request until every check is green, always in its own git worktree and never asking first. It runs a background watch script that polls for new review-bot comments, check results and mergeability, and exits with a state code. Then it reads the whole batch, triages all of it through `superpowers:receiving-code-review`, plans every change before editing, pushes, and re-runs the watcher. Stops and hands back the moment a human reviewer comments. Triggered by "/babysit", "babysit this PR", "babysit PR #123", "watch the PR", "keep an eye on that PR", "get the PR green", "handle the review bots", or immediately after a skill opens a PR. Draft-first for anything posted to the PR.'
 ---
 
 # Babysit

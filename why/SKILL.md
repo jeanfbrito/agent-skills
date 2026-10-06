@@ -1,6 +1,6 @@
 ---
 name: why
-description: Investigates why code, a setting, or a behavior is the way it is. Examples: design rationale, a regression's origin, a threshold's source, dead-looking code. It anchors on git history, then queries every connected evidence source (GitHub PRs, Jira, Confluence, Rocket.Chat, Zoho Desk, prior-session memory). It answers with each claim tagged by confidence. Triggered by "/why", "why is this like this", "why did we do X", "why was this added", "what motivated this", "where did this number come from", "when did this break and why".
+description: 'Investigates why code, a setting, or a behavior is the way it is. Examples: design rationale, a regression''s origin, a threshold''s source, dead-looking code. It anchors on git history, then queries every connected evidence source (GitHub PRs, Jira, Confluence, Rocket.Chat, Zoho Desk, prior-session memory). It answers with each claim tagged by confidence. Triggered by "/why", "why is this like this", "why did we do X", "why was this added", "what motivated this", "where did this number come from", "when did this break and why".'
 ---
 
 # Why
