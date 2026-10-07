@@ -198,7 +198,9 @@ Status: investigating, no PR yet." \
 ### Pattern in practice
 
 1. Pull session context (`git status`, `git log`, branch name, optionally
-   `gh pr view`).
+   `gh pr view`). For code work, file the ticket **before** the branch and
+   PR exist, so the key goes into the branch name and PR title from the
+   start (see "Link tickets to code" in `~/Github/agent-skills/jira/SKILL.md`).
 2. Decide project + type. If ambiguous, **ask before drafting** — a single
    clarifying question is cheaper than a wrong-shaped ticket.
 3. Draft summary + description.
@@ -208,7 +210,9 @@ Status: investigating, no PR yet." \
 5. Wait for confirmation. Stop.
 6. After creation, jira-cli prints the new key. Capture it and offer
    follow-ups: _"Created PROJ-2117. Want me to (a) assign it to you, (b)
-   link the PR via Smart Commits, (c) add it to the active sprint?"_
+   add it to the active sprint?"_ If a PR already exists, run
+   `~/.claude/skills/jira/jira-link-pr PROJ-2117 <PR>` as part of the
+   create (no extra question) and report its dev-status result.
 
 ### Common slips to avoid
 

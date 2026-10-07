@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Link a GitHub PR to a Jira issue so it shows in the issue's Development panel.
+#
+#   jira-link-pr <KEY> <PR number or URL> [-R owner/repo] [--wait <seconds>]
+#
+# Steps, each idempotent:
+#   1. Put the key in the PR title, as a trailing "(KEY)" when it is missing.
+#      The GitHub for Jira app links a PR only when the key is in the branch
+#      name, the PR title or a commit message. A remote link alone does NOT
+#      fill the Development panel.
+#   2. Move the issue to "In Progress" when it is still before that status.
+#   3. Add the PR as a remote link ("fixed by"), unless that URL is linked.
+#   4. Poll the dev-status API until the Development panel lists a PR
+#      (default 300 s), and print the result. The app can take minutes.
+set -euo pipefail
+source "$(dirname "$(readlink -f "$0")")/jira-env.sh"
+
+usage() { echo "usage: jira-link-pr <KEY> <PR number|URL> [-R owner/repo] [--wait <seconds>]" >&2; exit 2; }
+[[ $# -ge 2 ]] || usage
+key="$1" pr="$2"; shift 2
+repo_args=() wait_s=300
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -R) repo_args=(-R "$2"); shift 2 ;;
+    --wait) wait_s="$2"; shift 2 ;;
+    *) usage ;;
+  esac
+done
+[[ "$key" =~ ^[A-Z][A-Z0-9]+-[0-9]+$ ]] || { echo "not an issue key: $key" >&2; exit 2; }
+
+site="$(read_local_config site)"
+auth="$ATLASSIAN_EMAIL:$JIRA_API_TOKEN"
+api() { curl -sS -u "$auth" -H "Content-Type: application/json" "$@"; }
+
+# 1. PR title
+read -r url title < <(gh pr view "$pr" "${repo_args[@]}" --json url,title -q '.url + " " + .title')
+branch="$(gh pr view "$pr" "${repo_args[@]}" --json headRefName -q .headRefName)"
+if [[ "$title" == *"$key"* || "$branch" == *"$key"* ]]; then
+  echo "PR title/branch already carry $key"
+else
+  gh pr edit "$pr" "${repo_args[@]}" --title "$title ($key)" >/dev/null
+  echo "PR title -> $title ($key)"
+fi
+
+# 2. Status
+status="$(api "$site/rest/api/3/issue/$key?fields=status" | jq -r .fields.status.name)"
+case "$status" in
+  "To Do"|"Specifying"|"Ready for Dev"|"Backlog"|"Open")
+    jira issue move "$key" "In Progress" >/dev/null && echo "status: $status -> In Progress" ;;
+  *) echo "status: $status (unchanged)" ;;
+esac
+
+# 3. Remote link
+if api "$site/rest/api/3/issue/$key/remotelink" | jq -e --arg u "$url" 'any(.[]; .object.url == $u)' >/dev/null; then
+  echo "remote link: already present"
+else
+  pr_num="${url##*/}"
+  body="$(jq -n --arg u "$url" --arg t "PR #$pr_num: $title" '{relationship: "fixed by", object: {url: $u, title: $t}}')"
+  code="$(api -o /dev/null -w '%{http_code}' -X POST "$site/rest/api/3/issue/$key/remotelink" -d "$body")"
+  echo "remote link: HTTP $code"
+fi
+
+# 4. Development panel
+id="$(api "$site/rest/api/3/issue/$key?fields=summary" | jq -r .id)"
+deadline=$(( $(date +%s) + wait_s ))
+while :; do
+  count="$(api "$site/rest/dev-status/latest/issue/summary?issueId=$id" | jq -r '.summary.pullrequest.overall.count // 0')"
+  if [[ "$count" != "0" ]]; then echo "development panel: $count PR(s) linked"; exit 0; fi
+  if (( $(date +%s) >= deadline )); then
+    echo "development panel: no PR after ${wait_s}s. The app processes webhooks late at times; it also links the squash-merge commit, whose message carries the PR title." >&2
+    exit 1
+  fi
+  sleep 15
+done

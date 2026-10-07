@@ -1,6 +1,6 @@
 ---
 name: jira
-description: Drive your Atlassian Jira workspace from a terminal session via the `jira` CLI (ankitpokhrel/jira-cli). Use this skill ANY time the user asks about Jira tickets, issues, sprints, JQL, boards, story points, worklogs, or names a project key from your org — even if they don't say the word "Jira". Also use it for vague work-status questions like "what's on my plate", "what am I working on", "what's blocked", "show me my open tickets", "current sprint", "ready for dev queue", because that work usually lives in Jira. Skip this skill only when the user is clearly asking about something else (Confluence pages, GitHub PRs, Slack messages) — for those, use the appropriate other tool. Personal defaults (primary project key, default component, default assignee, workflow status names) live in `local-config.yml` next to this file (gitignored), populated by `setup.sh`.
+description: Drive your Atlassian Jira workspace from a terminal session via the `jira` CLI (ankitpokhrel/jira-cli). Use this skill ANY time the user asks about Jira tickets, issues, sprints, JQL, boards, story points, worklogs, or names a project key from your org — even if they don't say the word "Jira". Also use it for vague work-status questions like "what's on my plate", "what am I working on", "what's blocked", "show me my open tickets", "current sprint", "ready for dev queue", because that work usually lives in Jira. Also use it to link a PR or branch to a ticket ("link the PR to the ticket", "hook the PR to Jira"). Skip this skill only when the user is clearly asking about something else (Confluence pages, GitHub PRs, Slack messages) — for those, use the appropriate other tool. Personal defaults (primary project key, default component, default assignee, workflow status names) live in `local-config.yml` next to this file (gitignored), populated by `setup.sh`.
 ---
 
 # Atlassian Jira workflow (jira-cli)
@@ -166,6 +166,29 @@ jira issue list -q "project = <KEY> AND status = 'Ready for Dev'" --plain --no-h
 
 Full output-flag table (`--raw`, `--csv`, `--paginate`) and board/sprint
 commands: `~/Github/agent-skills/jira/references/jql-and-output.md`
+
+## Link tickets to code (GitHub for Jira)
+
+The issue's Development panel lists a PR only when the GitHub for Jira app
+finds the key in the **branch name, PR title or a commit message when the
+PR is opened**. A remote link alone does not fill that panel.
+
+- **From the start:** for code work, get the key first, then name the
+  branch with it (`fix/CORE-1234-short-desc`) and end the PR title with
+  `(CORE-1234)`. The squash-merge commit then carries the key too.
+- **After a PR exists**, run the helper. It appends `(KEY)` to the title
+  if it is missing, moves the issue to In Progress, adds the PR as a
+  "fixed by" remote link, then polls the dev-status API and prints
+  whether the panel shows the PR:
+
+```bash
+~/.claude/skills/jira/jira-link-pr CORE-1234 3548 [-R owner/repo] [--wait 300]
+```
+
+A title edit on an open PR did not fill the panel within 10 min
+(CORE-2764 / PR #3548, Oct 2026). For an existing PR, the merge commit
+is what links it, so do not report the panel as linked until the
+helper's poll says so.
 
 ## Draft-first — required for every write
 
