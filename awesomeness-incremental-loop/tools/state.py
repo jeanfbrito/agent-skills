@@ -16,6 +16,7 @@ Usage:
       KIND: pick predict try see keep revert commit step-back blocked end
   state.py lock    [--project DIR] [--owner NAME] [--stale-min 90]   # prints LOCKED token=<t>
   state.py unlock  --token <t> [--project DIR]                       # only the holder unlocks
+  state.py unlock  --orphan [--project DIR]     # the orchestrator, after its cycle subagent ended
   state.py pause   [--project DIR]     # the human brake for every driver
   state.py resume  [--project DIR]
 
@@ -379,7 +380,10 @@ def note(a):
         metrics[k.strip()] = v
     files = [os.path.abspath(os.path.join(a.project, f)) for f in (a.file or [])]
     entry = {"t": time.strftime("%Y-%m-%dT%H:%M:%S"), "cycle": cycle, "row": row, "kind": kind}
-    for k, v in (("text", text), ("files", files), ("metrics", metrics), ("commit", a.commit),
+    commit = a.commit
+    if kind == "end" and not commit:  # the end note carries the cycle's last commit
+        commit = next((e.get("commit") for e in reversed(oc[2]) if e.get("commit")), None)
+    for k, v in (("text", text), ("files", files), ("metrics", metrics), ("commit", commit),
                  ("status", a.status), ("progress", a.progress), ("next", a.next)):
         if v:
             entry[k] = v
@@ -436,6 +440,10 @@ def unlock(a):
         held = json.load(open(path))
     except (OSError, ValueError):
         held = {}
+    if a.orphan:
+        os.remove(path)
+        print(f"UNLOCKED: removed the lock of {held.get('owner', '?')}, a run that has ended.")
+        return 0
     if held.get("token") and held.get("token") != a.token:
         print(f"REFUSED: this lock belongs to {held.get('owner', '?')}. Only the run that took it unlocks it "
               f"(--token from its LOCKED line).")
@@ -477,6 +485,8 @@ def main():
     ap.add_argument("--owner", default=os.environ.get("AWESOME_OWNER", f"run-{os.getppid()}"))
     ap.add_argument("--stale-min", type=float, default=90, help="minutes with no note before a lock is stale")
     ap.add_argument("--token", help="for unlock: the token that lock printed")
+    ap.add_argument("--orphan", action="store_true",
+                    help="for unlock: remove a lock whose run has ended (the orchestrator uses it after a cycle subagent ends)")
     ap.add_argument("--drift-depth", type=int, default=4, help="commits to scan for sense drift (the last cycle)")
     a = ap.parse_intermixed_args()
     a.project = os.path.abspath(a.project)

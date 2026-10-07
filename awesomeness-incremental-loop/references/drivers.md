@@ -28,6 +28,9 @@ Rules:
   human priority.
 - **One cycle at a time.** Spawn the next subagent only after the last one
   ends. The cycle lock also refuses a second cycle.
+- **A lock left behind.** When a cycle subagent has ended and the lock is still
+  there, its run died before it could unlock. Run `state.py unlock --orphan`,
+  then spawn the next cycle. That cycle continues the open cycle from the trail.
 - **Trust the status line.** The subagent did its own self-check. The
   orchestrator does not run those checks again. It opens the evidence only
   when a status line has no commit or no evidence, or disagrees with the
