@@ -15,7 +15,6 @@ asks". The next cycle applies them. To pause every driver, run `state.py pause`.
 - Reference (current bar):
 - Earlier references (too easy):
 - Branch:
-- Driver: in-session | scheduler | shell | inline (see references/drivers.md)
 - Frame-rate target: 30 | 60 | other (reason)
 - Physics rate: (Hz, substeps, solver iterations, and the metric that proved each raise)
 - Mode: gap | beyond

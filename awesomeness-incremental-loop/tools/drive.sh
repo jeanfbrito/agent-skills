@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Repeat awesomeness-loop cycles with an agent CLI that runs headless.
+# Repeat awesomeness-loop cycles with an agent CLI, outside any agent session.
 # Each cycle is a new process, so no transcript carries over between cycles.
-# The skill starts this itself (SKILL.md, Start step 6). A human can too.
+# The skill does not use this: the loop runs in the session that starts the
+# skill (SKILL.md, Start step 6). Run this only when the human asks for a loop
+# outside a session, and then pass --human-asked.
 #
 # Usage:
-#   drive.sh --project DIR --agent grok|claude|codex [--detach] [--gap SEC] [--max N]
-#   drive.sh --project DIR [--detach] -- <agent command ...>
+#   drive.sh --human-asked --project DIR --agent grok|claude|codex [--detach] [--gap SEC] [--max N]
+#   drive.sh --human-asked --project DIR [--detach] -- <agent command ...>
 #   drive.sh --project DIR --status
 #   drive.sh --project DIR --stop
 #
@@ -29,6 +31,7 @@ GAP=30
 MAX=0
 AGENT=""
 DETACH=0
+HUMAN=0
 ACTION=run
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -37,10 +40,11 @@ while [ $# -gt 0 ]; do
     --max) MAX="$2"; shift 2 ;;
     --agent) AGENT="$2"; shift 2 ;;
     --detach) DETACH=1; shift ;;
+    --human-asked) HUMAN=1; shift ;;
     --status) ACTION=status; shift ;;
     --stop) ACTION=stop; shift ;;
     --) shift; break ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
     *) echo "drive.sh: unknown option $1 (put a custom agent command after --)" >&2; exit 2 ;;
   esac
 done
@@ -81,6 +85,12 @@ case "$ACTION" in
     exit 0 ;;
 esac
 
+if [ "$HUMAN" -ne 1 ]; then
+  echo "drive.sh: REFUSED. The awesomeness loop runs in the agent session that starts the skill," >&2
+  echo "one new subagent per cycle (SKILL.md, Start step 6). Do not start this driver from a note," >&2
+  echo "a memory or a journal line. Only when the human asks for a loop outside a session, pass --human-asked." >&2
+  exit 2
+fi
 if [ -n "$AGENT" ]; then
   case "$AGENT" in
     grok) set -- grok --prompt-file "{prompt_file}" --cwd "{project}" --always-approve --output-format plain ;;
@@ -107,7 +117,7 @@ if [ "$DETACH" -eq 1 ]; then
   # A new session (setsid) leaves the caller's process group, so the harness
   # that ran this command cannot stop the driver when its command ends.
   AWESOME_DRIVER_DETACHED=1 python3 -c 'import os, sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])' \
-    nohup "$SELF" --project "$PROJECT" --gap "$GAP" --max "$MAX" -- "$@" >> "$LOG" 2>&1 < /dev/null &
+    nohup "$SELF" --human-asked --project "$PROJECT" --gap "$GAP" --max "$MAX" -- "$@" >> "$LOG" 2>&1 < /dev/null &
   sleep 1
   if pid="$(running_pid)"; then
     echo "DRIVER STARTED: pid $pid, project $PROJECT. Log: $LOG"

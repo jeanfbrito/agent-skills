@@ -245,7 +245,7 @@ def brief(a):
     asks = find(tables, "Assumptions") or []
     senses = find(tables, "Senses") or []
 
-    head = " | ".join(f"{k}: {setup[k]}" for k in ("Project", "Reference (current bar)", "Mode", "Driver", "Branch") if setup.get(k))
+    head = " | ".join(f"{k}: {setup[k]}" for k in ("Project", "Reference (current bar)", "Mode", "Branch") if setup.get(k))
     out.append(head[:400] or "(no Setup)")
     trail = read_trail(root)
     oc = open_cycle(trail)
@@ -299,6 +299,10 @@ def brief(a):
             out.append(f"  log: {cells[:170]}")
 
     sig = []
+    stale = [f"{k}: {v}" for k, v in setup.items() if re.search(r"drive\.sh|detach|scheduler", f"{k} {v}", re.I)]
+    if stale:
+        sig.append(f"STALE-DRIVER: the journal says '{stale[0][:80]}'. The loop runs in the session (SKILL.md, Start step 6). "
+                   "Delete that line. Do not start drive.sh.")
     open_verdicts = [v for v in verdicts if (v.get("Verdict") or "").strip() and not (v.get("Applied") or "").strip()]
     open_answers = [v for v in asks if (v.get("Verdict") or "").strip() and not (v.get("Applied") or "").strip()]
     if open_verdicts or open_answers:

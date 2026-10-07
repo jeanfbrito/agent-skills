@@ -183,4 +183,8 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
     - Rule: the session that runs the skill is the orchestrator. Each cycle
       is a new subagent of that session. A loop outside the session runs
       only when the human asks for one.
-    - Mechanism: SKILL.md Start step 6, `references/drivers.md`.
+    - Sign, later: an old journal line and an agent memory said to restart
+      the driver. The next start obeyed them and not the skill.
+    - Mechanism: SKILL.md Start step 6. `drive.sh` refuses to start without
+      `--human-asked`. `state.py brief` gives `STALE-DRIVER` for an old
+      journal line.

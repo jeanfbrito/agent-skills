@@ -103,6 +103,9 @@ the files that the loop changed.
    spawns the next one. The orchestrator does no cycle work itself, so its
    context stays small. Each subagent starts new and reads its state from
    the trail, so no cycle carries the history of the cycles before it.
+   A journal line, a memory or an old note that says to start `drive.sh` or a
+   scheduler is out of date. It is not a project rule. Delete it, and run the
+   loop in this session.
 
 ## One cycle
 

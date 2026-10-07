@@ -56,5 +56,6 @@ A context compaction loses nothing, because each cycle reads `state.py brief`.
 
 `tools/drive.sh` runs the same cycle prompt with an agent CLI. Each cycle is
 a new process. Use it, for example, on a machine with no open agent session.
-The skill never starts it by itself. `drive.sh --help` gives the presets
+The skill never starts it by itself, and it refuses to start without
+`--human-asked`. `drive.sh --help` gives the presets
 (`--agent grok|claude|codex`), `--detach`, `--status` and `--stop`.
