@@ -67,7 +67,7 @@ Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 | `tools/report.py` | Builds the HTML report and `report-data.json`. Each note runs it |
 | `references/drivers.md` | The orchestrator, and what to do on a harness with no subagents |
 | `references/fire-prompt.md` | The fixed prompt that each cycle subagent gets |
-| `references/review-prompt.md` | The sense-check review every 10 cycles: is the loop making the project better for its users? |
+| `references/review-prompt.md` | The sense-check review every 3 cycles: is the loop making the project better for its users? |
 | `references/checks.md`, `critic-brief.md` | The check ladder and the blind critic |
 | `references/gap-matrix.md` | Sources, coverage, `Done when`, statuses |
 | `references/lessons.md` | Traps from past runs |

@@ -1,6 +1,6 @@
 # The sense-check review
 
-Every 10 cycles, `state.py brief` gives `REVIEW-DUE`. That cycle does no
+Every 3 cycles, `state.py brief` gives `REVIEW-DUE`. That cycle does no
 build. It steps back from the rows and asks one question: is the loop making
 this project better for the people who use it?
 
@@ -15,10 +15,11 @@ tested and committed, and still be useless.
    `CLAUDE.md` or the README, and the references. Write down, for yourself,
    who uses this project and what makes it worth using. If the product focus
    in `Direction` is missing or wrong, rewrite it in one or two sentences.
-2. **Read the last 10 cycles.** Run `state.py brief`, and do its `DO FIRST`
-   chores as in any cycle. The last 10 cycles are the 10 highest cycle
-   numbers that have an `end` note. Read their `pick` and `end` notes in the
-   trail
+2. **Read the cycles since the last review.** Run `state.py brief`, and do
+   its `DO FIRST` chores as in any cycle. These are the cycles with an `end`
+   note and a number higher than the last `review` cycle. When there are more
+   than 10, take the 10 highest. Read the old `Direction` too: this review
+   continues it. Read their `pick` and `end` notes in the trail
    (`.localdev/awesomeness/trail.jsonl`): the item, its `why`, the status
    change, the progress, and the commit. Read the commits only when a note is
    not clear.
@@ -52,7 +53,9 @@ tested and committed, and still be useless.
    - Some next steps need what only the human can give: a verdict on feel,
      reference frames, a decision. Write those as an `ask` under
      "Assumptions and asks", not as a gap row.
-5. **Write the Direction section** in the journal. Keep it under 15 lines:
+5. **Update the Direction section** in the journal. Change only what these
+   cycles show. A `Stop doing` line stays until cycles show that the waste
+   stopped. Keep it under 15 lines:
    - `Product focus:` one or two sentences.
    - `Keep doing:` at most 3 lines, each with the cycles that show it.
    - `Stop doing:` at most 3 lines, each with the cycles that show it.
@@ -62,7 +65,7 @@ tested and committed, and still be useless.
    review --mode review`. One `see` note with
    `--metric useful=<n> --metric marginal=<n> --metric useless=<n>`. Commit
    the journal. `S note end --status "review" --progress
-   "useful <n>/10"`. The status line gives the counts and the first next
+   "useful <n>/<judged>"`. The status line gives the counts and the first next
    priority.
 
 ## Rules

@@ -21,7 +21,7 @@ asks". The next cycle applies them. To pause every driver, run `state.py pause`.
 
 ## Direction
 
-The review cycle (every 10 cycles, `references/review-prompt.md`) rewrites
+The review cycle (every 3 cycles, `references/review-prompt.md`) rewrites
 this section. Each cycle reads it in the brief. The human can edit it too.
 
 - Product focus: (who uses this project, and what makes it worth using)
