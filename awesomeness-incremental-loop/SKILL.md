@@ -67,6 +67,7 @@ Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 | `tools/report.py` | Builds the HTML report and `report-data.json`. Each note runs it |
 | `references/drivers.md` | The orchestrator, and what to do on a harness with no subagents |
 | `references/fire-prompt.md` | The fixed prompt that each cycle subagent gets |
+| `references/review-prompt.md` | The sense-check review every 10 cycles: is the loop making the project better for its users? |
 | `references/checks.md`, `critic-brief.md` | The check ladder and the blind critic |
 | `references/gap-matrix.md` | Sources, coverage, `Done when`, statuses |
 | `references/lessons.md` | Traps from past runs |
@@ -87,8 +88,11 @@ the files that the loop changed.
 2. **Journal**: `docs/awesomeness-loop.md`. If it is missing, create it from
    the journal template. If it has old columns, add the template's new
    sections and columns. Keep the rows.
-3. **Sources and coverage** (`references/gap-matrix.md`). Make one gap row
-   for each feature area of the reference, not only for the open items. Give
+3. **Product focus, sources and coverage** (`references/gap-matrix.md`).
+   First write the product focus in the journal's `Direction` section. Use
+   one or two sentences: who uses this project, and what makes it worth
+   using. Take it from the pitch in `AGENTS.md`, `CLAUDE.md` or the README. Then make one gap
+   row for each feature area of the reference that serves that focus. Give
    each open row a `Done when`.
 4. **Senses**: list the project's own capture, test, gate and analysis tools
    before you build any. Write them in the Senses table. Run each one once.
@@ -133,10 +137,14 @@ files and the numbers it produced. The form is
    an earlier cycle. For a verdict: `keep` sets the toggle default ON, `kill`
    deletes it and its toggle, `tweak: <note>` queues it. Then the first line
    under **THIS CYCLE'S ITEM** decides the item (`STALL`, `NO-CODE`,
-   `CRITIC-DUE`, `EXHAUSTED`). With no item line, use "Picking the item".
+   `CRITIC-DUE`, `EXHAUSTED`, `REVIEW-DUE`). With no item line, use "Picking
+   the item".
 2. **Pick the item** (next section). If its row has no `Done when`, write one
    first: a measurable target from the reference evidence.
-   Note: `S note pick "<item>" --row "<gap row>" --mode <mode>`. The mode is
+   Note: `S note pick "<item>" --row "<gap row>" --mode <mode> --why "<what
+   a user will notice>"`. The `why` ties the item to the product focus. If
+   you cannot write one, the item is not worth a cycle: set its row `held`
+   with `low value: <reason>` and pick another. The mode is
    `gap` for normal work, or the step that a signal named: `step-back`,
    `critic`, `coverage`, `unblock`, `beyond`.
 3. **Write the acceptance check and the prediction.** Name the done-when
@@ -188,13 +196,15 @@ Take the first rule that gives an item:
    authority. The critic is not.
 3. The row of the last cycle (`NOW` in the brief), while it is open and has
    no `STALL`. Finish a row before you start a new one.
-4. A full critic queue (about 5 rows) or a mode change: the critic gate.
-5. A `lab-only` row. Integrate it before new lab work.
-6. A quick win: a `missing` or `below` row with high impact and small effort.
-7. The highest-impact open row, even when its effort is L.
+4. The `Next priorities` in the brief's `DIRECTION`, in order. Skip what its
+   `Stop doing` names.
+5. A full critic queue (about 5 rows) or a mode change: the critic gate.
+6. A `lab-only` row. Integrate it before new lab work.
+7. A quick win: a `missing` or `below` row with high impact and small effort.
+8. The highest-impact open row, even when its effort is L.
 
 **Anti-lazy rule:** after 3 quick wins in a row, the next item comes from rule
-2, 5 or 7.
+2, 4, 6 or 8.
 
 ## Step back (signal `STALL`)
 
@@ -262,5 +272,8 @@ open, choose one, write it under "Assumptions and asks", and continue.
 - Do not change a human-approved feature because the critic prefers another.
   Put the alternative behind a toggle.
 - Do not build tooling for its own sake. Build a sense when an item needs it.
+- Do not spend a cycle on what no user of this project would notice: a
+  constant, a byte or an internal detail of the reference. Fold it into the
+  `Done when` of the row that it belongs to.
 - Do not bring raw logs, full consoles or full-desktop screenshots into the
   context. Use a digest (`senses/digest.md`) and a clean, cropped capture.

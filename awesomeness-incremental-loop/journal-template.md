@@ -19,6 +19,17 @@ asks". The next cycle applies them. To pause every driver, run `state.py pause`.
 - Physics rate: (Hz, substeps, solver iterations, and the metric that proved each raise)
 - Mode: gap | beyond
 
+## Direction
+
+The review cycle (every 10 cycles, `references/review-prompt.md`) rewrites
+this section. Each cycle reads it in the brief. The human can edit it too.
+
+- Product focus: (who uses this project, and what makes it worth using)
+- Keep doing:
+- Stop doing:
+- Next priorities:
+- Reviewed at cycle:
+
 ## Sources
 
 | Kind | Path | Notes |

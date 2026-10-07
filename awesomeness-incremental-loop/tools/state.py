@@ -14,7 +14,8 @@ Usage:
                 [--commit SHA] [--status "partial -> matches"] [--progress "0.31 -> 0.12" | none]
                 [--next "next step"]
       KIND: pick predict try see keep revert commit step-back blocked end ack
-      pick takes --row and --mode gap|coverage|unblock|beyond|step-back|critic
+      pick takes --row, --mode gap|coverage|unblock|beyond|step-back|critic|review,
+      and --why "<what a user will notice>" (required for gap, coverage, unblock, beyond)
       ack --drift <sha> "<why the check change is right>" clears a SENSE-DRIFT
   state.py lock    [--project DIR] [--owner NAME] [--stale-min 90]
       # The same agent session takes its own lock back (after a compaction).
@@ -48,7 +49,9 @@ LOG_ROWS_MAX = 30
 JOURNAL_MAX = 40_000
 TRAIL = "trail.jsonl"
 KINDS = ["pick", "predict", "try", "see", "keep", "revert", "commit", "step-back", "blocked", "end", "ack"]
-MODES = ["gap", "coverage", "unblock", "beyond", "step-back", "critic"]
+MODES = ["gap", "coverage", "unblock", "beyond", "step-back", "critic", "review"]
+NEEDS_WHY = ("gap", "coverage", "unblock", "beyond")  # work that changes the product or the matrix
+REVIEW_EVERY = 10  # cycles between two sense-check reviews
 ROTATION = ["coverage", "unblock", "beyond"]  # the steps of the exhausted procedure, in turn
 NO_CODE_CYCLES = 3
 AGENT_NAMES = ("grok", "claude", "codex")
@@ -388,6 +391,13 @@ def brief(a):
 
     head = " | ".join(f"{k}: {setup[k]}" for k in ("Project", "Reference (current bar)", "Mode", "Branch") if setup.get(k))
     out.append(head[:400] or "(no Setup)")
+    direction = section(text, "Direction")
+    lines = [l for l in direction.splitlines() if l.strip() and not l.startswith(("The review", "A review", "Each cycle"))]
+    if lines:
+        out.append("DIRECTION (from the last sense-check review; it outranks quick wins):")
+        out += ["  " + l[:200] for l in lines[:14]]
+    else:
+        out.append("DIRECTION: none yet. Write the product focus in the journal's Direction section (SKILL.md, Start step 3).")
     trail = read_trail(root)
     oc = open_cycle(trail)
     if oc:
@@ -486,6 +496,17 @@ def brief(a):
         chores.append(("JOURNAL-LONG", f"JOURNAL-LONG: {size} bytes, {len(log)} log rows, {len(long_rows)} over {LOG_ROW_MAX} chars. "
                        f"The history lives in the trail. Move the cycle log out of the journal and keep the tables short."))
 
+    cyc_all = cycles_of(trail)
+    since_review = 0
+    for n_ in sorted(cyc_all, reverse=True):
+        notes_ = cyc_all[n_]
+        if cycle_mode(notes_) == "review" and any(e.get("kind") == "end" for e in notes_):
+            break
+        if any(e.get("kind") == "end" for e in notes_):
+            since_review += 1
+    if since_review >= REVIEW_EVERY:
+        items.append(f"REVIEW-DUE: {since_review} cycles since the last sense-check review. This cycle is the review "
+                     "(pick --mode review). Follow references/review-prompt.md.")
     for r in work:
         name = norm(r.get("Item", ""))
         n, no_prog = counts.get(name, (0, 0))
@@ -564,6 +585,11 @@ def note(a):
         if a.mode and a.mode not in MODES:
             print(f"REFUSED: --mode is one of {', '.join(MODES)}.")
             return 2
+        if (a.mode or "gap") in NEEDS_WHY and not (a.why or "").strip():
+            print('REFUSED: a pick needs --why: the effect that a user of this project will notice, and how it serves '
+                  'the product focus in the journal\'s Direction section. If you cannot write it, pick another row, '
+                  'or set this row held with "low value: <reason>".')
+            return 2
         cycle = max([e.get("cycle", 0) for e in trail] or [0]) + 1
         row = a.row
     elif kind == "ack":
@@ -592,6 +618,7 @@ def note(a):
         commit = next((e.get("commit") for e in reversed(oc[2]) if e.get("commit")), None)
     mode = a.mode if kind == "pick" else None  # without --mode, the pick text decides (cycle_mode)
     for k, v in (("text", text), ("files", files), ("metrics", metrics), ("commit", commit), ("mode", mode),
+                 ("why", a.why if kind == "pick" else None),
                  ("drift", a.drift.strip().lower() if kind == "ack" and a.drift else None),
                  ("status", a.status), ("progress", a.progress), ("next", a.next)):
         if v:
@@ -703,6 +730,7 @@ def main():
     ap.add_argument("--progress")
     ap.add_argument("--next")
     ap.add_argument("--mode", help=f"for pick: {'|'.join(MODES)} (default gap)")
+    ap.add_argument("--why", help="for pick: the effect a user of this project will notice (required for work modes)")
     ap.add_argument("--drift", help="for ack: the commit whose check change you reviewed")
     ap.add_argument("--project", default=".")
     ap.add_argument("--journal", default="docs/awesomeness-loop.md")
