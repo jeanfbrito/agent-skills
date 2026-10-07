@@ -1,11 +1,11 @@
-# The run prompt
+# The cycle prompt
 
-A scheduler or the shell driver sends this prompt to a new agent run, one run
-per cycle. Fill `{project}` with the absolute project path. Store it once, and
-do not change it between runs. The state lives in the journal. The prompt has
-no state, so a run that starts late cannot do old work again.
+The orchestrator gives this prompt to a new subagent, one subagent per cycle
+(`references/drivers.md`). Fill `{project}` with the absolute project path.
+Send the same text every time. The state lives in the journal and the trail.
+The prompt has no state, so a cycle cannot do old work again.
 
-`tools/drive.sh` reads the block below and fills `{project}` itself.
+`tools/drive.sh` reads the block below too, when a human runs it.
 
 ```text
 You are one cycle of the awesomeness incremental loop for the project at {project}.
@@ -20,5 +20,5 @@ You are a new run. Your state is on disk, not in this prompt.
    Do not write an `end` note: the next run continues this cycle. Then unlock with your token.
 4. Print the status line from the skill as your last line.
 
-Do not create, change or delete a schedule. Do not push, open a pull request, or send a message.
+Do not create, change or delete a schedule. Do not spawn another cycle. Do not push, open a pull request, or send a message.
 ```

@@ -13,8 +13,8 @@ description: >-
   or block it. So the loop moves forward and does not circle. A harsh blind
   critic runs only at the done gate. Past full
   parity it invents additions behind toggles until a human gives a verdict. The
-  human types only the skill command. The skill starts its own driver, and
-  the driver runs each cycle as a new process of the same agent CLI. Only the human stops it. Adapted from the gauntlet loop. Triggered by
+  session that runs the skill is the orchestrator: it runs each cycle as a
+  new subagent and spawns the next one when it ends. Only the human stops it. Adapted from the gauntlet loop. Triggered by
   '/awesomeness-incremental-loop', 'awesomeness loop', 'run the awesome loop',
   'what is next from the references', 'find what is missing versus the
   reference', 'keep improving until I stop you'.
@@ -23,8 +23,10 @@ argument-hint: "[optional: focus area] [optional: --no-commit] [optional: --refe
 
 # Awesomeness Incremental Loop
 
-The loop is one **cycle**, repeated without end. A **driver** starts the next
-cycle (`references/drivers.md`). No cycle keeps anything in memory, so the
+The loop is one **cycle**, repeated without end. The session that runs the
+skill is the **orchestrator**. It gives each cycle to a new subagent, and it
+starts the next one when that one ends (`references/drivers.md`). No cycle keeps
+anything in memory, so the
 loop runs the same on every agent harness.
 
 **Write as you work.** Each step of a cycle writes one note to the **trail**
@@ -61,10 +63,10 @@ Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 | File | Use |
 | --- | --- |
 | `tools/state.py` | `lock`, `brief`, `note`, `unlock`, `pause`, `resume`. The brief is the state, the open cycle and the SIGNALS that are due |
-| `tools/drive.sh` | The shell driver for any agent CLI |
+| `tools/drive.sh` | A loop outside the session, only when the human asks for one |
 | `tools/report.py` | Builds the HTML report and `report-data.json`. Each note runs it |
-| `references/drivers.md` | How each harness repeats the cycle, and the watcher role |
-| `references/fire-prompt.md` | The fixed prompt that each scheduled or shell run gets |
+| `references/drivers.md` | The orchestrator, and what to do on a harness with no subagents |
+| `references/fire-prompt.md` | The fixed prompt that each cycle subagent gets |
 | `references/checks.md`, `critic-brief.md` | The check ladder and the blind critic |
 | `references/gap-matrix.md` | Sources, coverage, `Done when`, statuses |
 | `references/lessons.md` | Traps from past runs |
@@ -93,16 +95,14 @@ the files that the loop changed.
 5. **Git**: on the default branch, create `awesomeness/<YYYY-MM-DD>`. Add the
    data root `.localdev/awesomeness/` to `.gitignore`. With `--no-commit`, do
    not commit.
-6. **Start the driver yourself.** The human only types the skill command. Run
-   your own CLI as the driver, detached, so each cycle is a new process:
-   `~/Github/agent-skills/awesomeness-incremental-loop/tools/drive.sh --project <repo> --agent <grok|claude|codex> --detach`
-   Use the name of the CLI that runs you. If a driver already runs for this
-   project, the command says so: keep it. If your CLI has no preset or cannot
-   run headless, use the next driver in `references/drivers.md`. Write the
-   driver in Setup. Then print one line, with the stop command from the output:
-   `Awesomeness loop: [PROJECT] against [REFERENCE]. Driver: [driver]. Next: [row]. Report: [path]. Stop: [command]. You are the brake.`
-   After that, this session is the watcher (`references/drivers.md`). It does
-   not do cycles itself.
+6. **Run the loop in this session.** Print one line:
+   `Awesomeness loop: [PROJECT] against [REFERENCE]. Next: [row]. Report: [path]. You are the brake.`
+   Then this session is the **orchestrator** (`references/drivers.md`). For
+   each cycle, it spawns one new subagent with the cycle prompt in
+   `references/fire-prompt.md`, reads the status line that comes back, and
+   spawns the next one. The orchestrator does no cycle work itself, so its
+   context stays small. Each subagent starts new and reads its state from
+   the trail, so no cycle carries the history of the cycles before it.
 
 ## One cycle
 
@@ -232,7 +232,7 @@ open, choose one, write it under "Assumptions and asks", and continue.
   a proven step, a reverted attempt, a step back, or a `blocked` row.
 - Do not put state in a stored prompt. Do not create, change or delete a
   schedule from a cycle. The journal holds the state.
-- Do not resume the transcript of an earlier run. Start each run new, and
+- Do not resume an earlier cycle subagent. Spawn a new one, and let it
   continue the work from the trail.
 - Do not soften the critic, lower the reference, loosen a check, or accept a
   builder's report as proof. Do not mark a row `matches` without evidence.

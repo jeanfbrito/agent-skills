@@ -176,3 +176,11 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
     - Mechanism: `state.py note` (it rebuilds the report), and the
       `IN PROGRESS` part of `state.py brief`. A new `pick` is refused while a
       cycle is open.
+32. **The loop left the session.**
+    - Sign: the skill started a detached driver process. The loop then ran
+      outside the agent that the human commanded, where the human could not
+      see it or stop it with that agent.
+    - Rule: the session that runs the skill is the orchestrator. Each cycle
+      is a new subagent of that session. A loop outside the session runs
+      only when the human asks for one.
+    - Mechanism: SKILL.md Start step 6, `references/drivers.md`.
