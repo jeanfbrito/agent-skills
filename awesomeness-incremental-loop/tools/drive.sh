@@ -78,6 +78,8 @@ case "$ACTION" in
       # agent run in progress stops too. A foreground driver: stop it and its children.
       kill -TERM -- "-$pid" 2>/dev/null || { pkill -TERM -P "$pid" 2>/dev/null; kill -TERM "$pid" 2>/dev/null; }
       rm -f "$PIDFILE"
+      # The stopped run cannot release its cycle lock, so release it here.
+      rm -f "$ROOT/lock"
       echo "DRIVER STOPPED: pid $pid. A cycle that was running stops too. The next start continues it from the trail."
     else
       echo "DRIVER NOT RUNNING for $PROJECT"
