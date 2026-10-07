@@ -188,3 +188,37 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
     - Mechanism: SKILL.md Start step 6. `drive.sh` refuses to start without
       `--human-asked`. `state.py brief` gives `STALE-DRIVER` for an old
       journal line.
+
+## Night two (2026-10-07, 123 cycles in three projects, in-session subagents)
+
+33. **A compacted cycle hit its own lock.**
+    - Sign: after a context compaction, the cycle ran its prompt again, got
+      BUSY on its own lock, and left the lock behind. Two cycles, about 4 USD,
+      and 4 orchestrator turns to find the dead owner.
+    - Rule: the lock knows the agent session. The same session takes it back.
+    - Mechanism: `state.py lock` records the agent pid (a session and its
+      subagents share it).
+34. **One signal starved the others.**
+    - Sign: `EXHAUSTED` won every cycle. `JOURNAL-LONG` showed in 12 cycles in
+      a row (40.8 to 54.8 KB), and a `SENSE-DRIFT` waited 2 cycles.
+    - Rule: small chores come first, in the same cycle, before the item.
+    - Mechanism: the brief splits `DO FIRST` from `THIS CYCLE'S ITEM`, and
+      marks a chore `OVERDUE` in its second cycle.
+35. **Coverage turned into a new way to circle.**
+    - Sign: 27 coverage rounds in one project. 19 cycles in a row added one
+      row each at the level of one audio constant. 0 unblock rounds with 12
+      to 21 rows parked.
+    - Rule: coverage, unblock and beyond take turns. A coverage row names
+      what a user sees or does, not a constant.
+    - Mechanism: `pick --mode`, and the brief names the next step.
+36. **The same sense drift came back every cycle.**
+    - Sign: one commit was listed in 3 cycles in a row, and 4 times in one brief.
+    - Rule: review it once, and record the result.
+    - Mechanism: `note ack --drift <sha> "<why>"`, one line per commit.
+37. **Cycles measured and did not build.**
+    - Sign: 16 cycles (3.9 hours, about 17 USD) changed no product file.
+      Rows went to `queued` on measures alone, and the first critic round
+      gave 0 wins and 6 losses.
+    - Rule: a row waits for the critic only after the product changed and
+      its metric moved.
+    - Mechanism: `NO-CODE` after 3 such cycles, and `QUEUED-NO-PROGRESS`.

@@ -112,24 +112,33 @@ the files that the loop changed.
 `S` means `python3 ~/Github/agent-skills/awesomeness-incremental-loop/tools/state.py --project <repo>`.
 
 Each step names its note. Write the note right after the step, with the
-files and the numbers it produced: `S note <kind> "<what>" [--file <capture>]
-[--metric name=value]`. Kinds: `pick`, `predict`, `try`, `see`, `keep`,
-`revert`, `commit`, `step-back`, `blocked`, `end`.
+files and the numbers it produced. The form is
+`S note <kind> "<what>" [--file <capture>] [--metric name=value]`. Kinds:
+`pick`, `predict`, `try`, `see`, `keep`, `revert`, `commit`, `step-back`,
+`blocked`, `end`, and `ack` (a reviewed sense drift).
 
-1. **Lock and read.** Run `S lock`. If it exits with 3 (busy) or 4 (paused),
-   print its line and end the run. Do not unlock a lock that you did not take.
-   Keep the token from the `LOCKED` line. Each note renews the lock. Before a
-   step that can take more than an hour, write its `try` note first. Run `S brief`. If it says `IN PROGRESS`,
+1. **Lock and read.** Run `S lock`. It knows your agent session. After a
+   context compaction, it gives your session its lock back. It also takes
+   over the lock of a session that has ended. Exit 3 means that another live
+   session holds the lock. Exit 4 means paused. On 3 or 4, print the line and
+   end the run.
+   Each note renews the lock. Before a step that can take more than an hour,
+   write its `try` note first. Run `S brief`. If it says `IN PROGRESS`,
    continue that cycle from its last note. Do not repeat a step that has a
-   note, and do not retry what it lists under `DO NOT RETRY`. The brief also
-   gives the open rows and the SIGNALS. A signal comes before the item rules:
-   `APPLY` verdicts and answers first (`keep`: toggle default ON, `kill`:
-   delete it and its toggle, `tweak: <note>`: queue it). Then `MISMATCH`, `STALL` (this
-   cycle is the step back), `EXHAUSTED`, `CRITIC-DUE`, `SENSE-DRIFT`,
-   `NO-DONE-WHEN` and `JOURNAL-LONG`, each as the brief says.
+   note, and do not retry what it lists under `DO NOT RETRY`.
+   The brief's SIGNALS have two parts. Do every line under **DO FIRST** in
+   this cycle, before the item: they are small chores (`APPLY` verdicts and
+   answers, `MISMATCH`, `NO-DONE-WHEN`, `QUEUED-NO-PROGRESS`, `SENSE-DRIFT`,
+   `JOURNAL-LONG`, `STALE-DRIVER`). A chore marked `OVERDUE` was skipped in
+   an earlier cycle. For a verdict: `keep` sets the toggle default ON, `kill`
+   deletes it and its toggle, `tweak: <note>` queues it. Then the first line
+   under **THIS CYCLE'S ITEM** decides the item (`STALL`, `NO-CODE`,
+   `CRITIC-DUE`, `EXHAUSTED`). With no item line, use "Picking the item".
 2. **Pick the item** (next section). If its row has no `Done when`, write one
    first: a measurable target from the reference evidence.
-   Note: `S note pick "<item>" --row "<gap row>"`.
+   Note: `S note pick "<item>" --row "<gap row>" --mode <mode>`. The mode is
+   `gap` for normal work, or the step that a signal named: `step-back`,
+   `critic`, `coverage`, `unblock`, `beyond`.
 3. **Write the acceptance check and the prediction.** Name the done-when
    metric, its value now, and the value that you expect after this step.
    Note: `predict`, with the current value as `--metric`.
@@ -154,7 +163,9 @@ files and the numbers it produced: `S note <kind> "<what>" [--file <capture>]
    - Lab senses pass: set `lab-only`. Commit. The integration is the next step.
    - Full-project senses pass and `Done when` holds: a `functional only` row
      goes to `matches`. A `quality bar` row goes to `queued` and the critic
-     queue. Commit.
+     queue, but only when the product changed and its metric moved toward
+     the reference in this row's cycles. A measure alone does not queue a
+     row (`QUEUED-NO-PROGRESS`, `NO-CODE`). Commit.
    - Senses pass and `Done when` does not hold yet: the row stays open.
      Commit. Progress is the metric's move toward `Done when`. A cycle that
      leaves that metric the same made no progress, even when every check passes.
@@ -211,13 +222,18 @@ will not close it. This cycle does no build. It does this:
 ## When no row is open (signal `EXHAUSTED`)
 
 `EXHAUSTED` means that no row is open or queued, and some rows are `blocked`
-or `held` (the human froze them). Do not stop the loop and do not delete a
-schedule. Do the first step that gives work:
+or `held` (the human froze them). Do not stop the loop. The three steps take
+turns, one round each, and the brief names the next one. A round is one
+cycle, and the work it opens is done before the next `EXHAUSTED`.
 
 1. **Coverage**: compare the matrix with the reference, area by area. Add a
-   row for each area with no row.
+   row for each area with no row. A row names something that a user sees or
+   does (a mode, a screen, a mechanic, a behavior, a look). It is not a
+   constant, a byte or one value of a parameter: put those in the `Done when`
+   of the row they belong to.
 2. **Unblock**: take the oldest `blocked` row. Attack its premise, or send it
-   to an auditor. A new path sets the row back to `partial`.
+   to an auditor. A new path sets the row back to `partial`. With no
+   `blocked` row (only `held`), the brief skips this step.
 3. **Beyond mode**: invent (`references/beyond.md`).
 
 ## Critic gate and beyond mode

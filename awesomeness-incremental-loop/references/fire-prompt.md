@@ -15,6 +15,8 @@ You are a new run. Your state is on disk, not in this prompt.
    Step 1 takes the cycle lock. If the lock is busy or paused, print that line and stop. Do not unlock.
    The project rules in AGENTS.md or CLAUDE.md win when they disagree with the skill.
 2. Do one cycle only. If the brief shows a cycle IN PROGRESS, that cycle is your cycle.
+   If your context was compacted or you lost track, do step 1 of the cycle again:
+   the lock comes back to your session, and the brief shows where you stopped.
    Do not start a second cycle. Do not wait for other runs.
 3. If you took the lock and you stop early for any reason, note the last step you did.
    Do not write an `end` note: the next run continues this cycle. Then unlock with your token.
