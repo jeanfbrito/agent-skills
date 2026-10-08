@@ -14,7 +14,7 @@ Usage:
                 [--commit SHA] [--status "partial -> matches"] [--progress "0.31 -> 0.12" | none]
                 [--next "next step"]
       KIND: pick predict try see keep revert commit step-back blocked end ack
-      pick takes --row, --mode gap|coverage|unblock|beyond|step-back|critic|review,
+      pick takes --row, --mode gap|coverage|unblock|beyond|step-back|critic|review|waiting,
       and --why "<what a user will notice>" (required for gap, coverage, unblock, beyond)
       ack --drift <sha> "<why the check change is right>" clears a SENSE-DRIFT
   state.py lock    [--project DIR] [--owner NAME] [--stale-min 90]
@@ -24,8 +24,11 @@ Usage:
   state.py unlock  --orphan [--project DIR]     # the orchestrator, after its cycle subagent ended
   state.py pause   [--project DIR]     # the human brake for every driver
   state.py resume  [--project DIR]
+  state.py wait    [--project DIR] [--poll 60] [--max-hours 0]
+      # after a cycle ends --status waiting: block, with no agent run, until a human
+      # changes the journal, git HEAD, the working tree or .localdev/workflow
 
-Exit codes: 0 ok. 3 another cycle holds the lock. 4 the loop is paused.
+Exit codes: 0 ok. 3 another cycle holds the lock. 4 the loop is paused. 5 wait timed out.
 Standard library only.
 """
 import argparse
@@ -49,11 +52,13 @@ LOG_ROWS_MAX = 30
 JOURNAL_MAX = 40_000
 TRAIL = "trail.jsonl"
 KINDS = ["pick", "predict", "try", "see", "keep", "revert", "commit", "step-back", "blocked", "end", "ack"]
-MODES = ["gap", "coverage", "unblock", "beyond", "step-back", "critic", "review"]
+MODES = ["gap", "coverage", "unblock", "beyond", "step-back", "critic", "review", "waiting"]
 NEEDS_WHY = ("gap", "coverage", "unblock", "beyond")  # work that changes the product or the matrix
 REVIEW_EVERY = 3  # cycles between two sense-check reviews
 ROTATION = ["coverage", "unblock", "beyond"]  # the steps of the exhausted procedure, in turn
 NO_CODE_CYCLES = 3
+VERDICT_CAP = 5  # inventions that wait for a verdict before beyond mode stops adding more
+IDLE_CYCLES = 6  # cycles with no product change and no open row before the loop waits for the human
 AGENT_NAMES = ("grok", "claude", "codex")
 # Files that do not change the product: docs, the journal, tests and probes, loop data.
 NOT_PRODUCT = re.compile(r"(^|/)(docs|tests?|spec|__tests__|\.localdev)/|\.md$|\.(spec|test)\.[a-z]+$|_test\.[a-z]+$|(^|/)probe", re.I)
@@ -282,6 +287,32 @@ def no_code_run(project, trail, sense):
     return run
 
 
+def idle_run(project, trail, sense):
+    """Trailing ended cycles of any mode that changed no product file, back to the last product change or wake."""
+    run = []
+    cyc = cycles_of(trail)
+    for n in sorted(cyc, reverse=True):
+        notes = cyc[n]
+        end = next((e for e in notes if e.get("kind") == "end"), None)
+        if not end:
+            continue
+        if (end.get("status") or "").strip().lower().startswith("waiting"):
+            break  # the loop waited, and the human changed something after it
+        product = unknown = False
+        for sha in {e["commit"] for e in notes if e.get("commit")}:
+            files = commit_files(project, sha)
+            if files is None:
+                unknown = True
+            elif any(not NOT_PRODUCT.search(f) and f not in sense for f in files):
+                product = True
+                break
+        if product:
+            break
+        if not unknown:
+            run.append(n)
+    return run
+
+
 def moved(progress):
     p = (progress or "").strip().lower()
     if p in ("", "none", "no progress", "-", "same"):
@@ -292,7 +323,7 @@ def moved(progress):
     return True
 
 
-def next_exhausted_step(trail, has_blocked):
+def next_exhausted_step(trail, has_blocked, beyond_full=False):
     last = None
     for notes in cycles_of(trail).values():
         m = cycle_mode(notes)
@@ -302,6 +333,8 @@ def next_exhausted_step(trail, has_blocked):
     step = ROTATION[i]
     if step == "unblock" and not has_blocked:
         step = "beyond"
+    if step == "beyond" and beyond_full:
+        step = "coverage"  # the human has enough to judge; a new invention would only wait too
     return step, last
 
 
@@ -504,6 +537,12 @@ def brief(a):
             break
         if any(e.get("kind") == "end" for e in notes_):
             since_review += 1
+    idle = idle_run(a.project, trail, sense_paths(a.project, senses)) if gap and not work and not queued else []
+    if len(idle) >= IDLE_CYCLES:
+        items.append(f"WAITING: no row is open, and cycles {min(idle)}-{max(idle)} ({len(idle)}) changed no product file. "
+                     "Only the human can move the loop now. This cycle builds nothing and does no review: write at most 5 "
+                     "verdicts and asks for the human, most useful first, in the journal's 'Waiting on you' section (pick --mode waiting). Commit "
+                     "it, and end with --status waiting. The orchestrator then runs `state.py wait` (references/drivers.md).")
     if since_review >= REVIEW_EVERY:
         items.append(f"REVIEW-DUE: {since_review} cycles since the last sense-check review. This cycle is the review "
                      "(pick --mode review). Follow references/review-prompt.md.")
@@ -521,8 +560,12 @@ def brief(a):
         items.append(f"CRITIC-DUE: {max(len(queue), len(queued))} row(s) wait for the critic gate. Run one blind round now (pick --mode critic).")
     if gap and not work and not queued:
         has_blocked = any(status_of(r) == "blocked" for r in gap)
-        step, last = next_exhausted_step(trail, has_blocked)
+        unjudged = [v for v in verdicts if not (v.get("Verdict") or "").strip()]
+        full = len(unjudged) >= VERDICT_CAP
+        step, last = next_exhausted_step(trail, has_blocked, full)
         why = f"the last round, cycle {last[1]}, did {last[0]}" if last else "no round has run yet"
+        if full:
+            why += f"; beyond is skipped: {len(unjudged)} toggles wait for a verdict, the cap is {VERDICT_CAP}"
         items.append(f"EXHAUSTED: no open rows ({len(parked)} parked). Next step: {step.upper()} ({why}). "
                      f"Pick with --mode {step}. Each step gets one round, in turn: coverage, unblock, beyond. Do not stop the loop.")
 
@@ -718,9 +761,51 @@ def pause(a, on):
     return 0
 
 
+def human_inputs(a):
+    """What a human change touches: the journal, git HEAD, the working tree, the project's ledger cards."""
+    parts = []
+    jpath = os.path.join(a.project, a.journal)
+    parts.append(open(jpath, "rb").read() if os.path.isfile(jpath) else b"")
+    for cmd in (["rev-parse", "HEAD"], ["status", "--porcelain"]):
+        try:
+            r = subprocess.run(["git", "-C", a.project] + cmd, capture_output=True, timeout=30)
+            parts.append(r.stdout)
+        except (OSError, subprocess.SubprocessError):
+            parts.append(b"?")
+    cards = os.path.join(a.project, ".localdev", "workflow")
+    for dirpath, _, names in os.walk(cards):
+        for name in sorted(names):
+            p = os.path.join(dirpath, name)
+            try:
+                st = os.stat(p)
+                parts.append(f"{p}:{st.st_mtime_ns}:{st.st_size}".encode())
+            except OSError:
+                pass
+    labels = ("the journal", "git HEAD", "the working tree", "the ledger cards")
+    return dict(zip(labels, (parts[0], parts[1], parts[2], b"".join(parts[3:]))))
+
+
+def wait(a):
+    """Block, with no agent run, until a human changes the journal, the code or the cards."""
+    before = human_inputs(a)
+    limit = time.time() + a.max_hours * 3600 if a.max_hours > 0 else None
+    print(f"WAITING: no cycle runs until a human changes {a.journal}, the code or the cards "
+          f"(check every {a.poll:.0f}s). Answer in the journal's 'Waiting on you' section.", flush=True)
+    while True:
+        time.sleep(a.poll)
+        now = human_inputs(a)
+        changed = [k for k in now if now[k] != before[k]]
+        if changed:
+            print(f"WOKE: {', '.join(changed)} changed. Spawn the next cycle.")
+            return 0
+        if limit and time.time() >= limit:
+            print(f"STILL WAITING after {a.max_hours:g} h. Run wait again.")
+            return 5
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("cmd", nargs="?", default="brief", choices=["brief", "note", "lock", "unlock", "pause", "resume"])
+    ap.add_argument("cmd", nargs="?", default="brief", choices=["brief", "note", "lock", "unlock", "pause", "resume", "wait"])
     ap.add_argument("rest", nargs="*", help="for note: KIND, then the text")
     ap.add_argument("--row")
     ap.add_argument("--file", action="append")
@@ -741,6 +826,8 @@ def main():
     ap.add_argument("--orphan", action="store_true",
                     help="for unlock: remove a lock whose run has ended (the orchestrator uses it after a cycle subagent ends)")
     ap.add_argument("--drift-depth", type=int, default=4, help="commits to scan for sense drift (the last cycle)")
+    ap.add_argument("--poll", type=float, default=60, help="for wait: seconds between two checks")
+    ap.add_argument("--max-hours", type=float, default=0, help="for wait: give up after this many hours, exit 5 (0: never)")
     a = ap.parse_intermixed_args()
     a.project = os.path.abspath(a.project)
     if a.cmd == "brief":
@@ -751,6 +838,8 @@ def main():
         return lock(a)
     if a.cmd == "unlock":
         return unlock(a)
+    if a.cmd == "wait":
+        return wait(a)
     return pause(a, a.cmd == "pause")
 
 

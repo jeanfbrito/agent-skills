@@ -40,6 +40,12 @@ Rules:
   journal. The live report shows the same facts.
 - **The loop does not stop itself.** A status line that says "nothing left"
   is not a stop: the next cycle reads the `EXHAUSTED` signal and continues.
+- **Waiting for the human.** A status line with `waiting` in its status
+  field means that the cycle found `WAITING`. Do not spawn a cycle. Print
+  once: `Waiting on you: <journal path>, section "Waiting on you".` Then run
+  `state.py wait --project <project>`, in the background when the harness
+  wakes the session. It runs no agent. Exit 0: spawn the next cycle. Exit 5
+  (only with `--max-hours`): run it again. Do not spawn cycles to poll.
 - **Waiting.** If the harness wakes the session when a background subagent
   ends (Grok and Claude Code do), spawn it in the background and end the
   turn. The completion message starts the next turn: spawn the next cycle

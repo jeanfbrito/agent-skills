@@ -14,7 +14,8 @@ description: >-
   critic runs only at the done gate. Past full
   parity it invents additions behind toggles until a human gives a verdict. The
   session that runs the skill is the orchestrator: it runs each cycle as a
-  new subagent and spawns the next one when it ends. Only the human stops it. Adapted from the gauntlet loop. Triggered by
+  new subagent and spawns the next one when it ends. When only the human can
+  help, it writes its asks and waits with no agent run. Only the human stops it. Adapted from the gauntlet loop. Triggered by
   '/awesomeness-incremental-loop', 'awesomeness loop', 'run the awesome loop',
   'what is next from the references', 'find what is missing versus the
   reference', 'keep improving until I stop you'.
@@ -62,7 +63,7 @@ Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 
 | File | Use |
 | --- | --- |
-| `tools/state.py` | `lock`, `brief`, `note`, `unlock`, `pause`, `resume`. The brief is the state, the open cycle and the SIGNALS that are due |
+| `tools/state.py` | `lock`, `brief`, `note`, `unlock`, `pause`, `resume`, `wait`. The brief is the state, the open cycle and the SIGNALS that are due |
 | `tools/drive.sh` | A loop outside the session, only when the human asks for one |
 | `tools/report.py` | Builds the HTML report and `report-data.json`. Each note runs it |
 | `references/drivers.md` | The orchestrator, and what to do on a harness with no subagents |
@@ -136,8 +137,8 @@ files and the numbers it produced. The form is
    `JOURNAL-LONG`, `STALE-DRIVER`). A chore marked `OVERDUE` was skipped in
    an earlier cycle. For a verdict: `keep` sets the toggle default ON, `kill`
    deletes it and its toggle, `tweak: <note>` queues it. Then the first line
-   under **THIS CYCLE'S ITEM** decides the item (`STALL`, `NO-CODE`,
-   `CRITIC-DUE`, `EXHAUSTED`, `REVIEW-DUE`). With no item line, use "Picking
+   under **THIS CYCLE'S ITEM** decides the item (`WAITING`, `STALL`,
+   `NO-CODE`, `CRITIC-DUE`, `EXHAUSTED`, `REVIEW-DUE`). With no item line, use "Picking
    the item".
 2. **Pick the item** (next section). If its row has no `Done when`, write one
    first: a measurable target from the reference evidence.
@@ -146,7 +147,7 @@ files and the numbers it produced. The form is
    you cannot write one, the item is not worth a cycle: set its row `held`
    with `low value: <reason>` and pick another. The mode is
    `gap` for normal work, or the step that a signal named: `step-back`,
-   `critic`, `coverage`, `unblock`, `beyond`.
+   `critic`, `coverage`, `unblock`, `beyond`, `waiting`.
 3. **Write the acceptance check and the prediction.** Name the done-when
    metric, its value now, and the value that you expect after this step.
    Note: `predict`, with the current value as `--metric`.
@@ -246,19 +247,41 @@ cycle, and the work it opens is done before the next `EXHAUSTED`.
    `blocked` row (only `held`), the brief skips this step.
 3. **Beyond mode**: invent (`references/beyond.md`).
 
+## When only the human can help (signal `WAITING`)
+
+`WAITING` means that no row is open or queued, and the last 6 cycles changed
+no product file. The loop has no more work that it can do alone: more
+coverage, unblock, beyond and review rounds only spend tokens. This cycle
+does not build and does not review. It does this:
+
+1. Read the empty cells in "Pending verdicts" and "Assumptions and asks", and
+   the `Next priorities` in `Direction`.
+2. Write at most 5 items in the journal's `Waiting on you` section, the most
+   useful first. Each one names what the human gives (a `keep`, a reference
+   frame, a decision) and what a user then sees.
+3. Commit the journal. `S note end --status waiting --progress none --next
+   "<the first item>"`.
+
+The orchestrator then runs `S wait`, which uses no agent. It returns when the
+human changes the journal, the code or the ledger cards, and the next cycle
+starts. A `waiting` end resets the count, so a wake gets 6 more cycles before
+the loop waits again. Waiting is not a stop: the human is still the brake.
+
 ## Critic gate and beyond mode
 
 The critic gate (`references/checks.md`): one blind round for the whole queue,
 with the last captures. Wins and ties go to `matches` or `exceeds`. A loss goes
 to `below`, and each deficit becomes a sense check. If ours wins on most rows,
 choose a harder reference. In beyond mode (`references/beyond.md`), every
-invention ships behind a toggle, default OFF. When the sources leave a value
+invention ships behind a toggle, default OFF. At most 5 toggles wait for a verdict at
+a time. When the sources leave a value
 open, choose one, write it under "Assumptions and asks", and continue.
 
 ## Do not
 
 - Do not stop, ask "continue?", or write "ready for review". Each cycle ships
-  a proven step, a reverted attempt, a step back, or a `blocked` row.
+  a proven step, a reverted attempt, a step back, a `blocked` row, or the
+  `WAITING` asks.
 - Do not put state in a stored prompt. Do not create, change or delete a
   schedule from a cycle. The journal holds the state.
 - Do not resume an earlier cycle subagent. Spawn a new one, and let it

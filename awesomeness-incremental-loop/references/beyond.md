@@ -17,7 +17,10 @@ not an invention: write it under "Assumptions and asks".
   nothing. The human judges if it is good.
 - Add each toggle to the "Pending verdicts" table: name, what it does, how to
   turn it on, and evidence (a capture or a test).
-- Do not wait for a verdict. Go to the next idea. The loop reads verdicts at
+- At most 5 toggles wait for a verdict at a time. At the cap, the brief
+  skips beyond mode: a sixth invention would only wait too. When the other
+  steps have no work either, the brief gives `WAITING`.
+- Below the cap, do not wait for a verdict. Go to the next idea. The loop reads verdicts at
   the next start, and also when the human writes them during the run.
 - A change to existing behavior that has no human approval also goes behind a
   toggle. Keep the current default.

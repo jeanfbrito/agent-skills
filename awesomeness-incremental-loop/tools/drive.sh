@@ -181,6 +181,15 @@ while :; do
     exit 0
   fi
 
+  # A cycle that ended `waiting` found nothing it can do alone: wait for a human change, with no agent run.
+  if python3 -c 'import json,sys
+ends=[e for e in map(json.loads, filter(str.strip, open(sys.argv[1]))) if e.get("kind")=="end"]
+sys.exit(0 if ends and str(ends[-1].get("status","")).lower().startswith("waiting") else 1)' "$ROOT/trail.jsonl" 2>/dev/null; then
+    echo "drive.sh: the loop waits for the human (journal section 'Waiting on you')."
+    python3 "$SKILL_DIR/tools/state.py" wait --project "$PROJECT"
+    continue
+  fi
+
   # A run that fails fast (auth, a bad flag, a crash) waits longer each time.
   # The driver never stops on its own: only the human stops the loop.
   if [ "$code" -ne 0 ] && [ "$secs" -lt 60 ]; then

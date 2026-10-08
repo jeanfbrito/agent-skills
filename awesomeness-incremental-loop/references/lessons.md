@@ -222,3 +222,16 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
     - Rule: a row waits for the critic only after the product changed and
       its metric moved.
     - Mechanism: `NO-CODE` after 3 such cycles, and `QUEUED-NO-PROGRESS`.
+38. **The loop spun for 13 hours with nothing left to do.**
+    - Sign: in one project, the last product commit was cycle 78. Cycles 79
+      to 279 shipped nothing. 50 reviews in a row gave `useful 0/3`, and 202
+      cycle runs used about 445M tokens. The reviews named the cause (only a
+      human verdict could change what a user sees), but no step acted on it.
+      The reviews also banned beyond mode, so every round became a recount.
+    - Rule: when no row is open and the product has not changed for 6
+      cycles, write the asks for the human and wait. Do not poll with agent
+      runs. A review does not turn a step of the skill into a no-op.
+    - Mechanism: the brief gives `WAITING`. The cycle ends `--status waiting`,
+      and the orchestrator and `drive.sh` run `state.py wait`, which runs no
+      agent and returns on a human change. At most 5 toggles wait for a
+      verdict: at the cap, the brief skips beyond mode.

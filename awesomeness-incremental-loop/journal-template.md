@@ -30,6 +30,12 @@ this section. Each cycle reads it in the brief. The human can edit it too.
 - Next priorities:
 - Reviewed at cycle:
 
+## Waiting on you
+
+A `WAITING` cycle writes here what only the human can give, at most 5 items,
+the most useful first. The loop waits, with no agent run, until you change
+this journal, the code or the ledger cards.
+
 ## Sources
 
 | Kind | Path | Notes |

@@ -73,5 +73,8 @@ tested and committed, and still be useless.
 - Do not build, tune or capture in this cycle. The next cycles do the work.
 - A human verdict, a human priority and a `held` row that the human froze
   outrank this review. Do not undo them.
+- Do not write a `Stop doing` line that turns a step of the skill
+  (coverage, unblock, beyond) into a no-op. When no step can change the
+  product, the brief gives `WAITING` and the loop waits for the human.
 - Judge by the user of this project, not by the reference. The reference is
   a bar for quality, not a list of things to copy.
