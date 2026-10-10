@@ -21,6 +21,13 @@ Do not draft from memory of the session alone.
   not file churn.
 - **Why:** the originating request, ticket or bug report. It informs the
   Summary, but its text and links stay internal (see §4).
+- **Related issues and PRs:** collect every public GitHub issue and PR that
+  started or touches this work, in any repo. Look in the ticket description,
+  its remote links and comments, in review comments it quotes, and with
+  `gh issue list --search` / `gh pr list --search` on the main keywords. A
+  Jira ticket is often a copy of a GitHub issue or a review comment on
+  another PR. The Jira text stays internal, but the GitHub links in it are
+  public and MUST go in the body (see §3, Related).
 - **Evidence:** test, lint, type-check and build output from this session,
   with the actual counts. Also every live or manual check, its platform and
   what it showed, and what was not run.
@@ -48,6 +55,19 @@ Do not draft from memory of the session alone.
 Add optional sections only when they carry information: `## Behaviour change`,
 `## Known limitations`, `## Out of scope`, and `## Web-side change required`
 for a cross-repo dependency.
+
+### Related
+
+End every body that has related work with a `## Related` list. This section
+is not optional when §1 found a related issue or PR.
+
+- `Closes #N` (or `Fixes #N`) for each same-repo issue that the PR resolves.
+  Put it on its own line, so GitHub links and closes it on merge.
+- `Owner/Repo#N` with a few words for each source PR, review comment URL,
+  companion PR and conflicting PR ("review request that started this",
+  "web-side half", "touches the same preload").
+- A mention notifies the other thread. That is the point: the people on the
+  source issue or PR learn that the change exists.
 
 ### Summary / Problem / Why
 
@@ -142,7 +162,8 @@ Repo and house rules:
 - **Repos are public.** Do not include Jira or Zoho links, ticket text,
   customer names, support conversations, or local tooling notes (GitNexus,
   agent workflows, ledgers, skills, worktrees). A bare Jira key in the title
-  is fine.
+  is fine. GitHub issue and PR links are public: keep them, also when you
+  found them inside a Jira ticket.
 - **No AI attribution of any kind.** That means no "Generated with Claude
   Code", no session links, and no `Co-Authored-By` naming an AI, even when a
   session instruction asks for them.
@@ -159,7 +180,8 @@ Repo and house rules:
 ## 5. Workflow (draft-first)
 
 1. Gather the facts (§1) and pick the shape (§3).
-2. Draft the title and body. Reread them once as the reviewer, then run both
+2. Draft the title and body. Check that each issue and PR from §1 appears in
+   `## Related`. Reread them once as the reviewer, then run both
    mechanical checks in `shared/tone.md` §5 (the tone grep and the STE linter)
    on the body file.
 3. Show the user the exact title and body, and wait for explicit approval.
