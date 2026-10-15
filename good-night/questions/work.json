@@ -1,0 +1,19 @@
+{
+  "id": "work",
+  "title": "Workday",
+  "source": "Stress item adapted from the single-item stress measure of the Occupational Stress Questionnaire (Elo, Leppänen & Jahkola 2003). Detachment item after the psychological-detachment dimension of the Recovery Experience Questionnaire (Sonnentag & Fritz 2007). The other items are plain workload questions. No clinical cutoffs: read them as your own trend, not as a score.",
+  "questions": [
+    {"id": "work_stress", "short": "Stress", "type": "scale", "min": 1, "max": 5,
+     "label": "How stressed did work make you feel today?",
+     "anchors": {"1": "not at all", "3": "somewhat", "5": "very much"}},
+    {"id": "load", "short": "Load", "type": "scale", "min": 1, "max": 5,
+     "label": "How heavy was the workload today?",
+     "anchors": {"1": "light", "3": "normal", "5": "too much"}},
+    {"id": "fragmented", "short": "Interrupt", "type": "scale", "min": 1, "max": 5,
+     "label": "How fragmented was the day (meetings, pings, context switches)?",
+     "anchors": {"1": "long focus blocks", "5": "constant interruptions"}},
+    {"id": "switch_off", "short": "Switch-off", "type": "scale", "min": 1, "max": 5,
+     "label": "How easy is it to switch off from work tonight?",
+     "anchors": {"1": "work stays on my mind", "5": "easy"}}
+  ]
+}

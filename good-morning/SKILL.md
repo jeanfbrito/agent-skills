@@ -153,7 +153,10 @@ the plan JSON and run:
 ```
 
 It writes `last-plan.json` (items with day counts) and sets `last_run` to
-the time when collection started. If the user does not accept the plan, do
+the time when collection started. If the user set `vault_path` in
+`local-config.yml`, it also writes the plan into the vault's daily note and
+prints that path. If the vault write fails, the plan is still saved: report
+the error. If the user does not accept the plan, do
 not save. The next run then uses the same window again.
 
 ## Rules

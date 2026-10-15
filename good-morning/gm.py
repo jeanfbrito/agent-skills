@@ -23,7 +23,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from gm_common import (PENDING_PATH, PLAN_PATH, SKILL_DIR, age, gh_graphql, iso, load_config, parse_ts,
+from gm_common import (PENDING_PATH, PLAN_PATH, SKILL_DIR, age, gh_graphql, iso, load_config, parse_ts, write_vault_block,
                        utcnow, window_start, write_config)
 
 PY = sys.executable
@@ -127,6 +127,8 @@ def digest(cfg, meta, data, prev):
             mark = "DONE" if done else "open" if done is False else "?"
             out.append(f"  [{i.get('role')}] {iid} {i.get('title', '')[:70]} — now {state or 'unknown'} "
                        f"({mark}, day {i.get('days', 1) + (0 if done else bump)})")
+
+    out += good_night_lines()
 
     fire, unblock, finish, focus, fyi = [], [], [], [], []
 
@@ -252,6 +254,29 @@ def digest(cfg, meta, data, prev):
     return "\n".join(out)
 
 
+def good_night_lines():
+    """The last closing note from good-night. Reads only notes/, never the wellbeing journal."""
+    import os
+    notes = Path(os.environ.get("GOOD_NIGHT_HOME", os.path.expanduser("~/.local/share/good-night"))) / "notes"
+    files = sorted(notes.glob("*.md")) if notes.exists() else []
+    if not files:
+        return []
+    sections, current = {}, None
+    for line in files[-1].read_text().splitlines():
+        if line.startswith("## "):
+            current = line[3:].strip()
+            sections[current] = []
+        elif current and line.strip():
+            sections[current].append(line.strip())
+    out = [f"\nCLOSING NOTE {files[-1].stem} (good-night)"]
+    for name in ("Tomorrow first", "In progress", "Waiting on"):
+        items = [l for l in sections.get(name, []) if l.lstrip("-* ").lower() not in ("", "none", "-")]
+        if items:
+            out.append(f"  {name.lower()}:")
+            out += [f"    {l}" for l in items[:6]]
+    return out
+
+
 def pr_states(urls):
     """Current state of each PR URL, in one GraphQL call."""
     parts, keys = [], {}
@@ -269,6 +294,28 @@ def pr_states(urls):
     except Exception:
         return {}
     return {keys[k]: ((v or {}).get("issueOrPullRequest") or {}).get("state") for k, v in data.items()}
+
+
+def vault_markdown(plan):
+    """A compact plan for the vault's daily note: links, no tables."""
+    def ln(i, title_key="title"):
+        t, u = i.get(title_key) or i.get("what") or i.get("id"), i.get("url")
+        return f"[{t}]({u})" if u else str(t)
+    out = []
+    m = plan.get("main")
+    if m:
+        out += [f"### Main focus: {ln(m)}"] + ([m["why"]] if m.get("why") else [])
+        out += [f"- First step: {m['first_step']}"] * bool(m.get("first_step"))
+        out += [f"- Done when: {m['done_when']}"] * bool(m.get("done_when"))
+    if plan.get("unblock"):
+        out += ["", f"### Unblock (~{plan.get('unblock_minutes', 60)} min)"]
+        out += [f"- [ ] {u.get('who', '')} — {ln(u, 'what')}" for u in plan["unblock"]]
+    if plan.get("secondary"):
+        out += ["", "### Secondary"] + [f"- [ ] {ln(s)}" + (f" — {s['why']}" if s.get("why") else "")
+                                        for s in plan["secondary"]]
+    if plan.get("not_today"):
+        out += ["", "### Not today"] + [f"- {ln(n)} — {n.get('reason', '')}" for n in plan["not_today"]]
+    return "\n".join(out)
 
 
 def save(cfg, plan_path):
@@ -292,6 +339,14 @@ def save(cfg, plan_path):
         cfg["last_run"] = pending["started_at"]
     write_config(cfg)
     print(f"saved {len(items)} items to {PLAN_PATH}; last_run = {cfg['last_run']}")
+    if cfg.get("vault_path"):
+        try:
+            path = write_vault_block(cfg["vault_path"], cfg.get("vault_daily_folder"),
+                                     cfg.get("vault_section") or "## 🎯 Today's Focus",
+                                     today, vault_markdown(plan), "good-morning")
+            print(f"vault {path}")
+        except OSError as e:  # the plan is saved; the vault copy is a bonus
+            print(f"vault copy failed: {e}")
 
 
 def main():

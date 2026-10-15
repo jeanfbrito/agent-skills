@@ -1,0 +1,35 @@
+{
+  "id": "wellbeing",
+  "title": "How you are",
+  "source": "Common self-monitoring items (mood, energy, anxiety, sleep), on the same 1-5 scale as the workday set. No clinical cutoffs: read them as your own trend, not as a score.",
+  "questions": [
+    {"id": "mood", "short": "Mood", "type": "scale", "min": 1, "max": 5,
+     "label": "Mood today",
+     "anchors": {"1": "very low", "3": "neutral", "5": "very high"}},
+    {"id": "energy", "short": "Energy", "type": "scale", "min": 1, "max": 5,
+     "label": "Energy today",
+     "anchors": {"1": "drained", "3": "normal", "5": "a lot"}},
+    {"id": "anxiety", "short": "Anxiety", "type": "scale", "min": 1, "max": 5,
+     "label": "Anxiety today",
+     "anchors": {"1": "none", "3": "some", "5": "very high"}},
+    {"id": "sleep_hours", "short": "Sleep h", "type": "number",
+     "label": "Hours of sleep last night"},
+    {"id": "rested", "type": "bool",
+     "label": "Did you wake up rested?"},
+    {"id": "noticed", "type": "multi", "optional": true,
+     "label": "Today I noticed",
+     "options": [
+       {"id": "racing_thoughts", "label": "Racing thoughts"},
+       {"id": "restless", "label": "Restless or agitated"},
+       {"id": "irritable", "label": "Irritable"},
+       {"id": "sad", "label": "Sad"},
+       {"id": "low_motivation", "label": "Low motivation"},
+       {"id": "stay_in_bed", "label": "Wanted to stay in bed"},
+       {"id": "none", "label": "None of these"}
+     ]},
+    {"id": "helped", "type": "text", "optional": true,
+     "label": "What helped today, even a little?"},
+    {"id": "bring_up", "type": "text", "optional": true,
+     "label": "Anything you want to bring up later (with a therapist, a doctor or your lead)?"}
+  ]
+}

@@ -121,6 +121,9 @@ rocket_username: null       # null = ask the server
 stale_days: 7               # idle days before a PR or ticket is "stale"
 report: terminal            # terminal | local | artifact (see below)
 artifact_url: null          # set after the first artifact publish
+vault_path: null            # optional vault (see below); null = no vault
+vault_daily_folder: Daily   # daily notes folder inside the vault
+vault_section: "## 🎯 Today's Focus"   # the plan goes at the end of this heading
 ```
 
 Set `repos` and `protected_branches` for the repos that you own or release.
@@ -135,6 +138,24 @@ Leave `projects` empty if you do not keep `.localdev/workflow` ledgers.
 | `artifact` | The same, plus the day sheet published as a private claude.ai page. The skill updates the same page every day. |
 
 In any mode, you can ask "show the day sheet" to get the HTML page once.
+
+### Vault (optional)
+
+If you keep an Obsidian vault, or any folder of Markdown notes, set
+`vault_path`. Then `gm.py save` also writes the accepted plan into that
+day's daily note: main focus, unblock checklist, secondary items and "Not
+today", with links. Without `vault_path`, nothing changes.
+
+- The plan goes into `<vault_path>/<vault_daily_folder>/<YYYY-MM-DD>.md`, at
+  the end of the `vault_section` heading. If the heading is missing, the
+  skill adds it. If the daily note is missing, the skill creates a small one.
+- The plan sits between `<!-- good-morning:start -->` and
+  `<!-- good-morning:end -->`. A new save on the same day replaces that block
+  only. The skill does not change the rest of your daily note.
+- If the vault write fails, the plan is still saved.
+- [good-night](../good-night/README.md) can write its closing note into the
+  same daily note, so each day starts with the plan and ends with what
+  happened.
 
 ## Use it
 
@@ -174,7 +195,7 @@ The skill runs these for you. You can also run them by hand.
 | `gm.py collect` | Runs the four collectors at the same time, saves the raw JSON in `$TMPDIR/good-morning/<time>/`, prints a digest of about 80 lines. |
 | `gm.py render plan.json` | Prints the plan as the Markdown report. |
 | `gm.py render plan.json --format html [--open] [--fragment] [--out FILE]` | Writes the HTML day sheet. |
-| `gm.py save plan.json` | Saves the accepted plan to `last-plan.json` and sets `last_run`. |
+| `gm.py save plan.json` | Saves the accepted plan to `last-plan.json`, sets `last_run`, and writes the plan into the vault's daily note when you set `vault_path`. |
 | `gm_github.py`, `gm_jira.py`, `gm_chat.py`, `gm_ledger.py` | Each collector alone, JSON on stdout. Run one with `--help` for its flags. |
 
 The plan file format is in `references/plan-schema.md`.
@@ -197,6 +218,8 @@ The plan file format is in `references/plan-schema.md`.
   stays in `$TMPDIR/good-morning/`.
 - Nothing leaves your machine except in `artifact` mode, where the day sheet
   goes to a private claude.ai page in your account.
+- When you set `vault_path`, the accepted plan also goes into your vault, which
+  is a local folder. If you sync the vault, the plan syncs with it.
 - Tokens are never written to the skill folder. Jira uses the Keychain or
   your environment, chat uses the rocket-cli profile, and GitHub uses `gh`.
 

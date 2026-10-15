@@ -22,6 +22,9 @@ DEFAULT_CONFIG = {
     "stale_days": 7,
     "report": "terminal",
     "artifact_url": None,
+    "vault_path": None,
+    "vault_daily_folder": "Daily",
+    "vault_section": "## 🎯 Today's Focus",
 }
 
 CONFIG_TEMPLATE = """\
@@ -40,6 +43,9 @@ rocket_username: {rocket_username}   # null = ask the server for the profile's u
 stale_days: {stale_days}             # idle days before an item is stale
 report: {report}               # terminal = report here only; local = also open the HTML sheet; artifact = also publish it to claude.ai
 artifact_url: {artifact_url}         # set after the first artifact publish; reused daily
+vault_path: {vault_path}            # optional Obsidian/Markdown vault; null = no vault
+vault_daily_folder: {vault_daily_folder}   # daily notes folder inside the vault
+vault_section: "{vault_section}"   # the plan goes at the end of this heading
 """
 
 
@@ -95,7 +101,8 @@ def write_config(cfg):
         protected_branches=lst(cfg["protected_branches"]), projects=lst(cfg["projects"]),
         rocket_profile=sc(cfg.get("rocket_profile")), rocket_username=sc(cfg.get("rocket_username")),
         stale_days=cfg.get("stale_days", 7), report=sc(cfg.get("report", "terminal")),
-        artifact_url=sc(cfg.get("artifact_url"))))
+        artifact_url=sc(cfg.get("artifact_url")), vault_path=sc(cfg.get("vault_path")),
+        vault_daily_folder=sc(cfg.get("vault_daily_folder")), vault_section=cfg.get("vault_section") or ""))
 
 
 def utcnow():
@@ -177,6 +184,31 @@ def gh_graphql(query, **variables):
     for k, v in variables.items():
         args += ["-F" if isinstance(v, int) else "-f", f"{k}={v}"]
     return gh_json(args)["data"]
+
+
+def write_vault_block(vault_path, daily_folder, section, day, body, tag):
+    """Put body in the vault's daily note for day, at the end of section, between
+    <!-- tag:start --> and <!-- tag:end -->. A rerun replaces only that block."""
+    start, end = f"<!-- {tag}:start -->", f"<!-- {tag}:end -->"
+    daily = expand(vault_path) / (daily_folder or "Daily") / f"{day}.md"
+    block = f"{start}\n{body.strip()}\n{end}"
+    if daily.exists():
+        note = daily.read_text()
+    else:
+        daily.parent.mkdir(parents=True, exist_ok=True)
+        note = f"---\ndate: {day}\ntype: daily\ntags:\n  - daily\n---\n\n# {day}\n"
+    if start in note and end in note:
+        head, rest = note.split(start, 1)
+        note = head + block + rest.split(end, 1)[1]
+    elif section in note:
+        head, tail = note.split(section, 1)
+        nxt = [i for i in (tail.find("\n## "), tail.find("\n---\n")) if i >= 0]
+        cut = min(nxt) if nxt else len(tail)
+        note = head + section + tail[:cut].rstrip("\n") + "\n\n" + block + "\n" + tail[cut:]
+    else:
+        note = note.rstrip("\n") + f"\n\n{section}\n\n{block}\n"
+    daily.write_text(note)
+    return daily
 
 
 def expand(p):
