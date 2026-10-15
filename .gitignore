@@ -9,6 +9,7 @@ good-morning/local-config.yml
 good-morning/local-config.yml.bak.*
 good-morning/last-plan.json
 good-morning/pending-run.json
+good-morning/today-plan.json
 .DS_Store
 .knowledge/
 

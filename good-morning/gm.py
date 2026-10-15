@@ -8,6 +8,8 @@
   gm.py render PLAN.json    print the plan as the terminal report (Markdown);
                             with --format html, write the HTML day sheet and
                             print its path (--open opens it)
+  gm.py show                print today's last rendered plan again, with no
+                            collection; exits 1 when no plan for today exists
   gm.py save PLAN.json      store the accepted plan for carry-over and move
                             the window (last_run) to the collection start
 
@@ -23,7 +25,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from gm_common import (PENDING_PATH, PLAN_PATH, SKILL_DIR, age, gh_graphql, iso, load_config, parse_ts, write_vault_block,
+from gm_common import (PENDING_PATH, PLAN_PATH, SKILL_DIR, TODAY_PATH, age, gh_graphql, iso, load_config, parse_ts, write_vault_block,
                        utcnow, window_start, write_config)
 
 PY = sys.executable
@@ -318,8 +320,27 @@ def vault_markdown(plan):
     return "\n".join(out)
 
 
+def cache_today(plan_path):
+    """Keep a copy of the latest rendered plan, so `show` can print it again."""
+    TODAY_PATH.write_text(Path(plan_path).read_text())
+
+
+def show():
+    today = utcnow().astimezone().strftime("%Y-%m-%d")
+    plan = json.loads(TODAY_PATH.read_text()) if TODAY_PATH.exists() else {}
+    if plan.get("date") != today:
+        print(f"no cached plan for {today}; run `gm.py collect`")
+        sys.exit(1)
+    from datetime import datetime
+    from gm_render import render_markdown
+    cached = datetime.fromtimestamp(TODAY_PATH.stat().st_mtime).astimezone()
+    print(f"_Cached plan from {cached:%H:%M} ({age(iso(cached))} ago). Say \"refresh\" to collect again._\n")
+    print(render_markdown(TODAY_PATH))
+
+
 def save(cfg, plan_path):
     plan = json.loads(Path(plan_path).read_text())
+    cache_today(plan_path)
     pending = json.loads(PENDING_PATH.read_text()) if PENDING_PATH.exists() else {}
     prev = json.loads(PLAN_PATH.read_text()) if PLAN_PATH.exists() else {}
     prev_days = {i["id"]: i.get("days", 1) for i in prev.get("items", [])}
@@ -353,6 +374,7 @@ def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("collect")
+    sub.add_parser("show")
     r = sub.add_parser("render")
     r.add_argument("plan")
     r.add_argument("--format", choices=("md", "html"), default="md",
@@ -366,8 +388,11 @@ def main():
     cfg = load_config()
     if a.cmd == "collect":
         collect(cfg)
+    elif a.cmd == "show":
+        show()
     elif a.cmd == "render" and a.format == "md":
         from gm_render import render_markdown
+        cache_today(a.plan)
         print(render_markdown(Path(a.plan)))
     elif a.cmd == "render":
         from gm_render import render

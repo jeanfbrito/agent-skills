@@ -16,6 +16,20 @@ requirements, setup and troubleshooting are in `README.md` in the same
 folder. When a source fails, give the user the matching setup or
 troubleshooting step from that file.
 
+## 0. Show today's plan when it exists
+
+Run this first:
+
+```bash
+~/Github/agent-skills/good-morning/gm.py show
+```
+
+If it prints a plan, send that output as your reply, word for word, and
+stop. It is the last plan rendered today, so a second run of the command
+costs no collection. If it exits 1 (no plan for today), go to step 1. Skip
+this step when the user asks for a refresh ("refresh", "collect again",
+"what changed since this morning").
+
 ## 1. Collect
 
 Run one command. It runs Jira, chat, GitHub and ledger collectors at the

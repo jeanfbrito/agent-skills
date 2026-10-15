@@ -193,7 +193,8 @@ The skill runs these for you. You can also run them by hand.
 | Command | What it does |
 | --- | --- |
 | `gm.py collect` | Runs the four collectors at the same time, saves the raw JSON in `$TMPDIR/good-morning/<time>/`, prints a digest of about 80 lines. |
-| `gm.py render plan.json` | Prints the plan as the Markdown report. |
+| `gm.py render plan.json` | Prints the plan as the Markdown report, and keeps a copy in `today-plan.json`. |
+| `gm.py show` | Prints today's last rendered plan again, with no collection. Exits 1 when there is no plan for today. |
 | `gm.py render plan.json --format html [--open] [--fragment] [--out FILE]` | Writes the HTML day sheet. |
 | `gm.py save plan.json` | Saves the accepted plan to `last-plan.json`, sets `last_run`, and writes the plan into the vault's daily note when you set `vault_path`. |
 | `gm_github.py`, `gm_jira.py`, `gm_chat.py`, `gm_ledger.py` | Each collector alone, JSON on stdout. Run one with `--help` for its flags. |

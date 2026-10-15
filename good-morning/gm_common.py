@@ -10,6 +10,7 @@ SKILL_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = SKILL_DIR / "local-config.yml"
 PLAN_PATH = SKILL_DIR / "last-plan.json"
 PENDING_PATH = SKILL_DIR / "pending-run.json"
+TODAY_PATH = SKILL_DIR / "today-plan.json"
 
 DEFAULT_CONFIG = {
     "last_run": None,
