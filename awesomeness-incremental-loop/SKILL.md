@@ -159,6 +159,10 @@ files and the numbers it produced. The form is
 3. **Write the acceptance check and the prediction.** Name the done-when
    metric, its value now, and the value that you expect after this step.
    Note: `predict`, with the current value as `--metric`.
+   For a cost or speed row, the `predict` note names the largest sub-part and
+   its ms, measured by a timer or profiler in this cycle. A quotient (a total
+   divided by a count) or a guess about the language is not a timing. Write
+   no `try` note before that measure.
 4. **Isolate and perceive.** In a busy project, use a lab first
    (`references/labs.md`). If no sense can judge the item, build that sense
    first. For visual work, start with debug gizmos.
