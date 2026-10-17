@@ -292,6 +292,12 @@ invention ships behind a toggle, default OFF. At most 5 toggles wait for a verdi
 a time. When the sources leave a value
 open, choose one, write it under "Assumptions and asks", and continue.
 
+Ask a human decision only with a way to perceive each option: a clip, a
+screenshot or a build switch, named in plain words and opened with one
+command. Code names and numbers alone are not an ask. When cited real-world
+data settles the choice, choose it, keep the other option as a switch, and
+list it for the human's test.
+
 ## Do not
 
 - Do not stop, ask "continue?", or write "ready for review". Each cycle ships

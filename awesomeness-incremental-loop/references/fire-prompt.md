@@ -23,4 +23,5 @@ You are a new run. Your state is on disk, not in this prompt.
 4. Print the status line from the skill as your last line.
 
 Do not create, change or delete a schedule. Do not spawn another cycle. Do not push, open a pull request, or send a message.
+Commit with `git commit -- <paths>` or a private `GIT_INDEX_FILE`. Never `git add -A`, never amend.
 ```
