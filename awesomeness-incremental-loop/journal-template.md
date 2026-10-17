@@ -7,7 +7,9 @@ trail (`.localdev/awesomeness/trail.jsonl`). The loop writes it as it works,
 and the live report shows it: `.localdev/awesomeness/report/index.html`.
 
 Write your verdicts in "Pending verdicts" and your answers in "Assumptions and
-asks". The next cycle applies them. To pause every driver, run `state.py pause`.
+asks". The next cycle applies them. Every decision that waits on you is also
+in `docs/awesomeness-loop-decisions.md`. The orchestrator asks those when you
+come back. To pause every driver, run `state.py pause`.
 
 ## Setup
 

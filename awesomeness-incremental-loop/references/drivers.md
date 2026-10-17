@@ -10,11 +10,16 @@ stops it.
 
 The session is the **orchestrator**. It does no cycle work itself:
 
+0. Before the first spawn, and after any long gap, run `state.py brief` and
+   read its `LOCK` line. `LOCK: BUSY` means that another live session runs
+   the loop. Do not spawn: a cycle would only stop on the busy lock. Tell
+   the human which session runs the loop, and wait for their choice.
 1. Spawn one new subagent. Give it the prompt in `references/fire-prompt.md`,
    with `{project}` filled. Give it nothing else: its state is on disk.
 2. Wait for it to end. Read only its last line, the status line.
 3. Print that status line for the human. Then spawn the next new subagent.
-   Repeat without end.
+   Repeat without end. When the human says finish this cycle and stop, do
+   "Stop for the day" (below).
 
 Rules:
 
@@ -51,8 +56,51 @@ Rules:
   turn. The completion message starts the next turn: spawn the next cycle
   then. If the harness does not wake the session, wait for the subagent in
   the same turn and do not end the turn.
+- **Ask the decisions.** When a human message arrives and
+  `docs/awesomeness-loop-decisions.md` has `open` entries, ask them before
+  the next spawn, at most 4 per round (`references/decisions.md`). Write each
+  answer, commit the file, then spawn. Also ask them when the human returns
+  from a `WAITING` stop.
 - **Hand work.** If the human asks this session for other work while the loop
   runs, run `state.py pause`, do the work, commit, and run `state.py resume`.
+- **Human asks while the loop runs.** When the human gives the loop new work
+  ("put this on the todo", or a stream of feature asks), do three things for
+  each ask:
+  1. Write a card in the project's todo ledger. Quote the human's words, and
+     give it a measurable DoD and the facts that you already found.
+  2. Add a `Next priorities` line in the journal's `Direction` that names it,
+     in the human's order.
+  3. Find each `Stop doing` line, `held` row or frozen ask that the new ask
+     contradicts. Delete it, or reword it so that it permits the ask. A stale stop
+     line beats a card: a cycle reads the Direction first and skips the ask.
+  The human is the authority, so the new ask wins over the old line.
+- **Commit while a cycle runs.** Do not stage files: the git index is
+  shared, and the cycle's next commit takes all staged files, under the
+  cycle's message. Commit only with `git commit -- <paths>`. If the
+  pre-commit hook fails on the cycle's unfinished work, a docs-only commit
+  can use `--no-verify`. Write the reason in the commit message.
+- **A human verdict gets a check.** When the human picks one option over
+  another (a pose, a feel, a default), a written rule is not enough. A
+  later cycle can change the chosen option and pass every check. Add a test that passes on the chosen option and fails
+  on the rejected one. Prove that it fails on the rejected one. The
+  `APPLY` and `APPLY-DECISIONS` chores ask the cycles for the same check.
+- **Choices of feel are playable.** A choice about how something feels,
+  looks or plays is not a text menu. Build each option (a worktree and a dev
+  server per option, or a URL flag), and give the human one full URL for each
+  option. Stop those servers after the human chooses.
+- **The human delegates.** When the human says "decide it yourself", choose,
+  and write the reason in the decision entry
+  (`Answer: delegated, loop chose <option> because <reason>`). Ask again only
+  about what no experiment can settle and what the human did not delegate.
+- **Stop for the day.** When the human says "finish what is open" or "stop":
+  1. Do not spawn the next cycle. Let the running cycle end, and print its
+     status line.
+  2. Run `state.py pause`. It prints the `LOCK` line. Continue only at
+     `LOCK: free`.
+  3. Stop the dev servers and remove the worktrees that the orchestrator
+     started. Keep the patch of each option that is not ported yet.
+  4. Report what the loop committed, what it did not push, and the next item. The
+     human starts the loop again with `state.py resume`.
 
 ## A harness with no subagents
 

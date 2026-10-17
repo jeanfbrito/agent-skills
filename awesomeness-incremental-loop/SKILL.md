@@ -15,10 +15,10 @@ description: >-
   parity it invents additions behind toggles until a human gives a verdict. The
   session that runs the skill is the orchestrator: it runs each cycle as a
   new subagent and spawns the next one when it ends. When only the human can
-  help, it writes its asks and waits with no agent run. Only the human stops it. Adapted from the gauntlet loop. Triggered by
+  help, it writes its asks and waits with no agent run. Only the human stops it. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. Adapted from the gauntlet loop. Triggered by
   '/awesomeness-incremental-loop', 'awesomeness loop', 'run the awesome loop',
   'what is next from the references', 'find what is missing versus the
-  reference', 'keep improving until I stop you'.
+  reference', 'keep improving until I stop you', 'finish this loop cycle and stop', 'finish what is open so we can stop for today'.
 argument-hint: "[optional: focus area] [optional: --no-commit] [optional: --reference NAME]"
 ---
 
@@ -70,6 +70,8 @@ Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 | `references/fire-prompt.md` | The fixed prompt that each cycle subagent gets |
 | `references/review-prompt.md` | The sense-check review every 3 cycles: is the loop making the project better for its users? |
 | `references/checks.md`, `critic-brief.md` | The check ladder and the blind critic |
+| `references/decisions.md` | The decisions file: what the human must decide, asked when the human comes back |
+| `references/shipping.md` | Shipping modes: one loop branch, or one worktree and PR for each task |
 | `references/gap-matrix.md` | Sources, coverage, `Done when`, statuses |
 | `references/lessons.md` | Traps from past runs |
 | `references/labs.md`, `beyond.md`, `report.md`, `schemas.md` | Labs, toggles, report, data formats |
@@ -99,13 +101,19 @@ the files that the loop changed.
    before you build any. Write them in the Senses table. Run each one once.
 5. **Git**: on the default branch, create `awesomeness/<YYYY-MM-DD>`. Add the
    data root `.localdev/awesomeness/` to `.gitignore`. With `--no-commit`, do
-   not commit.
+   not commit. Then read the project's **shipping mode**
+   (`references/shipping.md`). With no project rule, the mode is `loop-branch`:
+   all commits go on the loop branch. When the project rules ask for one
+   worktree and one PR for each task, the mode is `pr-per-task`. Write the
+   mode in the journal's Setup section.
 6. **Run the loop in this session.** Print one line:
    `Awesomeness loop: [PROJECT] against [REFERENCE]. Next: [row]. Report: [path]. You are the brake.`
-   Then this session is the **orchestrator** (`references/drivers.md`). For
+   Then this session is the **orchestrator** (`references/drivers.md`).
+   When the human sends a message and the decisions file has `open`
+   entries, the orchestrator asks them first (`references/decisions.md`). For
    each cycle, it spawns one new subagent with the cycle prompt in
    `references/fire-prompt.md`, reads the status line that comes back, and
-   spawns the next one. The orchestrator does no cycle work itself, so its
+   spawns the next one. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. The orchestrator does no cycle work itself, so its
    context stays small. Each subagent starts new and reads its state from
    the trail, so no cycle carries the history of the cycles before it.
    A journal line, a memory or an old note that says to start `drive.sh` or a
@@ -159,7 +167,9 @@ files and the numbers it produced. The form is
    checks. It does not loosen or rewrite an existing check to fit its own
    output (lesson 26). A sense measures the distance to the reference, not
    the numbers that the current code makes.
-6. **Build** the smallest change that moves the done-when metric. Drive the
+6. **Build** the smallest change that moves the done-when metric. In
+   `pr-per-task` mode, build it in the item's own task worktree, never on the
+   loop branch (`references/shipping.md`). Drive the
    cause, not the visible output (lesson 11). Fan out at most 3 builders. The
    harness or the project decides who builds. Note: `try`, one per attempt.
 7. **Self-check (level 0)** on the real artifact. A builder's report is not
@@ -181,6 +191,9 @@ files and the numbers it produced. The form is
    - Senses fail: fix and check again. Revert a change that made it worse.
      After two failed attempts at the same step, do the step back.
    Write a status change in the gap matrix when you decide it, not later.
+   When the step needs a human choice (an `ask`, a decision-type
+   `assumption`, a toggle verdict), write it also as an entry in
+   `docs/awesomeness-loop-decisions.md` (`references/decisions.md`).
 9. **End the cycle.** `S note end --status "<before> -> <after>" --progress
    "<metric before> -> <after>"` (or `--progress none`) `--next "<next step>"`.
    Update the project's own ledgers. Run `S unlock --token <token>`. Print the status line,
@@ -258,7 +271,9 @@ does not build and does not review. It does this:
    the `Next priorities` in `Direction`.
 2. Write at most 5 items in the journal's `Waiting on you` section, the most
    useful first. Each one names what the human gives (a `keep`, a reference
-   frame, a decision) and what a user then sees.
+   frame, a decision) and what a user then sees. Write each decision also as
+   an entry in `docs/awesomeness-loop-decisions.md`
+   (`references/decisions.md`).
 3. Commit the journal. `S note end --status waiting --progress none --next
    "<the first item>"`.
 
@@ -289,11 +304,14 @@ open, choose one, write it under "Assumptions and asks", and continue.
 - Do not soften the critic, lower the reference, loosen a check, or accept a
   builder's report as proof. Do not mark a row `matches` without evidence.
 - Do not push, open PRs, post, or send anything outside the repo. Those need
-  explicit approval.
+  explicit approval. A `pr-per-task` project rule, or a human rule in the
+  journal, can approve task branches and PRs. It never approves a push of
+  the loop branch.
 - Do not take the user's mouse or focus, and do not run capture farms that
   slow the machine. Do not break the project's rules to get a capture.
 - Do not change a human-approved feature because the critic prefers another.
-  Put the alternative behind a toggle.
+  Put the alternative behind a toggle. A check that fails on the rejected option
+  enforces this (`APPLY` chores, `references/drivers.md`).
 - Do not build tooling for its own sake. Build a sense when an item needs it.
 - Do not spend a cycle on what no user of this project would notice: a
   constant, a byte or an internal detail of the reference. Fold it into the

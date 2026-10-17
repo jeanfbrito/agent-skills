@@ -72,7 +72,11 @@ def norm(s):
 
 
 def status_of(row):
-    return norm(row.get("Status", ""))
+    # A cell can carry a note after the status ("matches (PR #12 ready)"). The leading word is the status.
+    cell = norm(row.get("Status", ""))
+    m = re.match(r"[a-z-]+", cell)
+    word = m.group(0) if m else ""
+    return word if word in WORK | CLOSED | PARKED | QUEUED else cell
 
 
 def section(text, name):
@@ -407,6 +411,9 @@ def brief(a):
     out = []
     if os.path.exists(os.path.join(root, "PAUSE")):
         out.append("PAUSED: the human paused the loop (state.py resume to continue).")
+    lock_line = lock_status(root, a.stale_min)
+    if lock_line:
+        out.append(lock_line)
     if not os.path.isfile(jpath):
         out.append(f"SIGNAL NO-JOURNAL: {a.journal} is missing. Run the Start steps in SKILL.md.")
         print("\n".join(out))
@@ -490,7 +497,24 @@ def brief(a):
     open_verdicts = [v for v in verdicts if (v.get("Verdict") or "").strip() and not (v.get("Applied") or "").strip()]
     open_answers = [v for v in asks if (v.get("Verdict") or "").strip() and not (v.get("Applied") or "").strip()]
     if open_verdicts or open_answers:
-        chores.append(("APPLY", f"APPLY: {len(open_verdicts)} verdict(s) and {len(open_answers)} answer(s) are written and not applied. Apply them."))
+        chores.append(("APPLY", f"APPLY: {len(open_verdicts)} verdict(s) and {len(open_answers)} answer(s) are written and not applied. Apply them. A keep verdict also adds a check that fails "
+                       "if a later cycle changes the kept behavior."))
+    dpath = os.path.join(a.project, os.path.dirname(a.journal), "awesomeness-loop-decisions.md")
+    if os.path.isfile(dpath):
+        entries = re.split(r"(?m)^### ", open(dpath, encoding="utf-8").read())[1:]
+        def field(e, name):
+            m = re.search(rf"(?m)^- {name}:[ \t]*(.*)$", e)
+            return m.group(1).strip() if m else ""
+        open_d = [e for e in entries if not field(e, "Answer")]
+        unapplied = [e.splitlines()[0][:60] for e in entries if field(e, "Answer") and not field(e, "Applied")]
+        if open_d:
+            out.append(f"DECISIONS: {len(open_d)} open in {os.path.relpath(dpath, a.project)}. "
+                       "The orchestrator asks them when the human comes back (references/decisions.md).")
+        if unapplied:
+            chores.append(("APPLY-DECISIONS", f"APPLY-DECISIONS: {len(unapplied)} answered and not applied "
+                           f"({'; '.join(unapplied[:3])}). Apply each. When an answer picks one option over another, "
+                           "add a check that passes on the chosen option and fails on the rejected one. "
+                           "Then fill its Applied line with the commit and the check."))
     blocked_names = {norm(r.get("Item", "")) for r in blocked_tbl}
     for r in gap:
         if norm(r.get("Item", "")) in blocked_names and status_of(r) not in PARKED:
@@ -686,6 +710,27 @@ def note(a):
     return 0
 
 
+def lock_status(root, stale_min):
+    """One LOCK line for the brief, so an orchestrator sees a busy loop before it spawns a cycle."""
+    path = os.path.join(root, "lock")
+    if not os.path.exists(path):
+        return "LOCK: free."
+    try:
+        held = json.load(open(path))
+    except (OSError, ValueError):
+        return "LOCK: the lock file cannot be read. The next lock call replaces it."
+    holder = held.get("agent_pid")
+    age = (time.time() - float(held.get("started", 0))) / 60
+    if holder and holder == agent_pid():
+        return f"LOCK: held by this agent session (agent pid {holder}), renewed {age:.0f} min ago."
+    if holder and not pid_alive(holder):
+        return f"LOCK: left by agent pid {holder}, which has ended. The next lock call takes it over."
+    if age >= stale_min:
+        return f"LOCK: stale, no note for {age:.0f} min. The next lock call takes it over."
+    return (f"LOCK: BUSY. Another live agent session (agent pid {holder or '?'}, {held.get('owner', '?')}) "
+            f"holds it, renewed {age:.0f} min ago. Do not spawn a cycle: tell the human which session runs the loop.")
+
+
 def lock(a):
     root = os.path.join(a.project, a.root)
     os.makedirs(root, exist_ok=True)
@@ -753,6 +798,8 @@ def pause(a, on):
     if on:
         open(path, "w").write(time.strftime("%Y-%m-%d %H:%M\n"))
         print("PAUSED: every driver skips its cycles until state.py resume.")
+        # A cycle that holds the lock still runs to its end; the human needs to know that before calling it a stop.
+        print(lock_status(root, a.stale_min))
     elif os.path.exists(path):
         os.remove(path)
         print("RESUMED")
