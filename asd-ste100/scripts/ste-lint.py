@@ -287,19 +287,40 @@ def load_plain_words(allow=(), rows=None):
     return entries
 
 
+def _sentences(block):
+    """Yield (offset, sentence) for each sentence of a joined block."""
+    pos = 0
+    for m in SENTENCE_BREAK.finditer(block):
+        yield pos, block[pos:m.start()]
+        pos = m.end()
+    yield pos, block[pos:]
+
+
+def _long_sentence_message(n, sentence):
+    """Name the sentence by its first words, so the reader finds it in the paragraph."""
+    head = " ".join(sentence.split()[:8])
+    return f'Sentence has {n} words (cap {MAX_WORDS}): "{head}..." Split it.'
+
+
 def _prose_blocks(lines, table_cells):
     """Join hard-wrapped lines into the paragraphs and list items they form.
 
     A sentence wrapped across lines is one sentence, so its length is counted
-    on the joined text and reported at the block's first line. A blank line,
-    heading, list marker, blockquote, table row, or code fence ends a block.
+    on the joined text. Each block keeps the offset of each of its source lines
+    in the joined text, so a finding names the line where its sentence starts,
+    not the block's first line. A blank line, heading, list marker, blockquote,
+    table row, or code fence ends a block.
     """
     blocks, current, in_fence = [], None, False
 
     def flush():
         nonlocal current
         if current:
-            blocks.append((current[0], " ".join(current[1])))
+            lines_of, offset = [], 0
+            for i, part in enumerate(current[1]):
+                lines_of.append((offset, current[0] + i))
+                offset += len(part) + 1
+            blocks.append((current[0], " ".join(current[1]), lines_of))
         current = None
 
     for index, raw in enumerate(lines):
@@ -314,7 +335,7 @@ def _prose_blocks(lines, table_cells):
         text = INLINE_CODE.sub("", stripped)
         if stripped.startswith("#"):
             flush()
-            blocks.append((index + 1, text))
+            blocks.append((index + 1, text, [(0, index + 1)]))
             continue
         item = LIST_ITEM_START.match(raw)
         if item or stripped.startswith(">"):
@@ -390,15 +411,16 @@ def lint(text, filename="<stdin>", plain_words=()):
                                      "col": source_column + 1,
                                      "rule": "long-sentence", "level": "advisory-free",
                                      "match": f"{n} words",
-                                     "message": f"Sentence has {n} words (cap {MAX_WORDS}). Split it."})
-    for start_line, block in _prose_blocks(lines, table_cells):
-        for sent in SENTENCE_BREAK.split(block):
+                                     "message": _long_sentence_message(n, sent)})
+    for start_line, block, lines_of in _prose_blocks(lines, table_cells):
+        for begin, sent in _sentences(block):
             n = len(sent.split())
             if n > MAX_WORDS:
-                findings.append({"file": filename, "line": start_line, "col": 1,
+                line = max((ln for off, ln in lines_of if off <= begin), default=start_line)
+                findings.append({"file": filename, "line": line, "col": 1,
                                  "rule": "long-sentence", "level": "advisory-free",
                                  "match": f"{n} words",
-                                 "message": f"Sentence has {n} words (cap {MAX_WORDS}). Split it."})
+                                 "message": _long_sentence_message(n, sent)})
     # synonym rotation: flag each member after the first, at its first occurrence
     for gi, group in enumerate(SYNONYM_GROUPS):
         present = [(seen_synonyms[(gi, b)], b) for b in group if (gi, b) in seen_synonyms]
@@ -533,6 +555,12 @@ def selftest():
     long_sentences = [f for f in findings if f["rule"] == "long-sentence"]
     assert len(long_sentences) == 1 and long_sentences[0]["line"] == 1, long_sentences
     assert long_sentences[0]["match"] == "30 words", long_sentences
+    # a long sentence is reported at its own line, with its first words, not at the paragraph's first line
+    findings, _ = lint("Read this line.\nRead this one too.\n" + ("word " * 15).strip() + "\n"
+                       + ("word " * 15).strip() + ".")
+    long_sentences = [f for f in findings if f["rule"] == "long-sentence"]
+    assert len(long_sentences) == 1 and long_sentences[0]["line"] == 3, long_sentences
+    assert '"word word word word word word word word..."' in long_sentences[0]["message"], long_sentences
     findings, _ = lint("Open the file.\nRead line 3.\nClose the file.")
     assert not any(f["rule"] == "long-sentence" for f in findings), findings
     # separate list items, a heading, and a blank line each end a block
@@ -591,6 +619,7 @@ def selftest():
     long_sentences = [f for f in findings if f["rule"] == "long-sentence"]
     assert len(long_sentences) == 1, long_sentences
     assert long_sentences[0]["match"] == "26 words", long_sentences
+    assert long_sentences[0]["message"].startswith("Sentence has 26 words (cap 25): \""), long_sentences
     # synonym rotation: second member flagged, first named as the keeper
     findings, _ = lint("Check the config file. Then verify the output. Verify twice.")
     rot = [f for f in findings if f["rule"] == "synonym-rotation"]

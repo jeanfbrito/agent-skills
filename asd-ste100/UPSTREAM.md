@@ -18,6 +18,10 @@ dictionary. Request the standard at https://www.asd-ste100.org/STE_downloads.htm
 - `scripts/ste-lint.py` ends a sentence at `.`, `!` or `?` that closes a bold or
   italic span, so a bold lead-in ("**Lead-in.** Next sentence") is counted as
   its own sentence.
+- `scripts/ste-lint.py` reports a long sentence at the line where that sentence
+  starts, not at the first line of its paragraph. The message quotes the first
+  eight words of the sentence. Before, the finding pointed at a correct sentence,
+  and a reader called the real long sentence a false positive.
 
 - `scripts/ste-lint.py` `plain-word` rule (advisory): flags words and phrases
   from `references/plain-words.tsv`, the public-domain list from the US Federal
