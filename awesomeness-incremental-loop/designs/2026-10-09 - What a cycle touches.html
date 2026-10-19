@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>What a cycle touches</title>
+<style>
+  :root {
+    --paper: #f6f5f1; --ink: #1f2433; --muted: #5b6275; --soft: #8e94a6; --rule: #cfd2d9;
+    --zone: #ecedf0; --zone-warm: #f3efe6; --zone-cool: #e9eef3; --accent: #e4692a; --accent-tint: #fbeee6;
+    --sans: -apple-system, "Helvetica Neue", Inter, Arial, sans-serif;
+    --mono: ui-monospace, Menlo, "SF Mono", Consolas, monospace;
+  }
+  @page { size: letter landscape; margin: 12mm; }
+  html, body { margin: 0; height: 100%; }
+  body { font: 11pt "Iowan Old Style", Palatino, "Palatino Linotype", serif; color: var(--ink); background: #fff; }
+  article { height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+  header { display: flex; justify-content: space-between; align-items: baseline; }
+  .eyebrow { font: 7.5pt var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 1mm; }
+  h1 { font-size: 18pt; font-weight: 600; margin: 0; }
+  time { font: 9pt var(--mono); color: var(--muted); }
+  .stage { display: grid; grid-template-columns: 22% 1fr 22%; gap: 8mm; min-height: 0; }
+  figure { margin: 0; min-height: 0; display: grid; grid-template-rows: 1fr auto; }
+  svg { display: block; width: 100%; height: 100%; }
+  figcaption { font-size: 10pt; text-align: center; padding-top: 2mm; }
+  aside { font-size: 10pt; line-height: 1.28; min-height: 0; }
+  aside p { margin: 0 0 3.2mm; }
+  aside ol { margin: 0; padding-left: 1.15em; }
+  aside li { margin: 0 0 1.5mm; }
+  footer { font: 7.5pt var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  /* figure: paper, zones, nodes, edges, type */
+  svg text { font-family: var(--sans); font-size: 13px; fill: var(--ink); }
+  svg .name { font-family: var(--sans); font-weight: 600; font-size: 13px; fill: var(--ink); }
+  svg .sub { font-family: var(--mono); font-size: 8.5px; fill: var(--muted); }
+  svg .lbl { font-family: var(--mono); font-size: 7.5px; letter-spacing: .08em; text-transform: uppercase; fill: var(--muted); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+  svg .tick { font-family: var(--mono); font-size: 7px; fill: var(--ink); }
+  svg .region { font-family: var(--mono); font-size: 8px; letter-spacing: .12em; text-transform: uppercase; fill: var(--muted); font-weight: 600; }
+  svg .region-sub { font-family: var(--mono); font-size: 8px; letter-spacing: .04em; text-transform: none; fill: var(--muted); font-weight: 400; }
+  svg .tag { font-family: var(--mono); font-size: 6.5px; letter-spacing: .1em; text-transform: uppercase; fill: var(--muted); }
+  svg rect.tagbox { fill: #fff; stroke: var(--rule); stroke-width: .7; }
+  svg rect.paper { fill: var(--paper); }
+  svg rect.node { fill: #fff; stroke: var(--soft); stroke-width: 1; }
+  svg g.ink rect.node { fill: var(--ink); stroke: var(--ink); }
+  svg g.ink text, svg g.ink .sub { fill: #fff; }
+  svg g.ink .ico { stroke: #fff; }
+  svg g.ink rect.tagbox { fill: var(--ink); stroke: #fff; }
+  svg g.ink .tag { fill: #fff; }
+  svg g.focal rect.node { fill: var(--accent-tint); stroke: var(--accent); }
+  svg g.focal .name { fill: var(--accent); }
+  svg rect.region-box { fill: var(--zone); stroke: none; }
+  svg rect.region-box.outside { fill: none; stroke: var(--soft); stroke-dasharray: 5 4; }
+  svg rect.region-box.memory { fill: var(--zone-warm); }
+  svg rect.region-box.disk { fill: var(--zone-cool); }
+  svg .edge path { fill: none; stroke: var(--muted); stroke-width: 1.1; marker-end: url(#arrow); }
+  svg .edge.ring path { stroke: var(--accent); stroke-width: 1.8; marker-end: url(#arrow-accent); }
+  svg .edge.back path { stroke-dasharray: 4 3; }
+  svg .ico { fill: none; stroke: var(--ink); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+  /* wide layout: the figure across the page, short notes in four columns under it */
+  .stage.wide { grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 4mm; }
+  .stage.wide aside.notes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6mm; font: 9pt var(--sans); line-height: 1.3; color: var(--ink); }
+  .stage.wide aside.notes p { margin: 0 0 2mm; }
+  .stage.wide aside.notes b { font-weight: 600; }
+  svg rect.tickbox { fill: #fff; stroke: var(--rule); stroke-width: .7; }
+  svg .person { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; }
+  /* Print fills exactly one page. No overflow: hidden anywhere, so a
+     callout that does not fit spills onto a second page and the fit
+     check fails instead of silently cutting text. */
+  @media print { html, body, article { height: 100%; } }
+</style>
+</head>
+<body>
+<article>
+  <header><div><div class="eyebrow">one-page design · modules</div><h1>What a cycle touches</h1></div><time datetime="2026-10-09">2026-10-09</time></header>
+  <div class="stage wide">
+    <figure>
+      <svg viewBox="0 0 900 470" role="img" aria-labelledby="fig-title fig-desc">
+        <title id="fig-title">What a cycle touches</title>
+        <desc id="fig-desc">A session in memory above, the project on disk below, the human outside on the right, and the orange loop of one cycle running between them.</desc>
+        <defs>
+          <pattern id="dots" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".7" fill="#cfd2d9"/></pattern>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6275"/></marker>
+          <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e4692a"/></marker>
+        </defs>
+        <rect class="paper" x="0" y="0" width="900" height="470"/>
+        <rect x="0" y="0" width="900" height="470" fill="url(#dots)"/>
+        <g data-id="session" data-src="awesomeness-incremental-loop/SKILL.md:108"><rect class="region-box memory" x="60" y="28" width="740" height="172" rx="8"/><text class="region" x="72" y="48">in memory<tspan class="region-sub"> · the session, which forgets every cycle</tspan></text></g>
+        <g data-id="disk" data-src="awesomeness-incremental-loop/SKILL.md:100"><rect class="region-box disk" x="60" y="230" width="740" height="225" rx="8"/><text class="region" x="72" y="250">on disk<tspan class="region-sub"> · the project</tspan></text></g>
+        <g class="edge ring" data-id="e-start" data-rel="human orch" data-src="awesomeness-incremental-loop/SKILL.md:104">
+          <path d="M840,120 L782,120"/>
+          <text class="lbl" x="811" y="112" text-anchor="middle">starts</text>
+        </g>
+        <g class="edge" data-id="e-brake" data-rel="human journal" data-src="awesomeness-incremental-loop/SKILL.md:262">
+          <path d="M865,176 L865,445 L360,445 L360,357"/>
+          <text class="lbl" x="858" y="437" text-anchor="end">verdicts, held rows</text>
+        </g>
+        <g class="edge ring" data-id="e-spawn" data-rel="orch cycle" data-src="awesomeness-incremental-loop/SKILL.md:105">
+          <path d="M620,100 L562,100"/>
+          <text class="lbl" x="591" y="92" text-anchor="middle">spawns</text>
+        </g>
+        <g class="edge back" data-id="e-status" data-rel="cycle orch" data-src="awesomeness-incremental-loop/SKILL.md:178">
+          <path d="M560,130 L618,130"/>
+          <text class="lbl" x="590" y="143" text-anchor="middle">status</text>
+        </g>
+        <g class="edge" data-id="e-queue" data-rel="cycle critic" data-src="awesomeness-incremental-loop/SKILL.md:168">
+          <path d="M300,110 L222,110"/>
+          <text class="lbl" x="261" y="102" text-anchor="middle">done row</text>
+        </g>
+        <g class="edge" data-id="e-verdict" data-rel="critic journal" data-src="awesomeness-incremental-loop/SKILL.md:274">
+          <path d="M150,150 L150,320 L298,320"/>
+          <text class="lbl" x="156" y="222" text-anchor="start">matches / below</text>
+        </g>
+        <g class="edge" data-id="e-journal" data-rel="cycle journal" data-src="awesomeness-incremental-loop/SKILL.md:171">
+          <path d="M360,150 L360,283"/>
+          <text class="lbl" x="366" y="220" text-anchor="start">status</text>
+        </g>
+        <g class="edge ring" data-id="e-build" data-rel="cycle product" data-src="awesomeness-incremental-loop/SKILL.md:160">
+          <path d="M450,150 L450,283"/>
+        </g>
+        <g class="edge" data-id="e-lock" data-rel="cycle state" data-src="awesomeness-incremental-loop/SKILL.md:125">
+          <path d="M520,150 L520,183"/>
+          <text class="lbl" x="514" y="170" text-anchor="end">lock · note</text>
+        </g>
+        <g class="edge ring" data-id="e-brief" data-rel="state cycle" data-src="awesomeness-incremental-loop/SKILL.md:131">
+          <path d="M540,183 L540,152"/>
+          <text class="lbl" x="546" y="170" text-anchor="start">brief</text>
+        </g>
+        <g class="edge ring" data-id="e-sense" data-rel="product senses" data-src="awesomeness-incremental-loop/SKILL.md:163">
+          <path d="M500,355 L500,374"/>
+          <text class="lbl" x="506" y="370" text-anchor="start">captures</text>
+        </g>
+        <g class="edge ring back" data-id="e-see" data-rel="senses state" data-src="awesomeness-incremental-loop/SKILL.md:166">
+          <path d="M560,405 L610,405 L610,230 L592,230"/>
+          <text class="lbl" x="616" y="320" text-anchor="start">see</text>
+        </g>
+        <g class="edge" data-id="e-trail" data-rel="state trail" data-src="awesomeness-incremental-loop/SKILL.md:33">
+          <path d="M590,215 L685,215 L685,283"/>
+          <text class="lbl" x="600" y="207" text-anchor="start">a note per step</text>
+        </g>
+        <g class="edge" data-id="e-report" data-rel="trail report" data-src="awesomeness-incremental-loop/SKILL.md:68">
+          <path d="M685,365 L685,388"/>
+          <text class="lbl" x="691" y="380" text-anchor="start">rebuilds</text>
+        </g>
+        <g data-id="human" data-src="awesomeness-incremental-loop/SKILL.md:43"><circle class="person" cx="865" cy="100" r="10"/><path class="person" d="M843,138 a22,22 0 0,1 44,0"/><text class="name" x="865" y="156" text-anchor="middle">Human</text><text class="sub" x="865" y="168" text-anchor="middle">the brake</text></g>
+        <g data-id="critic" data-src="awesomeness-incremental-loop/SKILL.md:272">
+          <rect class="node" x="80" y="70" width="140" height="80" rx="6"/>
+          <rect class="tagbox" x="177.8" y="75" width="37.2" height="9" rx="2"/><text class="tag" x="196.4" y="81.8" text-anchor="middle">review</text>
+          <g class="ico" transform="translate(135.6,76) scale(1.2)"><path d="M3,12 c3,-5 15,-5 18,0 c-3,5 -15,5 -18,0 z M2,12 h20"/><circle cx="12" cy="12" r="2.2"/></g>
+          <text class="name" x="150" y="128" text-anchor="middle">Blind critic</text>
+          <text class="sub" x="150" y="141" text-anchor="middle">at the done gate</text>
+        </g>
+        <g class="ink" data-id="cycle" data-src="awesomeness-incremental-loop/SKILL.md:108">
+          <rect class="node" x="300" y="70" width="260" height="80" rx="6"/>
+          <rect class="tagbox" x="523" y="75" width="32" height="9" rx="2"/><text class="tag" x="539" y="81.8" text-anchor="middle">agent</text>
+          <g class="ico" transform="translate(415.6,76) scale(1.2)"><path d="M5,9 h14 v10 h-14 z M12,9 v-3 M12,6 m-1.5,0 a1.5,1.5 0 1,0 3,0 a1.5,1.5 0 1,0 -3,0 M9,14 h0.01 M15,14 h0.01 M9,17 h6"/></g>
+          <text class="name" x="430" y="128" text-anchor="middle">Cycle subagent</text>
+          <text class="sub" x="430" y="141" text-anchor="middle">new each cycle, forgets</text>
+        </g>
+        <g data-id="orch" data-src="awesomeness-incremental-loop/SKILL.md:105">
+          <rect class="node" x="620" y="70" width="160" height="80" rx="6"/>
+          <rect class="tagbox" x="732.6" y="75" width="42.4" height="9" rx="2"/><text class="tag" x="753.8" y="81.8" text-anchor="middle">session</text>
+          <g class="ico" transform="translate(685.6,76) scale(1.2)"><path d="M3,4 h18 v16 h-18 z M3,8 h18 M6,12 l3,2.5 -3,2.5 M11,17 h5"/></g>
+          <text class="name" x="700" y="128" text-anchor="middle">Orchestrator</text>
+          <text class="sub" x="700" y="141" text-anchor="middle">the session you started</text>
+        </g>
+        <g data-id="state" data-src="awesomeness-incremental-loop/SKILL.md:66">
+          <rect class="node" x="470" y="185" width="120" height="60" rx="6"/>
+          <rect class="tagbox" x="558.2" y="190" width="26.8" height="9" rx="2"/><text class="tag" x="571.6" y="196.8" text-anchor="middle">tool</text>
+          <g class="ico" transform="translate(518,189) scale(1.0)"><path d="M6,3 h12 v18 h-12 z M6,21 l-3,-2 v-16 l3,-1 M14.5,12 m-1,0 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0"/></g>
+          <text class="name" x="530" y="225" text-anchor="middle">state.py</text>
+          <text class="sub" x="530" y="237" text-anchor="middle">lock · brief · note</text>
+        </g>
+        <g data-id="journal" data-src="awesomeness-incremental-loop/SKILL.md:89">
+          <rect class="node" x="300" y="285" width="120" height="70" rx="6"/>
+          <rect class="tagbox" x="388.2" y="290" width="26.8" height="9" rx="2"/><text class="tag" x="401.6" y="296.8" text-anchor="middle">file</text>
+          <g class="ico" transform="translate(345.6,291) scale(1.2)"><path d="M5,3 h14 v18 h-14 z M8,3 v18 M11,8 h5 M11,11 h5 M11,14 h5"/></g>
+          <text class="name" x="360" y="333" text-anchor="middle">Journal</text>
+          <text class="sub" x="360" y="346" text-anchor="middle">Direction · rows</text>
+        </g>
+        <g data-id="product" data-src="awesomeness-incremental-loop/SKILL.md:160">
+          <rect class="node" x="440" y="285" width="120" height="70" rx="6"/>
+          <rect class="tagbox" x="528.2" y="290" width="26.8" height="9" rx="2"/><text class="tag" x="541.6" y="296.8" text-anchor="middle">code</text>
+          <g class="ico" transform="translate(485.6,291) scale(1.2)"><path d="M4,7 h5 l2,2 h9 v11 h-16 z M4,7 v-2 h5 l2,2 M7,13 h10 M7,16 h7"/></g>
+          <text class="name" x="500" y="333" text-anchor="middle">Product files</text>
+          <text class="sub" x="500" y="346" text-anchor="middle">smallest change</text>
+        </g>
+        <g data-id="senses" data-src="awesomeness-incremental-loop/SKILL.md:99">
+          <rect class="node" x="440" y="376" width="120" height="58" rx="6"/>
+          <rect class="tagbox" x="517.8" y="385" width="37.2" height="9" rx="2"/><text class="tag" x="536.4" y="391.8" text-anchor="middle">checks</text>
+          <g class="ico" transform="translate(488,380) scale(1.0)"><path d="M3,19 a9,9 0 0,1 18,0 M12,19 l5,-7 M3,19 h18"/><circle cx="12" cy="19" r="1.2"/></g>
+          <text class="name" x="500" y="418" text-anchor="middle">Senses</text>
+          <text class="sub" x="500" y="429" text-anchor="middle">capture and test tools</text>
+        </g>
+        <g data-id="trail" data-src="awesomeness-incremental-loop/tools/state.py:5">
+          <rect class="node" x="640" y="285" width="90" height="80" rx="6"/>
+          <rect class="tagbox" x="698.2" y="290" width="26.8" height="9" rx="2"/><text class="tag" x="711.6" y="296.8" text-anchor="middle">file</text>
+          
+          <rect class="tickbox" x="648" y="305" width="74" height="5"/><text class="tick" x="651" y="309.2" font-size="4.2">pick</text>
+          <rect class="tickbox" x="648" y="311.2" width="74" height="5"/><text class="tick" x="651" y="315.4" font-size="4.2">predict</text>
+          <rect class="tickbox" x="648" y="317.4" width="74" height="5"/><text class="tick" x="651" y="321.6" font-size="4.2">try</text>
+          <rect class="tickbox" x="648" y="323.6" width="74" height="5"/><text class="tick" x="651" y="327.8" font-size="4.2">see</text>
+          <rect class="tickbox" x="648" y="329.8" width="74" height="5"/><text class="tick" x="651" y="334" font-size="4.2">keep / revert</text>
+          <rect class="tickbox" x="648" y="336" width="74" height="5"/><text class="tick" x="651" y="340.2" font-size="4.2">commit</text>
+          <rect class="tickbox" x="648" y="342.2" width="74" height="5"/><text class="tick" x="651" y="346.4" font-size="4.2">end</text>
+          <text class="name" x="685" y="358" text-anchor="middle" font-size="10">trail.jsonl</text>
+        </g>
+        <g data-id="report" data-src="awesomeness-incremental-loop/tools/report.py:7">
+          <rect class="node" x="640" y="390" width="90" height="50" rx="6"/>
+          <rect class="tagbox" x="698.2" y="395" width="26.8" height="9" rx="2"/><text class="tag" x="711.6" y="401.8" text-anchor="middle">html</text>
+          <g class="ico" transform="translate(673,393) scale(1.0)"><path d="M5,3 h10 l4,4 v14 h-14 z M15,3 v4 h4 M8,17 v-4 M11,17 v-7 M14,17 v-5"/></g>
+          <text class="name" x="685" y="424" text-anchor="middle">report.html</text>
+          <text class="sub" x="685" y="434" text-anchor="middle">rebuilt per note</text>
+        </g>
+        </svg>
+      <figcaption data-src="awesomeness-incremental-loop/SKILL.md:28">Memory above, disk below, the human outside. The orange loop is one cycle: spawn, build, measure, note, brief. Dashed arrows report back.</figcaption>
+    </figure>
+    <aside class="notes">
+      <p data-id="c-human" data-for="human" data-src="awesomeness-incremental-loop/SKILL.md:43"><b>Human.</b> Outside both worlds and the only brake: the loop never asks "continue?". Verdicts and held rows go in the journal.</p>
+      <p data-id="c-orch" data-for="orch" data-src="awesomeness-incremental-loop/SKILL.md:105"><b>Orchestrator.</b> Spawns one new subagent per cycle with the fixed prompt, reads one status line back, spawns the next. Does no cycle work.</p>
+      <p data-id="c-cycle" data-for="cycle" data-src="awesomeness-incremental-loop/SKILL.md:108"><b>Cycle subagent.</b> Starts empty. Everything it knows comes up through the brief, so no cycle carries the history of the last.</p>
+      <p data-id="c-state" data-for="state" data-src="awesomeness-incremental-loop/SKILL.md:125"><b>state.py, the door.</b> Lock first: exit 3 is another live session, exit 4 is paused. A brief that says IN PROGRESS resumes from the last note.</p>
+      <p data-id="c-trail" data-for="trail" data-src="awesomeness-incremental-loop/SKILL.md:33"><b>Trail.</b> One note the moment each step happens, never saved for the end, so a kill loses at most the step in progress.</p>
+      <p data-id="c-report" data-for="report" data-src="awesomeness-incremental-loop/SKILL.md:39"><b>Report.</b> Not a separate job. Every note rebuilds it, so the trail is the live report.</p>
+      <p data-id="c-journal" data-for="journal" data-src="awesomeness-incremental-loop/SKILL.md:93"><b>Journal.</b> Direction in one or two sentences, one gap row per feature area, each with a Done when.</p>
+      <p data-id="c-critic" data-for="critic" data-src="awesomeness-incremental-loop/SKILL.md:272"><b>Blind critic.</b> One round for the whole queue with the last captures. A loss goes to <i>below</i>; each deficit becomes a sense check.</p>
+    </aside>
+  </div>
+  <footer>One idea. Marks welcome. Frame: modules.</footer>
+</article>
+<script>
+/* one-page-design screen layer.
+ * Inlined into a sheet by the skill. Runs only on screen. It never
+ * changes the print: everything it adds carries class "screen-only",
+ * which the sheet's print CSS hides, except pencil marks, which print.
+ *
+ * Markup it reads:
+ *   data-id="x"        a node, edge or callout the layer can address
+ *   data-rel="a b"     ids this element is related to (edges list both ends)
+ *   data-for="x"       a callout that describes node x
+ *   data-src="path:12" where the label was read; "user" or "unknown" allowed
+ *
+ * Keys: wheel or pinch zooms, drag pans, 0 resets, P pencil, E erase
+ * last stroke, S saves the marks as a sidecar SVG.
+ */
+(function () {
+  if (matchMedia('print').matches) return;
+  var stage = document.querySelector('.stage');
+  var fig = document.querySelector('figure svg');
+  if (!stage || !fig) return;
+  var SO = 'screen-only';
+
+  /* ---------- 1. trace relationships ---------- */
+  var nodes = Array.prototype.slice.call(document.querySelectorAll('[data-id]'));
+  var byId = {};
+  nodes.forEach(function (n) { byId[n.getAttribute('data-id')] = n; });
+  function rels(el) {
+    var set = {};
+    set[el.getAttribute('data-id')] = 1;
+    (el.getAttribute('data-rel') || '').split(/\s+/).forEach(function (r) { if (r) set[r] = 1; });
+    var f = el.getAttribute('data-for');
+    if (f) set[f] = 1;
+    nodes.forEach(function (n) {
+      var r = (n.getAttribute('data-rel') || '').split(/\s+/);
+      if (r.indexOf(el.getAttribute('data-id')) >= 0) set[n.getAttribute('data-id')] = 1;
+      if (n.getAttribute('data-for') === el.getAttribute('data-id')) set[n.getAttribute('data-id')] = 1;
+    });
+    return set;
+  }
+  var tracing = null;
+  function trace(el) {
+    tracing = el;
+    var keep = el ? rels(el) : null;
+    nodes.forEach(function (n) {
+      var id = n.getAttribute('data-id');
+      n.classList.toggle('dim', !!keep && !keep[id]);
+      n.classList.toggle('lit', !!keep && !!keep[id] && n !== el);
+      n.classList.toggle('focus', n === el);
+    });
+    drawLeaders(el);
+  }
+  nodes.forEach(function (n) {
+    if (!n.hasAttribute('tabindex')) n.setAttribute('tabindex', '0');
+    n.addEventListener('mouseenter', function () { trace(n); });
+    n.addEventListener('focus', function () { trace(n); });
+    n.addEventListener('mouseleave', function () { trace(null); });
+    n.addEventListener('blur', function () { trace(null); });
+  });
+
+  /* leader line from a callout to the node it describes */
+  var leaders = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  leaders.setAttribute('class', SO + ' leaders');
+  leaders.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:5';
+  document.body.appendChild(leaders);
+  function center(el) {
+    var b = el.getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2, l: b.left, r: b.right, t: b.top, b: b.bottom };
+  }
+  function drawLeaders(el) {
+    while (leaders.firstChild) leaders.removeChild(leaders.firstChild);
+    if (!el) return;
+    var pairs = [];
+    var f = el.getAttribute('data-for');
+    if (f && byId[f]) pairs.push([el, byId[f]]);
+    nodes.forEach(function (n) {
+      if (n.getAttribute('data-for') === el.getAttribute('data-id')) pairs.push([n, el]);
+    });
+    pairs.forEach(function (p) {
+      var a = center(p[0]), b = center(p[1]);
+      var ax = a.x < b.x ? a.r : a.l;
+      var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', ax); line.setAttribute('y1', a.y);
+      line.setAttribute('x2', b.x); line.setAttribute('y2', b.y);
+      line.setAttribute('stroke', '#b5542a'); line.setAttribute('stroke-width', '1.2');
+      line.setAttribute('stroke-dasharray', '3 3');
+      leaders.appendChild(line);
+    });
+  }
+
+  /* ---------- 2. provenance ---------- */
+  var tip = document.createElement('div');
+  tip.className = SO + ' src-tip';
+  tip.style.cssText = 'position:fixed;display:none;font:9pt ui-monospace,Menlo,monospace;background:#1a1a1a;color:#fff;padding:2px 6px;border-radius:2px;pointer-events:none;z-index:6;max-width:60vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  document.body.appendChild(tip);
+  Array.prototype.forEach.call(document.querySelectorAll('[data-src]'), function (el) {
+    el.addEventListener('mouseenter', function () {
+      tip.textContent = el.getAttribute('data-src');
+      tip.style.display = 'block';
+    });
+    el.addEventListener('mousemove', function (e) {
+      tip.style.left = (e.clientX + 12) + 'px';
+      tip.style.top = (e.clientY + 14) + 'px';
+    });
+    el.addEventListener('mouseleave', function () { tip.style.display = 'none'; });
+    el.addEventListener('click', function (e) {
+      if (pencil) return;
+      var s = el.getAttribute('data-src');
+      if (navigator.clipboard) navigator.clipboard.writeText(s).then(function () {
+        tip.textContent = 'copied: ' + s;
+      });
+      e.stopPropagation();
+    });
+  });
+
+  /* ---------- 3. zoom as walking closer ---------- */
+  var vb0 = (fig.getAttribute('viewBox') || '0 0 800 500').split(/[\s,]+/).map(Number);
+  var vb = vb0.slice();
+  function setVB() { fig.setAttribute('viewBox', vb.join(' ')); drawLeaders(tracing); }
+  function toSvg(e) {
+    var r = fig.getBoundingClientRect();
+    var sx = vb[2] / r.width, sy = vb[3] / r.height, s = Math.max(sx, sy);
+    var ox = (r.width - vb[2] / s) / 2, oy = (r.height - vb[3] / s) / 2;
+    return { x: vb[0] + (e.clientX - r.left - ox) * s, y: vb[1] + (e.clientY - r.top - oy) * s, s: s };
+  }
+  fig.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    var p = toSvg(e);
+    var k = Math.exp(e.deltaY * 0.0015);
+    var nw = Math.min(vb0[2] * 1.5, Math.max(vb0[2] / 12, vb[2] * k));
+    k = nw / vb[2];
+    vb = [p.x - (p.x - vb[0]) * k, p.y - (p.y - vb[1]) * k, vb[2] * k, vb[3] * k];
+    setVB();
+  }, { passive: false });
+  var drag = null;
+  fig.addEventListener('pointerdown', function (e) {
+    if (pencil) return;
+    drag = { x: e.clientX, y: e.clientY, vb: vb.slice() };
+    fig.setPointerCapture(e.pointerId);
+  });
+  fig.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var r = fig.getBoundingClientRect();
+    var s = Math.max(vb[2] / r.width, vb[3] / r.height);
+    vb[0] = drag.vb[0] - (e.clientX - drag.x) * s;
+    vb[1] = drag.vb[1] - (e.clientY - drag.y) * s;
+    setVB();
+  });
+  fig.addEventListener('pointerup', function () { drag = null; });
+  fig.addEventListener('dblclick', function () { vb = vb0.slice(); setVB(); });
+  fig.style.cursor = 'grab';
+
+  /* ---------- 4. the pencil ---------- */
+  var pencil = false;
+  var marks = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  marks.setAttribute('class', 'marks');
+  marks.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4;overflow:visible';
+  if (getComputedStyle(stage).position === 'static') stage.style.position = 'relative';
+  stage.appendChild(marks);
+  var key = 'opd-marks:' + location.pathname;
+  function sizeMarks() {
+    var r = stage.getBoundingClientRect();
+    marks.setAttribute('viewBox', '0 0 ' + r.width + ' ' + r.height);
+    marks.setAttribute('preserveAspectRatio', 'none');
+  }
+  sizeMarks();
+  addEventListener('resize', sizeMarks);
+  function stroke() {
+    var p = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    p.setAttribute('fill', 'none'); p.setAttribute('stroke', '#b5542a');
+    p.setAttribute('stroke-width', '1.6'); p.setAttribute('stroke-linecap', 'round');
+    p.setAttribute('stroke-linejoin', 'round'); p.setAttribute('opacity', '0.9');
+    marks.appendChild(p);
+    return p;
+  }
+  try {
+    var saved = localStorage.getItem(key);
+    if (saved) JSON.parse(saved).forEach(function (pts) { stroke().setAttribute('points', pts); });
+  } catch (e) {}
+  function persist() {
+    try {
+      localStorage.setItem(key, JSON.stringify(Array.prototype.map.call(marks.children, function (p) { return p.getAttribute('points'); })));
+    } catch (e) {}
+  }
+  var cur = null;
+  function pt(e) { var r = stage.getBoundingClientRect(); return (e.clientX - r.left).toFixed(1) + ',' + (e.clientY - r.top).toFixed(1); }
+  stage.addEventListener('pointerdown', function (e) {
+    if (!pencil) return;
+    cur = stroke(); cur.setAttribute('points', pt(e));
+    stage.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  stage.addEventListener('pointermove', function (e) {
+    if (!cur) return;
+    cur.setAttribute('points', cur.getAttribute('points') + ' ' + pt(e));
+  });
+  stage.addEventListener('pointerup', function () { if (cur) { cur = null; persist(); } });
+  function setPencil(on) {
+    pencil = on;
+    stage.classList.toggle('pencil', on);
+    stage.style.cursor = on ? 'crosshair' : '';
+    marks.style.pointerEvents = 'none';
+    legend.querySelector('b').textContent = on ? 'pencil on' : '';
+  }
+  function saveMarks() {
+    var r = stage.getBoundingClientRect();
+    var out = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + r.width + ' ' + r.height + '">' +
+      '<!-- marks for ' + document.title + ', ' + new Date().toISOString().slice(0, 10) + ' -->' +
+      marks.innerHTML + '</svg>';
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out], { type: 'image/svg+xml' }));
+    a.download = document.title + '.marks.svg';
+    a.click();
+  }
+
+  /* ---------- legend and keys ---------- */
+  var legend = document.createElement('div');
+  legend.className = SO + ' legend';
+  legend.style.cssText = 'position:fixed;right:10px;bottom:8px;font:8.5pt system-ui,sans-serif;color:#666;background:rgba(255,255,255,.85);padding:3px 8px;border-radius:3px;z-index:6';
+  legend.innerHTML = 'hover traces · wheel zooms, drag pans, double-click resets · P pencil · E erase last · S save marks <b style="color:#b5542a"></b>';
+  document.body.appendChild(legend);
+  addEventListener('keydown', function (e) {
+    if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+    var k = e.key.toLowerCase();
+    if (k === 'p') setPencil(!pencil);
+    else if (k === 'e' && marks.lastChild) { marks.removeChild(marks.lastChild); persist(); }
+    else if (k === 's') { e.preventDefault(); saveMarks(); }
+    else if (k === '0') { vb = vb0.slice(); setVB(); }
+    else if (k === 'escape') { setPencil(false); trace(null); }
+  });
+
+  var css = document.createElement('style');
+  css.textContent =
+    '@media screen{' +
+    '[data-id]{transition:opacity .15s}' +
+    '[data-id].dim{opacity:.18}' +
+    '[data-id].lit{outline:none}' +
+    'svg [data-id].lit *{stroke-width:2}' +
+    'svg [data-id].focus *{stroke:#b5542a}' +
+    'aside [data-id].lit, aside [data-id].focus{background:#fff3ea;box-shadow:0 0 0 3px #fff3ea}' +
+    '[data-id]:focus{outline:none}' +
+    '[data-src]{cursor:help}' +
+    '.stage.pencil [data-id]{pointer-events:none}' +
+    '}' +
+    '@media print{.' + SO + '{display:none !important}}';
+  document.head.appendChild(css);
+})();
+</script>
+</body>
+</html>

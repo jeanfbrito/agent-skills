@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Each cycle forgets</title>
+<style>
+  @page { size: letter landscape; margin: 12mm; }
+  html, body { margin: 0; height: 100%; }
+  body { font: 11pt "Iowan Old Style", Palatino, "Palatino Linotype", serif; color: #1a1a1a; }
+  article { height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+  header { display: flex; justify-content: space-between; align-items: baseline; }
+  h1 { font-size: 18pt; font-weight: 600; margin: 0; }
+  time { font-size: 11pt; }
+  .stage { display: grid; grid-template-columns: 22% 1fr 22%; gap: 8mm; min-height: 0; }
+  figure { margin: 0; min-height: 0; }
+  svg { display: block; width: 100%; height: 100%; }
+  aside { font-size: 10pt; line-height: 1.28; min-height: 0; }
+  aside p { margin: 0 0 3.2mm; }
+  aside ol { margin: 0; padding-left: 1.15em; }
+  aside li { margin: 0 0 1.5mm; }
+  footer { font-size: 9pt; }
+  @media print {
+    html, body, article { height: 100%; }
+  }
+</style>
+</head>
+<body>
+<article>
+  <header>
+    <h1>Each cycle forgets</h1>
+    <time datetime="2026-10-08">2026-10-08</time>
+  </header>
+  <div class="stage">
+    <aside>
+      <p><b>On disk.</b> The trail is .localdev/awesomeness/trail.jsonl. The journal is docs/awesomeness-loop.md. <b>state.py brief</b> reads both. The agent starts empty.</p>
+      <p>Each step writes its note then. The note renews the lock and rebuilds the report. A kill loses the step that has no note yet.</p>
+      <p><b>Open cycle.</b> <b>IN PROGRESS</b>: continue from the last note. Do not repeat a step that has one.</p>
+      <p><b>This run ends.</b> Exit 3: another live session holds the lock. Exit 4: paused. The same session takes its lock back.</p>
+      <p><b>After see.</b> Lab pass sets <b>lab-only</b>. The next step integrates it. Full pass and done-when holds: a functional-only row goes to <b>matches</b>. A quality-bar row goes to <b>queued</b> when the metric moved, and reaches matches only through the critic. A flat metric is no progress. A worse change is a revert. Two failed attempts at the same step are a step back. Proof is the checks on the real artifact.</p>
+    </aside>
+    <figure>
+      <svg viewBox="0 0 520 620" preserveAspectRatio="xMidYMin meet" font-family="Palatino, 'Iowan Old Style', serif" fill="#1a1a1a">
+        <defs>
+          <marker id="ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0 L10 5 L0 10 Z" fill="#1a1a1a"/>
+          </marker>
+          <marker id="out" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0 0 L10 5 L0 10 Z" fill="#8a3b2b"/>
+          </marker>
+        </defs>
+
+        <rect x="118" y="16" width="260" height="72" fill="#fff" stroke="#1a1a1a" stroke-width="1.6"/>
+        <text x="248" y="40" text-anchor="middle" font-size="16">orchestrator</text>
+        <text x="248" y="58" text-anchor="middle" font-size="13">one new subagent at a time</text>
+        <text x="248" y="76" text-anchor="middle" font-size="13">the status line is the whole reply</text>
+
+        <line x1="300" y1="88" x2="324.9" y2="185" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#ink)"/>
+        <text x="338" y="128" font-size="13">spawn</text>
+
+        <line x1="167.3" y1="187.9" x2="196" y2="88" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#ink)"/>
+        <text x="154" y="132" text-anchor="end" font-size="13">status line</text>
+
+        <!-- ring, clockwise -->
+        <g fill="none" stroke="#1a1a1a" stroke-width="1.5" marker-end="url(#ink)">
+          <line x1="337.7" y1="216.4" x2="380.8" y2="273.5"/>
+          <line x1="390.7" y1="305.6" x2="384.5" y2="376.8"/>
+          <line x1="370.4" y1="407.3" x2="318.1" y2="456.1"/>
+          <line x1="287.2" y1="469.4" x2="215.7" y2="470.6"/>
+          <line x1="183.9" y1="459.8" x2="129.9" y2="412.9"/>
+          <line x1="113.5" y1="383.5" x2="104.8" y2="312.6"/>
+          <line x1="112.2" y1="279.8" x2="153.2" y2="221.2"/>
+        </g>
+        <text x="408" y="346" font-size="13">no item line</text>
+        <text x="78" y="248" text-anchor="end" font-size="13">commit</text>
+
+        <line x1="404.7" y1="275.7" x2="500" y2="176" stroke="#8a3b2b" stroke-width="1.6" marker-end="url(#out)"/>
+        <text x="468" y="214" text-anchor="middle" font-size="14" fill="#8a3b2b">item line</text>
+
+        <g fill="#fff" stroke="#1a1a1a" stroke-width="1.5">
+          <circle cx="327.5" cy="202.8" r="16"/>
+          <circle cx="392.2" cy="288.7" r="16"/>
+          <circle cx="382.8" cy="395.8" r="16"/>
+          <circle cx="304.2" cy="469.1" r="16"/>
+          <circle cx="196.7" cy="471.0" r="16"/>
+          <circle cx="115.6" cy="400.4" r="16"/>
+          <circle cx="102.5" cy="293.7" r="16"/>
+          <circle cx="164.1" cy="205.6" r="16"/>
+        </g>
+        <g text-anchor="middle" font-size="14">
+          <text x="327.5" y="207.5">1</text>
+          <text x="392.2" y="293.4">2</text>
+          <text x="382.8" y="400.5">3</text>
+          <text x="304.2" y="473.8">4</text>
+          <text x="196.7" y="475.7">5</text>
+          <text x="115.6" y="405.1">6</text>
+          <text x="102.5" y="298.4">7</text>
+          <text x="164.1" y="210.3">8</text>
+        </g>
+        <g font-size="15">
+          <text x="352" y="198">lock</text>
+          <text x="408" y="266">brief</text>
+          <text x="404" y="418">pick</text>
+          <text x="318" y="502" text-anchor="middle">predict</text>
+          <text x="184" y="504" text-anchor="middle">try</text>
+          <text x="78" y="418" text-anchor="end">see</text>
+          <text x="80" y="286" text-anchor="end">keep</text>
+          <text x="80" y="304" text-anchor="end" font-size="13">or revert</text>
+          <text x="118" y="172" text-anchor="end">end</text>
+        </g>
+
+        <text x="248" y="312" text-anchor="middle" font-size="16">brief</text>
+        <text x="248" y="332" text-anchor="middle" font-size="14">trail + journal</text>
+        <text x="248" y="354" text-anchor="middle" font-size="13">write the note now</text>
+        <text x="248" y="372" text-anchor="middle" font-size="13">read it next cycle</text>
+
+        <line x1="40" y1="548" x2="480" y2="548" stroke="#1a1a1a" stroke-width="1"/>
+        <text x="248" y="570" text-anchor="middle" font-size="15">The human is the brake.</text>
+        <text x="248" y="588" text-anchor="middle" font-size="13">Stop the session, or pause for other work.</text>
+        <text x="248" y="604" text-anchor="middle" font-size="13">The loop does not stop itself.</text>
+      </svg>
+    </figure>
+    <aside>
+      <p><b>Before the build.</b> DO FIRST, in the order the brief prints. <b>OVERDUE</b> was skipped once: STALE-DRIVER, APPLY, MISMATCH, NO-DONE-WHEN, QUEUED-NO-PROGRESS, SENSE-DRIFT, JOURNAL-LONG.</p>
+      <p><b>Then the first item line.</b> That line is the cycle. Later lines wait. No line: pick a gap row. No user-visible why: the row is <b>held</b>.</p>
+      <ol>
+        <li><b>WAITING.</b> Nothing is open, and 6 cycles changed no product file. At most 5 asks, then <b>wait</b>. No spawn.</li>
+        <li><b>REVIEW-DUE.</b> Every 3 cycles. No build. Is it better for the people who use it?</li>
+        <li><b>STALL.</b> 3 cycles since the last step-back, or 2 with no progress. No build: split, a new approach, the critic, or block. The step-back note resets that row's count.</li>
+        <li><b>NO-CODE.</b> 3 cycles changed no product file and closed no row. This cycle changes the product.</li>
+        <li><b>CRITIC-DUE.</b> 5 rows are queued, or the only work is the queue. One blind round.</li>
+        <li><b>EXHAUSTED.</b> Nothing is open or queued. One round, the step the brief names: coverage, unblock, beyond.</li>
+      </ol>
+    </aside>
+  </div>
+  <footer>One idea. Marks welcome.</footer>
+</article>
+</body>
+</html>
