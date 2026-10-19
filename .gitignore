@@ -5,6 +5,7 @@ jira/local-config.yml
 jira/local-config.yml.bak.*
 babysit/local-config.yml
 babysit/local-config.yml.bak.*
+pr-triage/local-state.json
 good-morning/local-config.yml
 good-morning/local-config.yml.bak.*
 good-morning/last-plan.json

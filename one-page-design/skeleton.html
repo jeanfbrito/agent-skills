@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TITLE</title>
+<style>
+  :root {
+    --paper: #f6f5f1; --ink: #1f2433; --muted: #5b6275; --soft: #8e94a6; --rule: #cfd2d9;
+    --zone: #ecedf0; --zone-warm: #f3efe6; --zone-cool: #e9eef3; --accent: #e4692a; --accent-tint: #fbeee6;
+    --sans: -apple-system, "Helvetica Neue", Inter, Arial, sans-serif;
+    --mono: ui-monospace, Menlo, "SF Mono", Consolas, monospace;
+  }
+  @page { size: letter landscape; margin: 12mm; }
+  html, body { margin: 0; height: 100%; }
+  body { font: 11pt "Iowan Old Style", Palatino, "Palatino Linotype", serif; color: var(--ink); background: #fff; }
+  article { height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+  header { display: flex; justify-content: space-between; align-items: baseline; }
+  .eyebrow { font: 7.5pt var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 1mm; }
+  h1 { font-size: 18pt; font-weight: 600; margin: 0; }
+  time { font: 9pt var(--mono); color: var(--muted); }
+  .stage { display: grid; grid-template-columns: 22% 1fr 22%; gap: 8mm; min-height: 0; }
+  figure { margin: 0; min-height: 0; display: grid; grid-template-rows: 1fr auto; }
+  svg { display: block; width: 100%; height: 100%; }
+  figcaption { font-size: 10pt; text-align: center; padding-top: 2mm; }
+  aside { font-size: 10pt; line-height: 1.28; min-height: 0; }
+  aside p { margin: 0 0 3.2mm; }
+  aside ol { margin: 0; padding-left: 1.15em; }
+  aside li { margin: 0 0 1.5mm; }
+  footer { font: 7.5pt var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  /* figure: paper, zones, nodes, edges, type */
+  svg text { font-family: var(--sans); font-size: 13px; fill: var(--ink); }
+  svg .name { font-family: var(--sans); font-weight: 600; font-size: 13px; fill: var(--ink); }
+  svg .sub { font-family: var(--mono); font-size: 8.5px; fill: var(--muted); }
+  svg .lbl { font-family: var(--mono); font-size: 7.5px; letter-spacing: .08em; text-transform: uppercase; fill: var(--muted); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+  svg .tick { font-family: var(--mono); font-size: 7px; fill: var(--ink); }
+  svg .region { font-family: var(--mono); font-size: 8px; letter-spacing: .12em; text-transform: uppercase; fill: var(--muted); font-weight: 600; }
+  svg .region-sub { font-family: var(--mono); font-size: 8px; letter-spacing: .04em; text-transform: none; fill: var(--muted); font-weight: 400; }
+  svg .tag { font-family: var(--mono); font-size: 6.5px; letter-spacing: .1em; text-transform: uppercase; fill: var(--muted); }
+  svg rect.tagbox { fill: #fff; stroke: var(--rule); stroke-width: .7; }
+  svg rect.paper { fill: var(--paper); }
+  svg rect.node { fill: #fff; stroke: var(--soft); stroke-width: 1; }
+  svg g.ink rect.node { fill: var(--ink); stroke: var(--ink); }
+  svg g.ink text, svg g.ink .sub { fill: #fff; }
+  svg g.ink .ico { stroke: #fff; }
+  svg g.ink rect.tagbox { fill: var(--ink); stroke: #fff; }
+  svg g.ink .tag { fill: #fff; }
+  svg g.focal rect.node { fill: var(--accent-tint); stroke: var(--accent); }
+  svg g.focal .name { fill: var(--accent); }
+  svg rect.region-box { fill: var(--zone); stroke: none; }
+  svg rect.region-box.outside { fill: none; stroke: var(--soft); stroke-dasharray: 5 4; }
+  svg rect.region-box.memory { fill: var(--zone-warm); }
+  svg rect.region-box.disk { fill: var(--zone-cool); }
+  svg .edge path { fill: none; stroke: var(--muted); stroke-width: 1.1; marker-end: url(#arrow); }
+  svg .edge.ring path { stroke: var(--accent); stroke-width: 1.8; marker-end: url(#arrow-accent); }
+  svg .edge.back path { stroke-dasharray: 4 3; }
+  svg .ico { fill: none; stroke: var(--ink); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+  svg rect.tickbox { fill: #fff; stroke: var(--rule); stroke-width: .7; }
+  /* wide layout: the figure across the page, short notes in four columns under it */
+  .stage.wide { grid-template-columns: 1fr; grid-template-rows: 1fr auto; gap: 4mm; }
+  .stage.wide aside.notes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6mm; font: 9pt var(--sans); line-height: 1.3; color: var(--ink); }
+  .stage.wide aside.notes p { margin: 0 0 2mm; }
+  .stage.wide aside.notes b { font-weight: 600; }
+  svg rect.tickbox { fill: #fff; stroke: var(--rule); stroke-width: .7; }
+  svg .person { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; }
+  /* Print fills exactly one page. No overflow: hidden anywhere, so a
+     callout that does not fit spills onto a second page and the fit
+     check fails instead of silently cutting text. */
+  @media print { html, body, article { height: 100%; } }
+</style>
+</head>
+<body>
+<article>
+  <header><div><div class="eyebrow">one-page design · FRAME</div><h1>TITLE</h1></div><time datetime="DATE">DATE</time></header>
+  <div class="stage">
+    <aside>
+      <!-- callouts: <p data-id="c-x" data-for="x" data-src="path:line"><b>X.</b> ...</p> -->
+    </aside>
+    <figure>
+      <svg viewBox="0 0 560 640" role="img" aria-labelledby="fig-title fig-desc">
+        <title id="fig-title">TITLE</title>
+        <desc id="fig-desc">One sentence: what the figure shows and how to read it.</desc>
+        <defs>
+          <pattern id="dots" width="12" height="12" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".7" fill="#cfd2d9"/></pattern>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6275"/></marker>
+          <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#e4692a"/></marker>
+        </defs>
+        <rect class="paper" x="0" y="0" width="560" height="640"/>
+        <rect x="0" y="0" width="560" height="640" fill="url(#dots)"/>
+        <!-- regions first, then edges, then nodes, so lines sit behind boxes -->
+        <!-- edge:  <g class="edge" data-id="e-ab" data-rel="a b" data-src="path:line"><path d="M.. L.."/><text class="lbl" x=".." y="..">..</text></g> -->
+        <!-- node:  <g data-id="a" data-src="path:line"><rect class="node" x=".." y=".." width=".." height=".." rx="6"/><g class="ico" ...>pictogram</g><text class="name" ..>Name</text><text class="sub" ..>what it is</text></g>
+             add class="ink" to the one centre node (dark fill) or class="focal" to the one accent node; a type tag is <rect class="tagbox" .. rx="2"/><text class="tag" ..>KIND</text> -->
+      </svg>
+      <figcaption data-src="path:line">One line: what the figure is, and what solid, bold and dashed lines mean.</figcaption>
+    </figure>
+    <aside>
+      <!-- callouts; a small detail inset with its own notes may go here -->
+    </aside>
+  </div>
+  <footer>One idea. Marks welcome. Frame: FRAME.</footer>
+</article>
+<!--SCREEN-LAYER-->
+</body>
+</html>
