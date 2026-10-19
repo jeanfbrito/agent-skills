@@ -63,6 +63,20 @@ exists, so that the brief raises `APPLY`.
 A harness can have no question tool. Then print the open entries as a
 numbered list. Ask the human to reply with the option numbers.
 
+The human can tell the orchestrator to apply answers now ("do it"). That
+message approves the outward actions that those answers name, for example
+closing community PRs and issues with a thanks comment. Then the
+orchestrator does them itself, reads the result back (state `CLOSED`, the
+posted comment), and fills `Applied` with the action and `orchestrator
+<date>`. It does not wait for a cycle. It does only the actions that the
+answers name.
+
+When the human closes a ticket that a gap row tracks, and no loop commit
+fixes it, move the row out of the gap matrix into a "Closed by the human"
+table outside the journal. Do not invent a status for it: `state.py` reads
+only `missing`, `partial`, `below`, `unknown`, `lab-only`, `queued`,
+`matches`, `exceeds`, `blocked` and `held`.
+
 ## A cycle applies
 
 `state.py brief` raises `APPLY-DECISIONS` when an entry has an `Answer` and
