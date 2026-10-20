@@ -212,7 +212,7 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
       what a user sees or does, not a constant.
     - Mechanism: `pick --mode`, and the brief names the next step.
 36. **The same sense drift came back every cycle.**
-    - Sign: one commit was listed in 3 cycles in a row, and 4 times in one brief.
+    - Sign: the brief listed one commit in 3 cycles in a row, and 4 times in one brief.
     - Rule: review it once, and record the result.
     - Mechanism: `note ack --drift <sha> "<why>"`, one line per commit.
 37. **Cycles measured and did not build.**
@@ -235,3 +235,17 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
       and the orchestrator and `drive.sh` run `state.py wait`, which runs no
       agent and returns on a human change. At most 5 toggles wait for a
       verdict: at the cap, the brief skips beyond mode.
+39. **Machine load blocked the timing rows.**
+    - Sign: in one project, the load stayed between 20 and 156 for a full
+      day (other agent sessions and browsers). A speed check failed again and
+      again, and the same code passed at best of 12 runs. The timing rows
+      could not close, because their rule needs a load under 10.
+    - Rule: the `predict` note of a timing row records `uptime`. A timing
+      check takes the best of N runs. The load can stay at 10 or more. Then
+      change the `Done when` of the row to a count or a gate that does not
+      change with the load. Examples are pairs over a limit, cells visited
+      and work per call.
+      Keep the timing target for a quiet window.
+    - Mechanism: `state.py note predict` and `note see` record `load1`, the
+      1-minute load. A `predict` note at a load of 10 or more prints a `LOAD`
+      warning that names the count target.

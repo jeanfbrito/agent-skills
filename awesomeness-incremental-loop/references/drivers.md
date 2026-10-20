@@ -64,16 +64,36 @@ Rules:
 - **Hand work.** If the human asks this session for other work while the loop
   runs, run `state.py pause`, do the work, commit, and run `state.py resume`.
 - **Human asks while the loop runs.** When the human gives the loop new work
-  ("put this on the todo", or a stream of feature asks), do three things for
+  ("put this on the todo", or a stream of feature asks), do four things for
   each ask:
   1. Write a card in the project's todo ledger. Quote the human's words, and
      give it a measurable DoD and the facts that you already found.
-  2. Add a `Next priorities` line in the journal's `Direction` that names it,
-     in the human's order.
-  3. Find each `Stop doing` line, `held` row or frozen ask that the new ask
+  2. Add a gap row for the ask, with its own `Done when`, so that the cycles
+     note it under that row. A cycle can do the ask under the row of the
+     last cycle. Then that row gets cycles with no progress, and the brief
+     gives a false `STALL`. This occurred two times in one run.
+  3. Add a `Next priorities` line in the journal's `Direction` that names the
+     row, in the human's order. Edit the line by its exact text. Do not use a
+     script that finds a list number such as `1.`. That number also occurs
+     inside other text, and one such script broke a sentence.
+  4. Find each `Stop doing` line, `held` row or frozen ask that the new ask
      contradicts. Delete it, or reword it so that it permits the ask. A stale stop
      line beats a card: a cycle reads the Direction first and skips the ask.
   The human is the authority, so the new ask wins over the old line.
+- **Side tracks.** The human can ask for more speed ("fan out", "do all we
+  can"). Then the orchestrator can run side tracks beside the serial cycles.
+  Researchers take rows that need cited numbers. Builders work in their own
+  worktrees. Obey these limits:
+  1. Give a builder only a row with no timing in its `Done when`. A builder
+     runs heavy work with `nice -n 19`, because the timing rows of the loop
+     need a quiet machine.
+  2. A side track does not edit the journal, the trail or the decisions file.
+     It commits on its own branch.
+  3. Merge a side branch into the loop branch only between cycles. Then update
+     the journal rows of that work.
+  4. After each merge, run the checks of the side track again on the merged
+     loop branch. A pass in the worktree does not count: a side feature and a
+     loop change can each pass alone and fail together.
 - **Commit while a cycle runs.** Do not stage files: the git index is
   shared, and the cycle's next commit takes all staged files, under the
   cycle's message. Commit only with `git commit -- <paths>`. If the
@@ -97,7 +117,7 @@ Rules:
      status line.
   2. Run `state.py pause`. It prints the `LOCK` line. Continue only at
      `LOCK: free`.
-  3. Stop the dev servers and remove the worktrees that the orchestrator
+  3. Stop the dev servers and delete the worktrees that the orchestrator
      started. Keep the patch of each option that is not ported yet.
   4. Report what the loop committed, what it did not push, and the next item. The
      human starts the loop again with `state.py resume`.

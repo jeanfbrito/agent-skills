@@ -47,6 +47,7 @@ QUEUED = {"queued"}
 CLOSED = {"matches", "exceeds"}
 PARKED = {"blocked", "held"}
 STALL_CYCLES = 3
+LOAD_MAX = 10  # 1-minute load at or above which a timing is not valid (lesson 39)
 LOG_ROW_MAX = 300
 LOG_ROWS_MAX = 30
 JOURNAL_MAX = 40_000
@@ -678,7 +679,15 @@ def note(a):
         except ValueError:
             pass
         metrics[k.strip()] = v
-    files = [os.path.abspath(os.path.join(a.project, f)) for f in (a.file or [])]
+    if kind in ("predict", "see") and "load1" not in metrics:  # a timing is valid only with its machine load (lesson 39)
+        try:
+            metrics["load1"] = round(os.getloadavg()[0], 1)
+        except OSError:
+            pass
+    if kind == "predict" and isinstance(metrics.get("load1"), float) and metrics["load1"] >= LOAD_MAX:
+        print(f"LOAD {metrics['load1']} (>= {LOAD_MAX}): a timing measured now is not valid. For a cost row, use a "
+              f"count or a gate that the load does not change, and keep the timing target for a quiet window.")
+    files =[os.path.abspath(os.path.join(a.project, f)) for f in (a.file or [])]
     entry = {"t": time.strftime("%Y-%m-%dT%H:%M:%S"), "cycle": cycle, "row": row, "kind": kind}
     commit = a.commit
     if kind == "end" and not commit:  # the end note carries the cycle's last commit
