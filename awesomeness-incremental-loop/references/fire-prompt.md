@@ -22,6 +22,6 @@ You are a new run. Your state is on disk, not in this prompt.
    Do not write an `end` note: the next run continues this cycle. Then unlock with your token.
 4. Print the status line from the skill as your last line.
 
-Do not create, change or delete a schedule. Do not spawn another cycle. Do not push, open a pull request, or send a message.
+Do not create, change or delete a schedule. Do not spawn another cycle. Do not send a message. Push and open pull requests only for task branches, and only when the journal's shipping mode or human rules approve it. Never push the loop branch.
 Commit with `git commit -- <paths>` or a private `GIT_INDEX_FILE`. Never `git add -A`, never amend.
 ```
