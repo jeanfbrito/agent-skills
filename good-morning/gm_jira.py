@@ -13,6 +13,9 @@ Sections:
                     my own edits are left out
   new_to_me         tickets created inside the window and assigned to me by
                     someone else
+  watched           unresolved tickets that match the jira skill's
+                    `defaults.watch_jql` (e.g. new Desktop tickets filed in
+                    CORE that still need a move to DSK)
   keys              status of each --key (carry-over items from the last plan)
 
   gm_jira.py --since 2026-10-14T09:00:00Z
@@ -53,6 +56,7 @@ def jira_env():
         email, token = (env + ["", ""])[:2]
     site = os.environ.get("JIRA_SITE") or read("site") or "https://rocketchat.atlassian.net"
     prio = [p.strip() for p in read("priority_projects").split(",") if p.strip()]
+    jira_env.watch = (read("watch_jql"), read("primary_project"))
     if not email or not token:
         raise RuntimeError(f"no Jira token: set ATLASSIAN_EMAIL and JIRA_API_TOKEN, or run {JIRA_DIR}/setup.sh")
     return site.rstrip("/"), email, token, prio
@@ -154,6 +158,21 @@ def main():
         return rows
 
     section("queue", queue)
+
+    def watched():
+        jql, target = getattr(jira_env, "watch", ("", ""))
+        if not jql:
+            return []
+        rows = []
+        for i in j.search(jql, ["summary", "status", "priority", "assignee", "created", "project"], limit=50):
+            f = i["fields"]
+            rows.append({"key": i["key"], "url": link(i["key"]), "summary": f["summary"],
+                         "status": f["status"]["name"], "priority": (f.get("priority") or {}).get("name"),
+                         "assignee": (f.get("assignee") or {}).get("displayName"),
+                         "created": f["created"], "age": age(f["created"], now), "move_to": target})
+        return rows
+
+    section("watched", watched)
 
     def moved_and_new():
         local = since.astimezone().strftime("%Y-%m-%d %H:%M")

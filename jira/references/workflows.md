@@ -115,6 +115,13 @@ for what we just hit"_. This is a write — same safety posture as comments.
 
 ### Decisions you have to make first
 
+0. **Look for an existing ticket.** Before you create tickets, and always
+   before a bulk create, search the target project for open tickets on
+   the same subject:
+   `jira issue list -q "project = <KEY> AND resolution = Unresolved AND text ~ '<2-3 keywords>'" --plain`.
+   If you find one, link to it or comment on it. Do not create a second
+   ticket. DSK-192 repeated DSK-137 because nobody ran this search.
+
 1. **Project.** Infer from working directory, conversation, and
    `defaults.primary_project` in `local-config.yml`. Customer-reported
    issue → support project. Partner integration repo → integration

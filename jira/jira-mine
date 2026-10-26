@@ -8,6 +8,9 @@
 #   jira-mine "status = 'In Progress'"   # extra JQL AND-ed in
 #   jira-mine --count                    # just the number
 #
+# When `defaults.watch_jql` is set, a last block lists tickets in a watched
+# project (e.g. new Desktop tickets filed in CORE) that still need a move to
+# the primary project.
 # Why: jira-cli silently ANDs `project = <default>` into every `issue list`
 # unless the -q string already mentions `project`. `project is not EMPTY`
 # is always true, so it disables the injection without naming any project.
@@ -41,4 +44,12 @@ if [[ -n "$prio" ]]; then
   jira issue list -q "$base AND project not in ($prio)" --order-by priority --plain --columns "$cols"
 else
   jira issue list -q "$base" --order-by priority --plain --columns "$cols"
+fi
+
+watch="$(read_local_config watch_jql)"
+if [[ -n "$watch" ]]; then
+  echo
+  echo "### WATCHED ($(read_local_config watch_projects)) — move these to $(read_local_config primary_project)"
+  jira issue list -q "$watch" --order-by created --plain --columns "key,priority,status,assignee,summary,created" 2>/dev/null \
+    || echo "(none)"
 fi

@@ -165,6 +165,9 @@ def digest(cfg, meta, data, prev):
             unblock.append(line + "  [mentions me]")
         else:
             fyi.append(line)
+    for w in jira.get("watched", []):
+        unblock.append(f"  move to {w['move_to']}: {w['key']} [{w['status']}] {w['summary'][:70]} "
+                       f"({w['assignee'] or 'unassigned'}, created {w['age']} ago) {w['url']}")
     for n in jira.get("new_to_me", []):
         fyi.append(f"  NEW to me: {n['key']} [{n['priority']}] from {n['reporter']} ({n['age']}) {n['summary'][:60]}")
 

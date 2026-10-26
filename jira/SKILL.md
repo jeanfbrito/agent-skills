@@ -70,6 +70,13 @@ and rerun `setup.sh` (details:
   in the primary project.
 - `defaults.default_assignee` — assign on creation only when set (or the
   user says so); never assume otherwise.
+- `defaults.watch_jql` / `watch_projects` — tickets in another project
+  that belong in the primary one (for example, Desktop tickets that others
+  still file in CORE). `jira-mine` and good-morning list them under
+  "WATCHED". Move each one to the primary project. The single-issue Move
+  in the Jira UI works with the "Move Issues" permission. The bulk move API
+  needs the global "Bulk Change" permission. A REST edit of `project`
+  returns 204 and changes nothing.
 - `workflow_statuses` — pinned status names so you don't have to
   rediscover the workflow chain every session.
 - `defaults.priority_projects` — comma-separated project keys whose
@@ -116,7 +123,9 @@ top of the answer), then everything else ordered by priority.
 jira issue view <KEY>
 ```
 
-**Create** (draft-first — see below):
+**Create** (draft-first — see below). First search the project for an
+open ticket on the same subject (step 0 in
+`~/Github/agent-skills/jira/references/workflows.md`):
 
 ```bash
 jira issue create --project <KEY> --type Task --summary "Brief actionable summary" --body "Detailed description (markdown ok)" --no-input
