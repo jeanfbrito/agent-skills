@@ -94,6 +94,20 @@ Rules:
   4. After each merge, run the checks of the side track again on the merged
      loop branch. A pass in the worktree does not count: a side feature and a
      loop change can each pass alone and fail together.
+  5. Before a side track starts, mark its row in the journal between cycles:
+     `side track: <who>, started <time>`. A cycle skips a marked row. Remove
+     the mark when you merge. In one run the orchestrator built the demo and
+     the PR texts in a side agent and did not mark the row. The next cycle
+     did the same work again.
+  6. The live app has one owner at a time. A side track does not start,
+     stop or kill the dev app, its debug port or the test server while a
+     cycle runs. In one run a demo agent stopped the leftover dev app on the
+     shared debug port and killed the app of a running cycle.
+- **Ticket sync.** When the project tracks gap rows in an issue tracker, and
+  a cycle moves a row to `matches`, move the row's ticket to its done or QA
+  state after that cycle, with the commit in a remote link or comment. In
+  one run the loop closed 37 rows, and all 75 tickets stayed in "To Do". The
+  board showed no progress.
 - **Commit while a cycle runs.** Do not stage files: the git index is
   shared, and the cycle's next commit takes all staged files, under the
   cycle's message. Commit only with `git commit -- <paths>`. If the

@@ -100,7 +100,9 @@ the files that the loop changed.
 4. **Senses**: list the project's own capture, test, gate and analysis tools
    before you build any. Write them in the Senses table. Run each one once.
 5. **Git**: on the default branch, create `awesomeness/<YYYY-MM-DD>`. Add the
-   data root `.localdev/awesomeness/` to `.gitignore`. With `--no-commit`, do
+   data root `.localdev/awesomeness/` to `.gitignore`. Add
+   `docs/awesomeness-loop*.md` to the ignore file of each formatter that the
+   project or its hooks run (lesson 40). With `--no-commit`, do
    not commit. Then read the project's **shipping mode**
    (`references/shipping.md`). With no project rule, the mode is `loop-branch`:
    all commits go on the loop branch. When the project rules ask for one

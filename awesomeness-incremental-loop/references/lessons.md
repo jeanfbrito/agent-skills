@@ -249,3 +249,12 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
     - Mechanism: `state.py note predict` and `note see` record `load1`, the
       1-minute load. A `predict` note at a load of 10 or more prints a `LOAD`
       warning that names the count target.
+40. **A formatter hook rewrote the journal.**
+    - Sign: in one run, a cycle edited the journal with the editor tool. A
+      formatter hook ran on the edit and reformatted the whole file, which
+      grew from 39.9 KB to 101 KB. The cycle committed it, and the next commit
+      had to undo it.
+    - Rule: edit the journal and the decisions file with a script (a plain
+      text replace), never with an editor tool that a formatter hook watches.
+    - Mechanism: the setup (Start, step 5) adds `docs/awesomeness-loop*.md`
+      to the ignore file of each formatter, so a hook leaves them alone.
