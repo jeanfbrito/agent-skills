@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Link a GitHub PR to a Jira issue so it shows in the issue's Development panel.
 #
-#   jira-link-pr <KEY> <PR number or URL> [-R owner/repo] [--wait <seconds>]
+#   jira-link-pr <KEY> <PR number or URL> [-R owner/repo] [--wait <seconds>] [--no-title]
 #
 # Steps, each idempotent:
 #   1. Put the key in the PR title, as a trailing "(KEY)" when it is missing.
 #      The GitHub for Jira app links a PR only when the key is in the branch
 #      name, the PR title or a commit message. A remote link alone does NOT
-#      fill the Development panel.
+#      fill the Development panel. Skipped with --no-title, and always for
+#      RocketChat/Rocket.Chat, whose convention forbids Jira keys in titles.
 #   2. Move the issue to "In Progress" when it is still before that status.
 #   3. Add the PR as a remote link ("fixed by"), unless that URL is linked.
 #   4. Poll the dev-status API until the Development panel lists a PR
@@ -15,14 +16,15 @@
 set -euo pipefail
 source "$(dirname "$(readlink -f "$0")")/jira-env.sh"
 
-usage() { echo "usage: jira-link-pr <KEY> <PR number|URL> [-R owner/repo] [--wait <seconds>]" >&2; exit 2; }
+usage() { echo "usage: jira-link-pr <KEY> <PR number|URL> [-R owner/repo] [--wait <seconds>] [--no-title]" >&2; exit 2; }
 [[ $# -ge 2 ]] || usage
 key="$1" pr="$2"; shift 2
-repo_args=() wait_s=300
+repo_args=() wait_s=300 edit_title=1
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -R) repo_args=(-R "$2"); shift 2 ;;
     --wait) wait_s="$2"; shift 2 ;;
+    --no-title) edit_title=0; shift ;;
     *) usage ;;
   esac
 done
@@ -35,8 +37,13 @@ api() { curl -sS -u "$auth" -H "Content-Type: application/json" "$@"; }
 # 1. PR title
 read -r url title < <(gh pr view "$pr" "${repo_args[@]}" --json url,title -q '.url + " " + .title')
 branch="$(gh pr view "$pr" "${repo_args[@]}" --json headRefName -q .headRefName)"
+if [[ "$url" == https://github.com/RocketChat/Rocket.Chat/pull/* ]]; then
+  edit_title=0
+fi
 if [[ "$title" == *"$key"* || "$branch" == *"$key"* ]]; then
   echo "PR title/branch already carry $key"
+elif [[ "$edit_title" == 0 ]]; then
+  echo "PR title unchanged (--no-title or core repo); the Development panel may not list it"
 else
   gh pr edit "$pr" "${repo_args[@]}" --title "$title ($key)" >/dev/null
   echo "PR title -> $title ($key)"

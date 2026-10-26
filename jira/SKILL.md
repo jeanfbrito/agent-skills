@@ -182,8 +182,12 @@ PR is opened**. A remote link alone does not fill that panel.
   whether the panel shows the PR:
 
 ```bash
-~/.claude/skills/jira/jira-link-pr CORE-1234 3548 [-R owner/repo] [--wait 300]
+~/.claude/skills/jira/jira-link-pr CORE-1234 3548 [-R owner/repo] [--wait 300] [--no-title]
 ```
+
+`--no-title` keeps the PR title as it is. The helper always skips the
+title for `RocketChat/Rocket.Chat`: core PR titles must not carry Jira
+keys, so there the remote link is the only link.
 
 A title edit on an open PR did not fill the panel within 10 min
 (CORE-2764 / PR #3548, Oct 2026). For an existing PR, the merge commit
