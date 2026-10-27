@@ -12,11 +12,14 @@ Usage:
   state.py [brief] [--project DIR] [--journal PATH] [--root PATH] [--drift-depth 4]
   state.py note KIND [TEXT] [--row ROW] [--file PATH ...] [--metric NAME=VALUE ...]
                 [--commit SHA] [--status "partial -> matches"] [--progress "0.31 -> 0.12" | none]
-                [--next "next step"]
+                [--next "next step"] [--achieved yes|no]
       KIND: pick predict try see keep revert commit step-back blocked end ack
       blocked may use --blocker human when only a human verdict can unblock it
       pick takes --row, --mode gap|coverage|unblock|beyond|step-back|critic|review|waiting,
-      and --why "<what a user will notice>" (required for gap, coverage, unblock, beyond)
+      and --why "<what a user will notice>" --target "<product outcome>" --check "<real-artifact test>"
+      (required for every cycle)
+  state.py arm --row ROW --mode MODE --target "<goal>" --check "<acceptance check>"
+      # Define the next cycle goal before a subagent starts.
       ack --drift <sha> "<why the check change is right>" clears a SENSE-DRIFT
   state.py lock    [--project DIR] [--owner NAME] [--stale-min 90]
       # The same agent session takes its own lock back (after a compaction).
@@ -62,6 +65,7 @@ ROTATION = ["coverage", "unblock", "beyond"]  # the steps of the exhausted proce
 NO_CODE_CYCLES = 3
 VERDICT_CAP = 5  # inventions that wait for a verdict before beyond mode stops adding more
 IDLE_CYCLES = 6  # unproductive cycles before a human-blocked or exhausted loop waits
+AUTO_HOLD_CYCLES = 2  # one diagnosis cycle may precede a change; reviews and step-backs count
 AGENT_NAMES = ("grok", "claude", "codex")
 # Files that do not change the product: docs, the journal, tests and probes, loop data.
 NOT_PRODUCT = re.compile(r"(^|/)(docs|tests?|spec|__tests__|\.localdev)/|\.md$|\.(spec|test)\.[a-z]+$|_test\.[a-z]+$|(^|/)probe", re.I)
@@ -237,6 +241,15 @@ def commit_files(project, sha):
     return files if r.returncode == 0 and files else None  # None: unknown (bad sha, merge, no git)
 
 
+def commit_range_files(project, before, after):
+    try:
+        r = subprocess.run(["git", "-C", project, "diff", "--name-only", f"{before}..{after}"],
+                           capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout.splitlines() if r.returncode == 0 else None
+
+
 def cycles_of(trail):
     """{cycle number: [notes]} in trail order."""
     out = {}
@@ -292,6 +305,51 @@ def no_code_run(project, trail, sense):
             continue  # cannot tell: do not count it
         run.append(n)
     return run
+
+
+def auto_hold_run(project, trail, sense, resume_after=0):
+    """Ended cycles without a committed product change since the last explicit resume."""
+    run = []
+    cycles = cycles_of(trail)
+    ended = [(n, notes) for n, notes in sorted(cycles.items())
+             if any(e.get("kind") == "end" for e in notes)]
+    for i in range(len(ended) - 1, -1, -1):
+        n, notes = ended[i]
+        if n <= resume_after:
+            break
+        end = next(e for e in notes if e.get("kind") == "end")
+        if end.get("achieved") == "no":
+            run.append(n)
+            continue
+        shas = [e["commit"] for e in notes if e.get("commit")]
+        before = next((e.get("commit") for _, prev in reversed(ended[:i])
+                       for e in reversed(prev) if e.get("kind") == "end" and e.get("commit")), None)
+        after = next((e.get("commit") for e in reversed(notes)
+                      if e.get("kind") == "end" and e.get("commit")), None)
+        paths = commit_range_files(project, before, after) if before and after else None
+        if paths is None:
+            files = [commit_files(project, sha) for sha in shas]
+            if any(item is None for item in files):
+                break  # unknown commits cannot establish a no-product cycle
+            paths = [p for item in files for p in item]
+        if any(not NOT_PRODUCT.search(p) and p not in sense for p in paths):
+            break
+        run.append(n)
+    return run
+
+
+def auto_hold_state(project, root, trail, sense):
+    """An automatic hold is a budget boundary, not a permanent project state."""
+    path = os.path.join(root, "auto-hold.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            resume_after = int(json.load(fh).get("resume_after", 0))
+    except (OSError, ValueError, TypeError, AttributeError):
+        resume_after = 0
+    run = auto_hold_run(project, trail, sense, resume_after)
+    cycles = cycles_of(trail)
+    failed_work = any(cycle_mode(cycles[n]) in NEEDS_WHY for n in run)
+    return run if failed_work or len(run) >= AUTO_HOLD_CYCLES else []
 
 
 def idle_run(project, trail, sense):
@@ -402,7 +460,7 @@ def short(e):
         bits.append(" ".join(f"{k}={v}" for k, v in e["metrics"].items())[:80])
     if e.get("files"):
         bits.append(", ".join(os.path.basename(f) for f in e["files"])[:80])
-    for k in ("status", "progress", "commit", "next"):
+    for k in ("status", "progress", "achieved", "commit", "next"):
         if e.get(k):
             bits.append(f"{k}: {e[k]}"[:90])
     return " | ".join(b for b in bits if b)
@@ -443,6 +501,16 @@ def brief(a):
         out.append("DIRECTION: none yet. Write the product focus in the journal's Direction section (SKILL.md, Start step 3).")
     trail = read_trail(root)
     oc = open_cycle(trail)
+    hold = auto_hold_state(a.project, root, trail, sense_paths(a.project, senses)) if not oc else []
+    if hold:
+        out.append(f"AUTO-HOLD: cycles {min(hold)}-{max(hold)} ({len(hold)}) committed no product change. "
+                   "One work cycle without a product change, or two review/step-back cycles, exhausts the budget. "
+                   "No new cycle starts. Inspect the failed goal and give a different product-change route "
+                   "before an explicit state.py resume.")
+    if not oc and not hold and not os.path.exists(os.path.join(root, "PAUSE")):
+        goal = armed_goal(root, trail)
+        out.append(f"ARMED: cycle {goal['cycle']} on '{goal['row']}' targets {goal['target']}; check: {goal['check']}"
+                   if goal else "UNARMED: define --row, --target and --check with state.py arm before a new cycle.")
     if oc:
         n, row, notes = oc
         out.append(f"IN PROGRESS: cycle {n} on '{row}' has no end note. Continue it from its last note. "
@@ -671,9 +739,32 @@ def note(a):
     trail = read_trail(root)
     oc = open_cycle(trail)
     if kind == "pick":
+        if os.path.exists(os.path.join(root, "PAUSE")):
+            print("PAUSED: no new cycle starts until state.py resume.")
+            return 4
         if oc:
             print(f"REFUSED: cycle {oc[0]} on '{oc[1]}' is still open. Continue it, or close it with "
                   f"`note end --status abandoned --progress none` and say why.")
+            return 2
+        if current_auto_hold(a):
+            print("AUTO-HOLD: a new cycle is refused after a work cycle without product change or two review cycles. "
+                  "Inspect the trail and resume explicitly with a product-change route.")
+            return 4
+        goal = armed_goal(root, trail)
+        if not goal and (a.mode or "gap") == "gap":
+            jpath = os.path.join(a.project, a.journal)
+            if os.path.isfile(jpath):
+                with open(jpath, encoding="utf-8") as fh:
+                    rows = find(md_tables(fh.read()), "Gap matrix") or []
+                if any(norm(r.get("Item", "")) == norm(a.row) and status_of(r) in PARKED for r in rows):
+                    print(f"REFUSED: '{a.row}' is parked. Select an open row.")
+                    return 2
+        if not goal:
+            print("UNARMED: set this cycle's goal with state.py arm before the pick.")
+            return 2
+        if (a.row, a.mode or "gap", getattr(a, "target", None), getattr(a, "check", None)) != (
+                goal["row"], goal["mode"], goal["target"], goal["check"]):
+            print("REFUSED: the pick must use the row, mode, target and check armed before this cycle.")
             return 2
         if not a.row:
             print("REFUSED: a pick needs --row (the gap-matrix item).")
@@ -694,6 +785,11 @@ def note(a):
                   'the product focus in the journal\'s Direction section. If you cannot write it, pick another row, '
                   'or set this row held with "low value: <reason>".')
             return 2
+        if not (getattr(a, "target", None) or "").strip() or not (getattr(a, "check", None) or "").strip():
+            print("REFUSED: define this cycle's objective with --target and its acceptance check with --check "
+                  "before the pick. Work cycles need a measurable product outcome, not a diagnostic as the goal; "
+                  "review and step-back cycles need a concrete decision.")
+            return 2
         cycle = max([e.get("cycle", 0) for e in trail] or [0]) + 1
         row = a.row
     elif kind == "ack":
@@ -707,6 +803,10 @@ def note(a):
             print("REFUSED: no open cycle. Start one with `note pick --row ROW \"the item\"`.")
             return 2
         cycle, row = oc[0], a.row or oc[1]
+    if kind == "end" and oc and any(e.get("target") for e in oc[2]) and getattr(a, "achieved", None) not in ("yes", "no"):
+        print("REFUSED: an armed cycle end needs --achieved yes|no from its stated acceptance check. "
+              "A changed metric or a new probe is not proof that the goal was met.")
+        return 2
     metrics = {}
     for m in a.metric or []:
         k, _, v = m.partition("=")
@@ -734,13 +834,18 @@ def note(a):
     mode = a.mode if kind == "pick" else None  # without --mode, the pick text decides (cycle_mode)
     for k, v in (("text", text), ("files", files), ("metrics", metrics), ("commit", commit), ("mode", mode),
                  ("why", a.why if kind == "pick" else None),
+                 ("target", getattr(a, "target", None) if kind == "pick" else None),
+                 ("check", getattr(a, "check", None) if kind == "pick" else None),
                  ("blocker", a.blocker if kind == "blocked" else None),
                  ("drift", a.drift.strip().lower() if kind == "ack" and a.drift else None),
-                 ("status", a.status), ("progress", a.progress), ("next", a.next)):
+                 ("status", a.status), ("progress", a.progress), ("next", a.next),
+                 ("achieved", getattr(a, "achieved", None) if kind == "end" else None)):
         if v:
             entry[k] = v
     with open(os.path.join(root, TRAIL), "a", encoding="utf-8") as fh:
         fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    if kind == "pick":
+        os.remove(os.path.join(root, "armed-goal.json"))
     lock_path = os.path.join(root, "lock")
     if os.path.exists(lock_path):  # each note is a heartbeat for the cycle lock
         try:
@@ -780,12 +885,65 @@ def lock_status(root, stale_min):
             f"holds it, renewed {age:.0f} min ago. Do not spawn a cycle: tell the human which session runs the loop.")
 
 
+def armed_goal(root, trail):
+    try:
+        with open(os.path.join(root, "armed-goal.json"), encoding="utf-8") as fh:
+            goal = json.load(fh)
+    except (OSError, ValueError):
+        return None
+    next_cycle = max((e.get("cycle", 0) for e in trail), default=0) + 1
+    return goal if goal.get("cycle") == next_cycle else None
+
+
+def arm(a):
+    root = os.path.join(a.project, a.root)
+    os.makedirs(root, exist_ok=True)
+    trail = read_trail(root)
+    if open_cycle(trail) or os.path.exists(os.path.join(root, "lock")):
+        print("REFUSED: finish the current cycle before arming another goal.")
+        return 2
+    if current_auto_hold(a) or os.path.exists(os.path.join(root, "PAUSE")):
+        print("REFUSED: loop is held or paused. Inspect the failed goal before an explicit resume.")
+        return 4
+    if a.mode and a.mode not in MODES:
+        print(f"REFUSED: --mode is one of {', '.join(MODES)}.")
+        return 2
+    if not all((getattr(a, name, None) or "").strip() for name in ("row", "target", "check")):
+        print("REFUSED: arm needs --row, --target and --check before a new cycle.")
+        return 2
+    goal = {"cycle": max((e.get("cycle", 0) for e in trail), default=0) + 1,
+            "row": a.row, "target": a.target, "check": a.check, "mode": a.mode or "gap"}
+    with open(os.path.join(root, "armed-goal.json"), "w", encoding="utf-8") as fh:
+        json.dump(goal, fh)
+    print(f"ARMED: cycle {goal['cycle']} on '{a.row}' targets {a.target}; check: {a.check}")
+    return 0
+
+
+def current_auto_hold(a):
+    root = os.path.join(a.project, a.root)
+    jpath = os.path.join(a.project, a.journal)
+    if not os.path.isfile(jpath):
+        return []
+    with open(jpath, encoding="utf-8") as fh:
+        senses = find(md_tables(fh.read()), "Senses") or []
+    return auto_hold_state(a.project, root, read_trail(root), sense_paths(a.project, senses))
+
+
 def lock(a):
     root = os.path.join(a.project, a.root)
     os.makedirs(root, exist_ok=True)
     if os.path.exists(os.path.join(root, "PAUSE")):
         print("PAUSED: the human paused the loop. This run does nothing.")
         return 4
+    trail = read_trail(root)
+    if not open_cycle(trail):
+        if current_auto_hold(a):
+            print("AUTO-HOLD: no new cycle starts after a work cycle without product change. "
+                  "Inspect the trail and resume explicitly with a different route.")
+            return 4
+        if not armed_goal(root, trail):
+            print("UNARMED: set a goal and a check with state.py arm before a new cycle.")
+            return 4
     path = os.path.join(root, "lock")
     now = time.time()
     me = agent_pid()
@@ -849,11 +1007,15 @@ def pause(a, on):
         print("PAUSED: every driver skips its cycles until state.py resume.")
         # A cycle that holds the lock still runs to its end; the human needs to know that before calling it a stop.
         print(lock_status(root, a.stale_min))
-    elif os.path.exists(path):
-        os.remove(path)
-        print("RESUMED")
     else:
-        print("RESUMED (it was not paused)")
+        if os.path.exists(path):
+            os.remove(path)
+        trail = read_trail(root)
+        if not open_cycle(trail):
+            last = max((e.get("cycle", 0) for e in trail if e.get("kind") == "end"), default=0)
+            with open(os.path.join(root, "auto-hold.json"), "w", encoding="utf-8") as fh:
+                json.dump({"resume_after": last}, fh)
+        print("RESUMED: one new product-change attempt; prior trail kept.")
     return 0
 
 
@@ -901,7 +1063,7 @@ def wait(a):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("cmd", nargs="?", default="brief", choices=["brief", "note", "lock", "unlock", "pause", "resume", "wait"])
+    ap.add_argument("cmd", nargs="?", default="brief", choices=["brief", "arm", "note", "lock", "unlock", "pause", "resume", "wait"])
     ap.add_argument("rest", nargs="*", help="for note: KIND, then the text")
     ap.add_argument("--row")
     ap.add_argument("--file", action="append")
@@ -912,6 +1074,9 @@ def main():
     ap.add_argument("--next")
     ap.add_argument("--mode", help=f"for pick: {'|'.join(MODES)} (default gap)")
     ap.add_argument("--why", help="for pick: the effect a user of this project will notice (required for work modes)")
+    ap.add_argument("--target", help="for a work pick: the measurable product change intended this cycle")
+    ap.add_argument("--check", help="for a pick: the real-artifact acceptance check")
+    ap.add_argument("--achieved", choices=["yes", "no"], help="for end: whether the armed goal passed its check")
     ap.add_argument("--drift", help="for ack: the commit whose check change you reviewed")
     ap.add_argument("--blocker", choices=["human"], help="for blocked: only a human verdict can unblock this row")
     ap.add_argument("--project", default=".")
@@ -929,6 +1094,8 @@ def main():
     a.project = os.path.abspath(a.project)
     if a.cmd == "brief":
         return brief(a)
+    if a.cmd == "arm":
+        return arm(a)
     if a.cmd == "note":
         return note(a)
     if a.cmd == "lock":

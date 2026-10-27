@@ -1,8 +1,8 @@
 ---
 name: awesomeness-incremental-loop
 description: >-
-  Runs an endless improvement loop on a project that has reference material in
-  its docs, on any agent harness. Each cycle is a self-contained run. It reads
+  Runs an improvement loop on a project that has reference material in its
+  docs, on any agent harness, with an automatic hold on stalled cycles. Each cycle is a self-contained run. It reads
   its state from a journal and picks the most important gap against the
   references: human priorities first, then quick wins. It builds the smallest
   change that moves that gap's "done when" target. It checks the change with
@@ -10,12 +10,13 @@ description: >-
   later run continues where the last one stopped, and the trail is the live
   report. A row that stays open for
   3 cycles forces a step back: split it, change the approach, ask the critic,
-  or block it. So the loop moves forward and does not circle. A harsh blind
+  or block it. A work cycle without product change pauses dispatch instead of
+  repeating diagnoses. A harsh blind
   critic runs only at the done gate. Past full
   parity it invents additions behind toggles until a human gives a verdict. The
   session that runs the skill is the orchestrator: it runs each cycle as a
   new subagent and spawns the next one when it ends. When only the human can
-  help, it writes its asks and waits with no agent run. Only the human stops it. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. Adapted from the gauntlet loop. Triggered by
+  help, it writes its asks and waits with no agent run. It also holds after a work cycle with no committed product change. The human can stop it at any time. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. Adapted from the gauntlet loop. Triggered by
   '/awesomeness-incremental-loop', 'awesomeness loop', 'run the awesome loop',
   'what is next from the references', 'find what is missing versus the
   reference', 'keep improving until I stop you', 'finish this loop cycle and stop', 'finish what is open so we can stop for today'.
@@ -24,8 +25,8 @@ argument-hint: "[optional: focus area] [optional: --no-commit] [optional: --refe
 
 # Awesomeness Incremental Loop
 
-The loop is one **cycle**, repeated without end. The session that runs the
-skill is the **orchestrator**. It gives each cycle to a new subagent, and it
+The loop runs one **cycle** at a time. An unmet cycle goal holds the loop.
+The session that runs the skill is the **orchestrator**. It gives each cycle to a new subagent, and it
 starts the next one when that one ends (`references/drivers.md`). No cycle keeps
 anything in memory, so the
 loop runs the same on every agent harness.
@@ -40,7 +41,10 @@ progress. Each note also rebuilds the HTML report. The trail is the report:
 it organizes the screenshots and metrics so anyone can see where the work is
 and recall what happened. Nobody builds the report as a separate job.
 
-**The human is the brake.** The loop has no "done" state. Do not ask "continue?".
+**The human is the brake.** Each cycle starts with a clear goal and a check.
+One failed work goal or one work cycle without committed product change puts
+new cycles on auto-hold. Two review/step-back cycles without product change
+also hold the loop. Inspect the failed route before an explicit resume.
 
 ## Start small, grow when stable
 
@@ -63,7 +67,7 @@ Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 
 | File | Use |
 | --- | --- |
-| `tools/state.py` | `lock`, `brief`, `note`, `unlock`, `pause`, `resume`, `wait`. The brief is the state, the open cycle and the SIGNALS that are due |
+| `tools/state.py` | `arm`, `lock`, `brief`, `note`, `unlock`, `pause`, `resume`, `wait`. The brief shows the state, the open cycle and the due signals |
 | `tools/drive.sh` | A loop outside the session, only when the human asks for one |
 | `tools/report.py` | Builds the HTML report and `report-data.json`. Each note runs it |
 | `references/drivers.md` | The orchestrator, and what to do on a harness with no subagents |
@@ -137,13 +141,17 @@ files and the numbers it produced. The form is
 `pick`, `predict`, `try`, `see`, `keep`, `revert`, `commit`, `step-back`,
 `blocked`, `end`, and `ack` (a reviewed sense drift).
 
-1. **Lock and read.** Run `S lock`. It knows your agent session. After a
-   context compaction, it gives your session its lock back. It also takes
+1. **Lock and read.** The orchestrator sets this cycle's goal with `S arm`
+   before it starts the subagent. Run `S lock`. It knows your agent session.
+   After a context compaction, it gives your session its lock back. It also takes
    over the lock of a session that has ended. Exit 3 means that another live
    session holds the lock. Exit 4 means paused. On 3 or 4, print the line and
    end the run.
    Each note renews the lock. Before a step that can take more than an hour,
-   write its `try` note first. Run `S brief`. If it says `IN PROGRESS`,
+   write its `try` note first. Run `S brief`. If it says `AUTO-HOLD`, do not
+   start a new cycle. Inspect the last attempts, give the orchestrator a
+   different product-change route or a concrete blocker, and wait for an
+   explicit `S resume`; do not turn this into another review cycle. If it says `IN PROGRESS`,
    continue that cycle from its last note. Do not repeat a step that has a
    note, and do not retry what it lists under `DO NOT RETRY`.
    The brief's SIGNALS have two parts. Do every line under **DO FIRST** in
@@ -159,9 +167,17 @@ files and the numbers it produced. The form is
    `NO-CODE`, `CRITIC-DUE`, `EXHAUSTED`, `REVIEW-DUE`). With no item line, use "Picking
    the item".
 2. **Pick the item** (next section). If its row has no `Done when`, write one
-   first: a measurable target from the reference evidence.
+   first: a measurable target from the reference evidence. Before any work cycle,
+   define the product change to deliver *this cycle*. Define a check on the real
+   artifact that proves the change. A probe or journal entry is not the goal.
    Note: `S note pick "<item>" --row "<gap row>" --mode <mode> --why "<what
-   a user will notice>"`. The `why` ties the item to the product focus. If
+   a user will notice>" --target "<product outcome this cycle>" --check "<real-artifact test>"`.
+   Use the row, mode, target and check from the orchestrator's `S arm` call.
+   The CLI refuses a different goal or an unarmed cycle.
+   The `why` ties the item to the product focus. The CLI refuses any pick
+   without `--target` and `--check`. Work cycles need a product outcome.
+   Review and step-back cycles need a concrete decision and its evidence.
+   Both count toward the auto-hold budget. If
    you cannot write one, the item is not worth a cycle: set its row `held`
    with `low value: <reason>` and pick another. The mode is
    `gap` for normal work, or the step that a signal named: `step-back`,
@@ -202,6 +218,9 @@ files and the numbers it produced. The form is
    - Senses pass and `Done when` does not hold yet: the row stays open.
      Commit. Progress is the metric's move toward `Done when`. A cycle that
      leaves that metric the same made no progress, even when every check passes.
+     A test or a changed metric without committed product behavior does not
+     reset auto-hold. End and report why the stated cycle objective failed;
+     do not call the diagnosis a delivered result.
    - Senses fail: fix and check again. Revert a change that made it worse.
      After two failed attempts at the same step, do the step back.
    - Only a human verdict can show the next fix: note `blocked --blocker
@@ -212,8 +231,11 @@ files and the numbers it produced. The form is
    When the step needs a human choice (an `ask`, a decision-type
    `assumption`, a toggle verdict), write it also as an entry in
    `docs/awesomeness-loop-decisions.md` (`references/decisions.md`).
-9. **End the cycle.** `S note end --status "<before> -> <after>" --progress
-   "<metric before> -> <after>"` (or `--progress none`) `--next "<next step>"`.
+9. **End the cycle.** Run the predeclared check. Record `--achieved yes` only
+   if the stated goal passed. Otherwise record `--achieved no`, even when a
+   probe or another behavior improved. `S note end --status "<before> -> <after>"
+   --progress "<metric before> -> <after>" --achieved yes|no` (or
+   `--progress none`) `--next "<next step>"`.
    Update the project's own ledgers. Run `S unlock --token <token>`. Print the status line,
    then end the run:
    `cycle N | <row> | <status before → after> | progress: <before → after> | <commit> | next: <step> | report: <path>`
@@ -260,7 +282,9 @@ will not close it. This cycle does no build. It does this:
    - **Ask the critic**: for a `quality bar` row, run one direction round on
      the current state (`references/critic-brief.md`).
    - **Block**: no path remains. Set `blocked` with the root constraint.
-4. Note it: `S note step-back "<result and why>"`. Commit the journal, and
+4. Note it: the cycle pick needs `--target "choose a different route or block this row"`
+   and `--check "test the premise against the trail and source"`. Record
+   `S note step-back "<result and why>"`. Commit the journal, and
    end the cycle. The step-back note resets the row's cycle count.
 
 ## When no row is open (signal `EXHAUSTED`)

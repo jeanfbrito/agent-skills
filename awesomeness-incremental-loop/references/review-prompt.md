@@ -62,9 +62,9 @@ tested and committed, and still be useless.
    - `Next priorities:` at most 5 rows, in order, each with its reason.
    - `Reviewed at cycle:` the number of this cycle.
 6. **Write the notes and end.** `S note pick "sense-check review" --row
-   review --mode review`. One `see` note with
+   review --mode review --target "decide which reviewed cycles changed the product" --check "compare each cycle's commits and delivered behavior"`. One `see` note with
    `--metric useful=<n> --metric marginal=<n> --metric useless=<n>`. Commit
-   the journal. `S note end --status "review" --progress
+   the journal. `S note end --status "review" --achieved yes --progress
    "useful <n>/<judged>"`. The status line gives the counts and the first next
    priority.
 
