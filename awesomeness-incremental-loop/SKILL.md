@@ -75,6 +75,7 @@ Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 | `references/gap-matrix.md` | Sources, coverage, `Done when`, statuses |
 | `references/lessons.md` | Traps from past runs |
 | `references/labs.md`, `beyond.md`, `report.md`, `schemas.md` | Labs, toggles, report, data formats |
+| `references/final-reports.md` | The two reports for other people: the feature report and the process retrospective |
 | `senses/README.md` | How to control, measure and see the project |
 | `journal-template.md` | The journal |
 | `examples.md` | The gauntlet-style prompt that this procedure carries out, with example fills |
@@ -115,7 +116,7 @@ the files that the loop changed.
    entries, the orchestrator asks them first (`references/decisions.md`). For
    each cycle, it spawns one new subagent with the cycle prompt in
    `references/fire-prompt.md`, reads the status line that comes back, and
-   spawns the next one. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. The orchestrator does no cycle work itself, so its
+   spawns the next one. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. When the human asks for a report, or stops the loop after a milestone, write the feature report and the process retrospective from `references/final-reports.md`, as two separate documents. The orchestrator does no cycle work itself, so its
    context stays small. Each subagent starts new and reads its state from
    the trail, so no cycle carries the history of the cycles before it.
    A journal line, a memory or an old note that says to start `drive.sh` or a

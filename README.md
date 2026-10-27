@@ -42,7 +42,7 @@ procedure.
 | [learn](learn/SKILL.md) | Saves lessons from a session into `lessons.md` files, or into the skill that missed them. | |
 | [update-skill](update-skill/SKILL.md) | Creates or updates a skill in this repo with the repo's conventions (frontmatter, absolute paths, README, symlink). | |
 | [skill-checkup](skill-checkup/SKILL.md) | Grades the skills against recent session history and drafts `SKILL.md` edits. | Local HTML report. |
-| [awesomeness-incremental-loop](awesomeness-incremental-loop/SKILL.md) | Runs an endless improvement loop against a project's reference material. One subagent per cycle, a journal and a trail on disk, step backs on stalls, and a blind critic at the done gate. | Never pushes. Guides in `references/` and `senses/`. |
+| [awesomeness-incremental-loop](awesomeness-incremental-loop/SKILL.md) | Runs an endless improvement loop against a project's reference material. One subagent per cycle, a journal and a trail on disk, step backs on stalls, and a blind critic at the done gate. Templates for a feature report and a process retrospective. | Never pushes. Guides in `references/` and `senses/`. |
 | [grok-build](grok-build/SKILL.md) | Hands coding tasks to the Grok CLI in headless mode, with verification and worktree isolation. | Needs `grok login`. |
 | [asd-ste100](asd-ste100/SKILL.md) | Rewrites English in Simplified Technical English. `scripts/ste-lint.py` checks the text. | Installs alone: `npx skills add jeanfbrito/agent-skills -s asd-ste100 -g`. |
 
