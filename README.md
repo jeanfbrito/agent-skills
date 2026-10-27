@@ -81,6 +81,11 @@ procedure.
   anything.
 - Per-user settings and state live in a gitignored `local-config.yml` (or
   `local-state.json`) next to the skill.
+- [`shared/embargo-guard.sh`](shared/embargo-guard.sh) stops embargoed work
+  from leaving the machine. As a git `pre-push` hook, it blocks named refs,
+  commits that only an embargoed branch has, and embargoed strings in commit
+  messages. With `text <file>`, it checks a PR body or a post. The rules live
+  in a private file outside the repos (`~/.config/embargo/denylist`).
 
 ## Install
 

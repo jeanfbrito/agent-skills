@@ -183,7 +183,9 @@ Repo and house rules:
 2. Draft the title and body. Check that each issue and PR from §1 appears in
    `## Related`. Reread them once as the reviewer, then run both
    mechanical checks in `shared/tone.md` §5 (the tone grep and the STE linter)
-   on the body file.
+   on the body file. Then run
+   `~/Github/agent-skills/shared/embargo-guard.sh text <body file>`. Exit 1
+   means the body names embargoed work: remove it before you show the draft.
 3. Show the user the exact title and body, and wait for explicit approval.
    Never post first and offer to adjust later.
 4. On approval, run `gh pr create --base <base> --title "<title>" --body-file -`,
