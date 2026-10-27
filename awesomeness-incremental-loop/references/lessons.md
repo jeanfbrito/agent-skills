@@ -259,3 +259,13 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
       text replace), never with an editor tool that a formatter hook watches.
     - Mechanism: the setup (Start, step 5) adds `docs/awesomeness-loop*.md`
       to the ignore file of each formatter, so a hook leaves them alone.
+41. **A blocked row kept an open cycle alive.**
+    - Sign: a footstep row waited for four human listening verdicts. Cycle 73
+      stayed open across several fresh agents. They checked the same clips
+      again. A different open row also prevented the old `WAITING` signal.
+    - Rule: record the human blocker once, park the row and end the cycle.
+      Select independent open work. If six cycles produce no product change
+      or measurable progress, wait without an agent despite other open rows.
+    - Mechanism: `END-BLOCKED-CYCLE` closes a stranded cycle, `note pick`
+      rejects a parked gap row, and `WAITING` checks the last human blocker
+      and the idle run. The loop tests reproduce these states.

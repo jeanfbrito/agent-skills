@@ -45,12 +45,18 @@ Rules:
   journal. The live report shows the same facts.
 - **The loop does not stop itself.** A status line that says "nothing left"
   is not a stop: the next cycle reads the `EXHAUSTED` signal and continues.
+- **Blocked cycle.** A `blocked` note is not a live job. The cycle sets the
+  row to `blocked` and writes its `end` note once. A new cycle skips that
+  parked row until a human verdict or new evidence addresses its blocker.
+  Do not spawn repeated runs to inspect the same missing evidence.
 - **Waiting for the human.** A status line with `waiting` in its status
   field means that the cycle found `WAITING`. Do not spawn a cycle. Print
   once: `Waiting on you: <journal path>, section "Waiting on you".` Then run
   `state.py wait --project <project>`, in the background when the harness
   wakes the session. It runs no agent. Exit 0: spawn the next cycle. Exit 5
   (only with `--max-hours`): run it again. Do not spawn cycles to poll.
+  When the human gives a listening verdict in chat, record it in the journal
+  before the next cycle. The wait process sees project files, not chat.
 - **Waiting.** If the harness wakes the session when a background subagent
   ends (Grok and Claude Code do), spawn it in the background and end the
   turn. The completion message starts the next turn: spawn the next cycle

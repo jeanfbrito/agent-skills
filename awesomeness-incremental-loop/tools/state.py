@@ -14,6 +14,7 @@ Usage:
                 [--commit SHA] [--status "partial -> matches"] [--progress "0.31 -> 0.12" | none]
                 [--next "next step"]
       KIND: pick predict try see keep revert commit step-back blocked end ack
+      blocked may use --blocker human when only a human verdict can unblock it
       pick takes --row, --mode gap|coverage|unblock|beyond|step-back|critic|review|waiting,
       and --why "<what a user will notice>" (required for gap, coverage, unblock, beyond)
       ack --drift <sha> "<why the check change is right>" clears a SENSE-DRIFT
@@ -60,7 +61,7 @@ REVIEW_EVERY = 3  # cycles between two sense-check reviews
 ROTATION = ["coverage", "unblock", "beyond"]  # the steps of the exhausted procedure, in turn
 NO_CODE_CYCLES = 3
 VERDICT_CAP = 5  # inventions that wait for a verdict before beyond mode stops adding more
-IDLE_CYCLES = 6  # cycles with no product change and no open row before the loop waits for the human
+IDLE_CYCLES = 6  # unproductive cycles before a human-blocked or exhausted loop waits
 AGENT_NAMES = ("grok", "claude", "codex")
 # Files that do not change the product: docs, the journal, tests and probes, loop data.
 NOT_PRODUCT = re.compile(r"(^|/)(docs|tests?|spec|__tests__|\.localdev)/|\.md$|\.(spec|test)\.[a-z]+$|_test\.[a-z]+$|(^|/)probe", re.I)
@@ -447,6 +448,13 @@ def brief(a):
         out.append(f"IN PROGRESS: cycle {n} on '{row}' has no end note. Continue it from its last note. "
                    f"Do not pick it again and do not redo a step that has a note.")
         out += ["  " + short(e) for e in notes[-14:]]
+        if any(e.get("kind") == "blocked" for e in notes):
+            gap_rows = find(tables, "Gap matrix") or []
+            row_status = next((status_of(r) for r in gap_rows if norm(r.get("Item", "")) == norm(row)), "")
+            if row_status == "blocked":
+                out.append("END-BLOCKED-CYCLE: this cycle already recorded its blocker. Do not check the same "
+                           "evidence again. Record `note end --status \"<before> -> blocked\" --progress none --next "
+                           "\"the missing evidence\"`, then unlock. The next cycle skips this parked row.")
     else:
         ends = [e for e in trail if e.get("kind") == "end"]
         if ends:
@@ -570,12 +578,24 @@ def brief(a):
             break
         if any(e.get("kind") == "end" for e in notes_):
             since_review += 1
-    idle = idle_run(a.project, trail, sense_paths(a.project, senses)) if gap and not work and not queued else []
-    if len(idle) >= IDLE_CYCLES:
-        items.append(f"WAITING: no row is open, and cycles {min(idle)}-{max(idle)} ({len(idle)}) changed no product file. "
-                     "Only the human can move the loop now. This cycle builds nothing and does no review: write at most 5 "
-                     "verdicts and asks for the human, most useful first, in the journal's 'Waiting on you' section (pick --mode waiting). Commit "
-                     "it, and end with --status waiting. The orchestrator then runs `state.py wait` (references/drivers.md).")
+    idle = idle_run(a.project, trail, sense_paths(a.project, senses)) if gap else []
+    blocked_human_rows = {norm(r.get("Item", "")) for r in parked if status_of(r) == "blocked"}
+    latest_blockers = {}
+    for e in trail:
+        if e.get("kind") == "blocked" and norm(e.get("row", "")) in blocked_human_rows:
+            latest_blockers[norm(e.get("row", ""))] = e
+    human_blocked = any(e.get("blocker") == "human" or
+                        (not e.get("blocker") and re.search(r"\bhuman\b", e.get("text", ""), re.I))
+                        for e in latest_blockers.values())
+    if human_blocked and work:
+        ends = {e.get("cycle"): e for e in trail if e.get("kind") == "end"}
+        idle = idle[:next((i for i, n in enumerate(idle) if moved(ends.get(n, {}).get("progress"))), len(idle))]
+    if len(idle) >= IDLE_CYCLES and (human_blocked or (not work and not queued)):
+        items.append(f"WAITING: cycles {min(idle)}-{max(idle)} ({len(idle)}) changed no product file "
+                     "and a human-blocked row cannot advance, or no row is open. Stop repeating stalled work, even if other rows are open. "
+                     "This cycle builds nothing and does no review: write at most 5 verdicts and asks for the human, "
+                     "most useful first, in the journal's 'Waiting on you' section (pick --mode waiting). "
+                     "Commit it, and end with --status waiting. The orchestrator then runs `state.py wait` (references/drivers.md).")
     if since_review >= REVIEW_EVERY:
         items.append(f"REVIEW-DUE: {since_review} cycles since the last sense-check review. This cycle is the review "
                      "(pick --mode review). Follow references/review-prompt.md.")
@@ -658,6 +678,14 @@ def note(a):
         if not a.row:
             print("REFUSED: a pick needs --row (the gap-matrix item).")
             return 2
+        if (a.mode or "gap") == "gap":
+            jpath = os.path.join(a.project, a.journal)
+            if os.path.isfile(jpath):
+                rows = find(md_tables(open(jpath, encoding="utf-8").read()), "Gap matrix") or []
+                if any(norm(r.get("Item", "")) == norm(a.row) and status_of(r) in PARKED for r in rows):
+                    print(f"REFUSED: '{a.row}' is parked. Select an open row, or use --mode unblock "
+                          "after new evidence addresses its blocker.")
+                    return 2
         if a.mode and a.mode not in MODES:
             print(f"REFUSED: --mode is one of {', '.join(MODES)}.")
             return 2
@@ -687,6 +715,9 @@ def note(a):
         except ValueError:
             pass
         metrics[k.strip()] = v
+    if a.blocker and kind != "blocked":
+        print("REFUSED: --blocker human is only valid on a blocked note.")
+        return 2
     if kind in ("predict", "see") and "load1" not in metrics:  # a timing is valid only with its machine load (lesson 39)
         try:
             metrics["load1"] = round(os.getloadavg()[0], 1)
@@ -703,6 +734,7 @@ def note(a):
     mode = a.mode if kind == "pick" else None  # without --mode, the pick text decides (cycle_mode)
     for k, v in (("text", text), ("files", files), ("metrics", metrics), ("commit", commit), ("mode", mode),
                  ("why", a.why if kind == "pick" else None),
+                 ("blocker", a.blocker if kind == "blocked" else None),
                  ("drift", a.drift.strip().lower() if kind == "ack" and a.drift else None),
                  ("status", a.status), ("progress", a.progress), ("next", a.next)):
         if v:
@@ -881,6 +913,7 @@ def main():
     ap.add_argument("--mode", help=f"for pick: {'|'.join(MODES)} (default gap)")
     ap.add_argument("--why", help="for pick: the effect a user of this project will notice (required for work modes)")
     ap.add_argument("--drift", help="for ack: the commit whose check change you reviewed")
+    ap.add_argument("--blocker", choices=["human"], help="for blocked: only a human verdict can unblock this row")
     ap.add_argument("--project", default=".")
     ap.add_argument("--journal", default="docs/awesomeness-loop.md")
     ap.add_argument("--root", default=".localdev/awesomeness")

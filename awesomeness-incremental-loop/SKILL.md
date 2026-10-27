@@ -149,9 +149,12 @@ files and the numbers it produced. The form is
    The brief's SIGNALS have two parts. Do every line under **DO FIRST** in
    this cycle, before the item: they are small chores (`APPLY` verdicts and
    answers, `MISMATCH`, `NO-DONE-WHEN`, `QUEUED-NO-PROGRESS`, `SENSE-DRIFT`,
-   `JOURNAL-LONG`, `STALE-DRIVER`, `DISK-LOW`). A chore marked `OVERDUE` was skipped in
-   an earlier cycle. For a verdict: `keep` sets the toggle default ON, `kill`
-   deletes it and its toggle, `tweak: <note>` queues it. Then the first line
+   `JOURNAL-LONG`, `STALE-DRIVER`, `DISK-LOW`). A chore marked `OVERDUE` was
+   skipped in an earlier cycle. For a verdict: `keep` sets the toggle default
+   ON, `kill` deletes it and its toggle, `tweak: <note>` queues it. If
+   `END-BLOCKED-CYCLE` appears, do not check the same evidence again: end the
+   open cycle with `--status "<before> -> blocked" --progress none` and the
+   missing evidence as `--next`, then unlock. Then the first line
    under **THIS CYCLE'S ITEM** decides the item (`WAITING`, `STALL`,
    `NO-CODE`, `CRITIC-DUE`, `EXHAUSTED`, `REVIEW-DUE`). With no item line, use "Picking
    the item".
@@ -201,6 +204,10 @@ files and the numbers it produced. The form is
      leaves that metric the same made no progress, even when every check passes.
    - Senses fail: fix and check again. Revert a change that made it worse.
      After two failed attempts at the same step, do the step back.
+   - Only a human verdict can show the next fix: note `blocked --blocker
+     human` once, set the row to `blocked`, then end this cycle with `--status
+     "<before> -> blocked" --progress none`. Do not leave a picked cycle open
+     while waiting.
    Write a status change in the gap matrix when you decide it, not later.
    When the step needs a human choice (an `ask`, a decision-type
    `assumption`, a toggle verdict), write it also as an entry in
@@ -218,7 +225,9 @@ Take the first rule that gives an item:
 1. A regression or a failing check that the loop caused.
 2. An item that the human put first: the focus argument, recent feedback, open
    cards (`[doing]`, then `[todo]`), explicit priorities. The human is the
-   authority. The critic is not.
+   authority. The critic is not. Skip a `blocked` or `held` row even if it is
+   first. Revisit it only when new evidence addresses its blocker. Use a
+   different open row while the human decides or listens.
 3. The row of the last cycle (`NOW` in the brief), while it is open and has
    no `STALL`. Finish a row before you start a new one.
 4. The `Next priorities` in the brief's `DIRECTION`, in order. Skip what its
@@ -273,9 +282,12 @@ cycle, and the work it opens is done before the next `EXHAUSTED`.
 
 ## When only the human can help (signal `WAITING`)
 
-`WAITING` means that no row is open or queued, and the last 6 cycles changed
-no product file. The loop has no more work that it can do alone: more
-coverage, unblock, beyond and review rounds only spend tokens. This cycle
+`WAITING` applies after six cycles with no product change, in one of two
+cases. In the first case, no row is open or queued. In the second case, a
+row waits for a human verdict, and no cycle in the run made measured
+progress on another row.
+In the second case, open rows do not keep the loop running. A product change
+or measured progress resets the count. This cycle
 does not build and does not review. It does this:
 
 1. Read the empty cells in "Pending verdicts" and "Assumptions and asks", and
@@ -289,9 +301,11 @@ does not build and does not review. It does this:
    "<the first item>"`.
 
 The orchestrator then runs `S wait`, which uses no agent. It returns when the
-human changes the journal, the code or the ledger cards, and the next cycle
-starts. A `waiting` end resets the count, so a wake gets 6 more cycles before
-the loop waits again. Waiting is not a stop: the human is still the brake.
+human changes the journal, the code or the ledger cards. If the human gave a
+verdict in chat, record it in the journal first. Set its blocked row back to
+`partial` only when the verdict addresses the blocker. The next cycle can then
+pick that row. A `waiting` end resets the count, so a wake gets 6 more cycles
+before the loop waits again. Waiting is not a stop: the human is still the brake.
 
 ## Critic gate and beyond mode
 
