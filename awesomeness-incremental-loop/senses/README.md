@@ -24,6 +24,14 @@ the current item needs.
    a command-line flag. Ship builds do not expose it.
 7. **Registered.** Add each sense to the "Senses" table in the journal: name,
    how to call it, what it returns, and its cost.
+8. **Connected to a user result.** Name the behavior the user cannot yet
+   check. Exercise its real path, from input to delivered output. A unit probe
+   can find a fault, but it cannot prove that the delivered path works.
+   Record the first boundary that fails. Test a positive case and a nearby
+   negative case that must stay quiet or unchanged.
+9. **Not a product change.** A new sense can support a fix but cannot complete
+   a product goal by itself. Keep the row open until the behavior changes and
+   its real-path check passes.
 
 ## The sense ladder
 
@@ -61,6 +69,11 @@ Build only what the current items need, in this order:
   view (critic mode, crop, frame rate, slow motion).
 - A metric that stays green while the human or the critic says "wrong": the
   metric measures the wrong thing. Fix the metric before the feature.
+- A unit or geometry probe passes, but nobody has exercised the delivered
+  behavior: add one deterministic real-path check. Start with the user's
+  missing output. Trace input, routing and output until the first failure.
+  Prove the check fails when that link is absent, and include an open or
+  no-event contrast. Do not make a second probe for the same known boundary.
 
 ## Add a guide when a blocker teaches something
 

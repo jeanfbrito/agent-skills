@@ -71,6 +71,40 @@ class StallHoldTest(unittest.TestCase):
         self.assertFalse((self.root / "lock").exists())
         self.assertEqual(len((self.root / "trail.jsonl").read_text().splitlines()), 4)
 
+    def test_committed_tree_probe_is_not_a_product_change(self):
+        self.write_cycles([(93, "gap", False)])
+        trail = state.read_trail(str(self.root))
+        trail[0]["target"] = "Branches yield to both actors"
+        trail[1]["commit"] = "823e6f1"
+        trail[1]["progress"] = "0/3 -> 3/3 blocked rays"
+        (self.root / "trail.jsonl").write_text("".join(json.dumps(e) + "\n" for e in trail))
+        original = state.commit_files
+        try:
+            state.commit_files = lambda project, sha: ["godot/src/tools/tree_collision_probe.gd"]
+            self.assertIn("AUTO-HOLD:", self.brief())
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(state.lock(self.args), 4)
+        finally:
+            state.commit_files = original
+
+    def test_registered_sensor_does_not_count_as_product_change(self):
+        sensor = self.project / "godot/src/tools/actor_contact_sensor.gd"
+        sensor.parent.mkdir(parents=True)
+        sensor.write_text("extends SceneTree\n")
+        journal = self.project / "docs/awesomeness-loop.md"
+        journal.write_text(JOURNAL + "\n## Senses\n| Sense | How to call it |\n| --- | --- |\n"
+                           "| Actor contact | godot/src/tools/actor_contact_sensor.gd |\n")
+        self.write_cycles([(93, "gap", False)])
+        trail = state.read_trail(str(self.root))
+        trail[1]["commit"] = "sensor-only"
+        (self.root / "trail.jsonl").write_text("".join(json.dumps(e) + "\n" for e in trail))
+        original = state.commit_files
+        try:
+            state.commit_files = lambda project, sha: ["godot/src/tools/actor_contact_sensor.gd"]
+            self.assertIn("AUTO-HOLD:", self.brief())
+        finally:
+            state.commit_files = original
+
     def test_one_diagnostic_work_cycle_stops_dispatch_even_when_metric_claims_progress(self):
         self.write_cycles([(93, "gap", False)])
         trail = state.read_trail(str(self.root))

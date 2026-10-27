@@ -191,12 +191,17 @@ files and the numbers it produced. The form is
    no `try` note before that measure.
 4. **Isolate and perceive.** In a busy project, use a lab first
    (`references/labs.md`). If no sense can judge the item, build that sense
-   first. For visual work, start with debug gizmos.
+   first. Name the user-visible result that the sense must check. Use a
+   repeatable real path with a positive and a negative contrast. Make the
+   sense fail on the known bad state and report the first failing boundary
+   (`senses/README.md`). For visual work, start with debug gizmos.
 5. **Fix the sense before the change.** A new or changed check goes in its
    own commit, with the reason in the commit body. A change commit can add
    checks. It does not loosen or rewrite an existing check to fit its own
    output (lesson 26). A sense measures the distance to the reference, not
-   the numbers that the current code makes.
+   the numbers that the current code makes. A sense-only commit does not
+   satisfy the cycle goal or reset auto-hold. Follow it with the product
+   change in the same cycle or end the cycle as unmet.
 6. **Build** the smallest change that moves the done-when metric. In
    `pr-per-task` mode, build it in the item's own task worktree, never on the
    loop branch (`references/shipping.md`). Drive the

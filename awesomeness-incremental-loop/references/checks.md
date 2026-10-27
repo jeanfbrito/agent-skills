@@ -34,6 +34,10 @@ Go up only when the level below cannot answer.
   (`~/Github/agent-skills/awesomeness-incremental-loop/senses/3d-views.md`).
 - **Look once.** After each new PASS, look at one frame or the gizmo view to
   make sure the number shows the real behavior (`lessons.md`, rule 2).
+- **Exercise the delivered path.** Start from the user's input and check the
+  output that they would see or hear. Trace each boundary so a failure names
+  the first broken link. Include a contrast that must not trigger the effect.
+  A passing unit or geometry probe is diagnostic evidence, not a live result.
 - **Run only what the change can affect.** One or two focused checks on one
   variant. Run the wider gates once, at the gate.
 - **Reuse evidence.** Do not run a check again when nothing that it measures

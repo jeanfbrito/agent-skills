@@ -68,7 +68,7 @@ IDLE_CYCLES = 6  # unproductive cycles before a human-blocked or exhausted loop 
 AUTO_HOLD_CYCLES = 2  # one diagnosis cycle may precede a change; reviews and step-backs count
 AGENT_NAMES = ("grok", "claude", "codex")
 # Files that do not change the product: docs, the journal, tests and probes, loop data.
-NOT_PRODUCT = re.compile(r"(^|/)(docs|tests?|spec|__tests__|\.localdev)/|\.md$|\.(spec|test)\.[a-z]+$|_test\.[a-z]+$|(^|/)probe", re.I)
+NOT_PRODUCT = re.compile(r"(^|/)(docs|tests?|spec|__tests__|\.localdev)/|\.md$|\.(spec|test)\.[a-z]+$|_test\.[a-z]+$|(^|/)probe|(^|/)tools/[^/]*_probe\.[a-z]+$", re.I)
 IMAGE = re.compile(r"\.(png|jpe?g|webp|gif)$", re.I)
 # A line that asserts or compares: an expectation, an assert, a limit, a miss count.
 CHECK_LINE = re.compile(r"expect\(|assert|\.to[A-Z]\w*\(|\bcheck\w*\(|_fail\(|violation|miss|[<>]=?\s*-?\d")
