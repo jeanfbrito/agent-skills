@@ -269,3 +269,15 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
     - Mechanism: `END-BLOCKED-CYCLE` closes a stranded cycle, `note pick`
       rejects a parked gap row, and `WAITING` checks the last human blocker
       and the idle run. The loop tests reproduce these states.
+42. **The cycles ran on the session model.**
+    - Sign: the orchestrator started each cycle with no role and no model, so
+      each cycle ran on Opus, the model of the session. In 14 days, 608 cycles
+      were 37% of all local spend at list prices (`role-spend.py --top`).
+      Cycles from the same skill also ran as `claude` in one project and as
+      `general-purpose` in another.
+    - Rule: start each cycle as `general-purpose` with the model from the
+      journal's `Cycle model:` line, `sonnet` by default. Use `opus` for a
+      project only when sonnet cycles keep hitting auto-hold.
+    - Mechanism: the orchestrator step in `references/drivers.md` names the
+      role and the model, and the journal template has the `Cycle model:`
+      line.

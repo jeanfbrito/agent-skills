@@ -16,6 +16,10 @@ The session is the **orchestrator**. It does no cycle work itself:
    the human which session runs the loop, and wait for their choice.
 1. Spawn one new subagent. Give it the prompt in `references/fire-prompt.md`,
    with `{project}` filled. Give it nothing else: its state is on disk.
+   Start it as `general-purpose` with the model from the journal's
+   `Cycle model:` line. If the line is empty, use `sonnet`. A cycle with no
+   model runs on the session model. In one run, that made the cycles more
+   than a third of all spend (lesson 42).
 2. Wait for it to end. Read only its last line, the status line.
 3. Print that status line for the human. Then spawn the next new subagent.
    Repeat without end. When the human says finish this cycle and stop, do
