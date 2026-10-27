@@ -245,7 +245,8 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
       change the `Done when` of the row to a count or a gate that does not
       change with the load. Examples are pairs over a limit, cells visited
       and work per call.
-      Keep the timing target for a quiet window.
+      Do not wait for a quiet window. Real users have busy machines, so a
+      timing taken under load counts, with its load recorded.
     - Mechanism: `state.py note predict` and `note see` record `load1`, the
       1-minute load. A `predict` note at a load of 10 or more prints a `LOAD`
       warning that names the count target.

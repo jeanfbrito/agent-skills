@@ -85,8 +85,10 @@ Rules:
   Researchers take rows that need cited numbers. Builders work in their own
   worktrees. Obey these limits:
   1. Give a builder only a row with no timing in its `Done when`. A builder
-     runs heavy work with `nice -n 19`, because the timing rows of the loop
-     need a quiet machine.
+     runs heavy work with `nice -n 19`, so that it does not slow the running
+     cycle. Do not wait for a quiet machine to time a row: real users have
+     busy machines. A timing taken under load counts. Record the load
+     average with it.
   2. A side track does not edit the journal, the trail or the decisions file.
      It commits on its own branch.
   3. Merge a side branch into the loop branch only between cycles. Then update
