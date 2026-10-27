@@ -51,6 +51,7 @@ LOAD_MAX = 10  # 1-minute load at or above which a timing is not valid (lesson 3
 LOG_ROW_MAX = 300
 LOG_ROWS_MAX = 30
 JOURNAL_MAX = 40_000
+DISK_MIN_GB = 15  # below this, builds and captures fail with ENOSPC in the middle of a cycle
 TRAIL = "trail.jsonl"
 KINDS = ["pick", "predict", "try", "see", "keep", "revert", "commit", "step-back", "blocked", "end", "ack"]
 MODES = ["gap", "coverage", "unblock", "beyond", "step-back", "critic", "review", "waiting"]
@@ -553,6 +554,13 @@ def brief(a):
     if long_rows or len(log) > LOG_ROWS_MAX or size > JOURNAL_MAX:
         chores.append(("JOURNAL-LONG", f"JOURNAL-LONG: {size} bytes, {len(log)} log rows, {len(long_rows)} over {LOG_ROW_MAX} chars. "
                        f"The history lives in the trail. Move the cycle log out of the journal and keep the tables short."))
+    try:
+        free_gb = __import__("shutil").disk_usage(a.project).free / 2**30
+    except OSError:
+        free_gb = None
+    if free_gb is not None and free_gb < DISK_MIN_GB:
+        chores.append(("DISK-LOW", f"DISK-LOW: {free_gb:.1f} GB free, below {DISK_MIN_GB} GB. Builds and captures fail with ENOSPC. "
+                       f"Run the disk-cleanup skill's rules: clean only caches that rebuild themselves. Ask the human for anything else."))
 
     cyc_all = cycles_of(trail)
     since_review = 0

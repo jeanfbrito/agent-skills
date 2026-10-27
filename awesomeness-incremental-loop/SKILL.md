@@ -125,6 +125,10 @@ the files that the loop changed.
 ## One cycle
 
 `S` means `python3 ~/Github/agent-skills/awesomeness-incremental-loop/tools/state.py --project <repo>`.
+Define it as a shell function at the start of each Bash call:
+`S() { python3 ~/Github/agent-skills/awesomeness-incremental-loop/tools/state.py --project <repo> "$@"; }`.
+Do not use `S="python3 ..."` and `$S`: zsh does not split a variable into
+words, so the call fails (66 failed calls in one run).
 
 Each step names its note. Write the note right after the step, with the
 files and the numbers it produced. The form is
@@ -144,7 +148,7 @@ files and the numbers it produced. The form is
    The brief's SIGNALS have two parts. Do every line under **DO FIRST** in
    this cycle, before the item: they are small chores (`APPLY` verdicts and
    answers, `MISMATCH`, `NO-DONE-WHEN`, `QUEUED-NO-PROGRESS`, `SENSE-DRIFT`,
-   `JOURNAL-LONG`, `STALE-DRIVER`). A chore marked `OVERDUE` was skipped in
+   `JOURNAL-LONG`, `STALE-DRIVER`, `DISK-LOW`). A chore marked `OVERDUE` was skipped in
    an earlier cycle. For a verdict: `keep` sets the toggle default ON, `kill`
    deletes it and its toggle, `tweak: <note>` queues it. Then the first line
    under **THIS CYCLE'S ITEM** decides the item (`WAITING`, `STALL`,
