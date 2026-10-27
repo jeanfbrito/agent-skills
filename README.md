@@ -1,81 +1,125 @@
-# claude-skills
+# agent-skills
 
-Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code) skills.
+Personal collection of [Claude Code](https://docs.claude.com/en/docs/claude-code)
+skills. Each folder is one skill with a `SKILL.md` manifest. The manifest's
+`description` lists the phrases that trigger the skill. The body has the full
+procedure.
 
 ## Skills
 
-- **learn** — Capture knowledge from coding sessions into project + global `lessons.md` files. Triggered by `/learn`.
-- **commit** — Smart git committing that groups related changes into separate, well-described commits. Triggered by `/commit`.
-- **pr-description** — Draft a PR title and body in the house style (prose Summary or Problem/Cause, a What changed list with bold lead-ins, optional Behaviour change / Known limitations / Out of scope, and a Verification or Test plan with real numbers) from the branch diff and the verification actually run. Triggered by `/pr-description`, "write the PR description", "draft the PR body", "open a PR", "faça o PR". Draft-first: opens or edits the PR only after the exact text is approved. Loads the shared tone rules from `shared/tone.md`. Replaces the `pr` skill from `mattpocock/skills`.
-- **babysit** — Babysit an open PR until every check is green, always in its own git worktree (no prompt). A background watch script (`watch-pr.sh`) polls review comments, checks and mergeability and exits with a state code (no LLM poller). The main model reads the whole batch, triages it through `superpowers:receiving-code-review`, plans every change before editing, pushes, and re-runs the watcher. It stops immediately when a human reviewer comments. Triggered by `/babysit`, "babysit this PR", "watch the PR", "get the PR green", "handle the review bots". Batches all PR prose into one summary comment approved before posting. Loads the shared tone rules from `shared/tone.md`. Optional poll cadence/bot-allowlist state lives in a gitignored `local-config.yml` created on first run. Learned CodeRabbit dismissal patterns live in `babysit/references/coderabbit-patterns.md`.
-- **jira** — Drive an Atlassian Cloud Jira workspace via [ankitpokhrel/jira-cli](https://github.com/ankitpokhrel/jira-cli) from Claude Code. Triggered by any Jira-related question, including 'link the PR to the ticket'. `jira-link-pr` puts the key in the PR title, moves the issue to In Progress, adds the PR as a remote link and checks the Development panel. Personal defaults (site, email, primary project, default component, workflow status names) live in a gitignored `local-config.yml` populated by `setup.sh` — the skill itself ships only the generic playbook. A Linux-adapted variant for Hermes lives in `jira/hermes/`.
-- **grok-build** — Delegate coding tasks to xAI's Grok CLI (`grok`) running headless: implement, review, or diagnose code with verification patterns, session resume, and worktree isolation. Triggered by "use grok", "ask grok", "grok this". Requires the `grok` binary installed and authenticated (`grok login`).
-- **postmortem** — Write a post-mortem after a challenging task: full timeline including failed attempts, root causes, durable lesson extraction into AGENTS.md/memory/mastermind, and draft-first distribution (Confluence write-up, team-channel summary, optional blog handoff). Triggered by `/postmortem`, "write a post-mortem", "document what we learned". Loads the shared tone rules from `shared/tone.md`.
-- **weekly-digest** — Draft a short weekly work digest translated from commit/ticket language into impact language, from real sources only (ledger, merged PRs, git history, optional Jira). Triggered by `/weekly-digest`, "weekly digest", "draft my weekly update", "what did I ship this week", "status update for the team". Draft-first, never posts without approval. Loads the shared tone rules from `shared/tone.md`; window state lives in a gitignored `local-config.yml` created on first run.
-- **proposal** — Draft a one-page technical initiative proposal backed by real evidence mined from the project (known issues, git history, ledger, CI patterns). Triggered by `/proposal`, "draft a proposal", "propose an initiative", "write an improvement proposal", "make the case for X". Draft-first, never files or posts without approval. Loads the shared tone rules from `shared/tone.md`. Intended cadence: roughly quarterly.
-- **update-skill** — Create or update a skill in this repo (`~/Github/agent-skills`), keeping SKILL.md frontmatter, README wiring, and symlink install in sync. Triggered by `/update-skill`, "create a skill", "new skill", "update the X skill", "fix the description of skill Y", "add a skill for Z".
-- **skill-checkup** — Grades the skills in this repo against recent local Claude Code session history (efficiency + code-quality rubrics, real skill-invocation coverage), then drafts concrete SKILL.md edits and a local, shareable HTML report. Triggered by `/skill-checkup`, "skill checkup", "grade my skills", "how are my skills doing", "which skills never trigger", "audit my skills". Adapted from [warpdotdev/common-skills](https://github.com/warpdotdev/common-skills) `skill-doctor` (MIT License). Everything runs locally; edits are draft-first, applied only via `update-skill` after approval.
-- **one-page-design** — Draw one printable diagram of one design idea (title, date, central figure, callouts) using Stone Librande's GDC 2010 tests. Triggered by `/one-page-design`, "one page design", "one-page design", "put this on one page", "wall sheet", "relationship diagram of this system". Writes `designs/YYYY-MM-DD - Title.html` and does not commit. `fit-check.sh` renders the sheet with headless Chrome and fails on a second page, an overflowing callout, a print that changes with the screen layer, or a label with no `data-src`. `screen-layer.js` is inlined into each sheet: on screen it traces relationships on hover, shows where each label was read, zooms like walking closer, and gives the reader a pencil whose marks print; in print it does nothing. `new-sheet.sh` creates a dated sheet from `skeleton.html`. The fit check also measures the figure rules (orthogonal lines, labels off the stroke and never rotated or under a box, no line behind a box it does not connect, attach points spaced, a title and desc) and reports the node and edge budget; the connector rules come from diagram-design and the bounded repair loop from archify. Not a text one-pager, a GDD, or a proposal.
-- **procedural-animation** — Character and procedural animation reference corpus (Daniel Holden / orangeduck, 2017-2026): a task-to-reference routing table for foot sliding, leg-chain and two-bone IK, locomotion models, springs/dampers/inertialization, motion matching, and rotation representations for networks, plus the working code and an explicit list of what it does not cover. Triggered by "foot sliding", "foot locking", "two-bone IK", "inverse kinematics", "locomotion model", "character feels floaty", "spring damper", "inertialization", "motion matching", "unroll rotations", "procedural animation". Self-contained (no vault or network needed); detail lives in `procedural-animation/references/`. Compiled from 12 sources captured in the Obsidian vault at `~/Github/mindness`.
-- **mixamo-download** — Search Mixamo and download animation clips (FBX, no skin, 30 fps, no keyframe reduction) through the user's logged-in Mixamo session in Chrome, using the web app's own API from the page via Claude in Chrome, then hand the files to the project's import step. Triggered by "download from Mixamo", "get the Mixamo animations", "grab crouch/sprint/strafe clips", "download these animations for me". Every download list needs explicit approval first; the page helper lives in `mixamo-download/mixamo-api.js`.
-- **worktree-gc** — Find and remove git worktrees, local branches, and stashes left behind by merged or abandoned work. A read-only audit script (`worktree-audit.sh`) classifies each worktree first (merged, tracked changes, untracked only, recent Claude session, open PR). A dry-run report follows, and the skill removes only what the user confirms. Triggered by `/worktree-gc`, "clean up worktrees", "gc worktrees", "remove merged worktrees".
-- **branch-triage** — Sort a remote's branches into merged and open (ahead/behind, last date, author), and delete the merged ones only after the user confirms the list. Triggered by `/branch-triage`, 'which branches were being worked', 'delete the merged branches', 'what is open on origin'.
-- **benchmark-checklist** — Vet a performance measurement before reporting or acting on it. The steps: name the limiter, check that every side was tuned, check the arithmetic against hardware limits, and count errors. Then repeat with alternating sides, compare to the end-to-end path, and check that the work actually ran. The skill includes macOS and Linux profiling commands and report rules. Triggered by "benchmark", "is this really faster", "speedup", "perf regression", "CI got slower", "vet this number", "explain the number". Adapted from [cursor/plugins](https://github.com/cursor/plugins) `pstack` (MIT License).
-- **why** — Investigate why code, a setting, or a behavior is the way it is. Anchor on git blame/log and the PRs. Then query every connected source (GitHub, Jira, Confluence, Rocket.Chat, Zoho Desk, session memory, upstream source via GitNexus). Answer with each claim graded direct / supported / inferred / speculative / unknown. When the question precedes a change, add a Preserve / Change / Avoid / Risk set. Triggered by `/why`, "why is this like this", "why did we do X", "what motivated this", "where did this number come from". Adapted from [cursor/plugins](https://github.com/cursor/plugins) `pstack` (MIT License).
-- **asd-ste100** — Rewrite English in Simplified Technical English (ASD-STE100). Strict mode fits procedures, error messages and agent instructions. STE-flavored mode fits PRs and docs. Hedges are always kept. `scripts/ste-lint.py` checks sentence shape (semicolons, sentence length across wrapped lines, phrasal verbs, nominalization, marketing adjectives, synonym rotation). It also suggests plain words from the public-domain US plain-language list and skips software terms. `scripts/ste-pdf-index.py` maps the user's own copy of the official PDF for one-word lookups. No ASD text is stored. Triggered by "apply Simplified Technical English", "STE100 rewrite", "plain-language rewrite". Vendored from [danyuchn/asd-ste100-skill](https://github.com/danyuchn/asd-ste100-skill) (MIT License) with local changes listed in `asd-ste100/UPSTREAM.md`. Installs standalone: `npx skills add jeanfbrito/agent-skills -s asd-ste100 -g`. Uses paths relative to its own directory, unlike the other skills here, so it works wherever it is installed.
-- **awesomeness-incremental-loop** — Run an endless improvement loop on a project that keeps reference material in its docs, on any agent harness. Each cycle is a fresh, self-contained run: `tools/state.py` takes a cycle lock and prints a short brief of the journal state plus the signals that are due (a row open for 3 cycles is a `STALL` and forces a step back — split, change approach, direction critic, or block; every row parked is `EXHAUSTED` and starts coverage, unblock, then beyond mode; a check edited in the same commit as the code it judges is `SENSE-DRIFT`), and every step of a cycle appends a note to a trail as it happens (`state.py note`): a later run continues an open cycle from its last note instead of starting over, and each note rebuilds the local HTML report, so the trail is the live report, not an end-of-run job. Each gap row carries a measurable `Done when`, and each cycle logs its progress on it. Each work pick states `--why`: the effect a user of the project will notice, tied to the product focus in the journal's Direction section; every 10 cycles a fresh sense-check review (`references/review-prompt.md`) judges the last 10 cycles useful, marginal or useless, holds low-value rows, and rewrites Direction (keep doing, stop doing, next priorities), which every later cycle reads first. The session that runs the skill is the orchestrator: it gives each cycle to a new subagent with the fixed prompt in `references/fire-prompt.md`, reads the one-line status, and spawns the next, so the loop stays in the agent the human commanded and no cycle carries the history of the ones before it; `state.py pause` is the brake for hand work, `/loop` or `/goal` cover a harness with no subagents, and `tools/drive.sh` runs the loop outside a session only when the human asks (`references/drivers.md`). Each cycle reads the references and priority docs, picks the most important gap (set priorities first, then quick wins, with an anti-lazy rule after 3 quick wins in a row), builds it, checks the change itself with cheap senses (metrics, gizmos, one clean capture), commits on an `awesomeness/<date>` branch, and starts again. At full reference parity it switches to beyond mode and ships each invention behind a toggle (default OFF) until a human writes keep/kill in the journal. It can restart at any moment from `docs/awesomeness-loop.md` in the target project. Before it works on an item it cannot judge, it builds a "sense" for it: dev-only control APIs (for example `window.__agent` in the browser, a flag-gated Godot autoload, or desktop IPC), debug gizmos for visual work (bones, sockets, aim rays, contacts, target-versus-actual markers, reference ghosts) with a UI toggle panel for the human and the same toggles in the control API, tagged logs, digest scripts that return about 30 lines in place of raw output, motion and physics metrics, a fixed low frame-rate target (30 fps for slow games, 60 fps for fast ones and apps; higher only when the project's root needs it), a low fixed physics rate raised only when a lab proves the step size causes a failing metric, and clean self-captures for visual convergence. The guides live in the `awesomeness-incremental-loop/senses/` folder, one per topic (browser, Godot, desktop, 3D views — at least two fixed angles plus the real view, with everything not measured hidden but not removed —, gizmos, invariants — common-sense rules such as nothing below the ground or no NaN, watched every frame, with an event and a snapshot on each break —, capture metadata — a sidecar record and event log for every image —, digest scripts, metrics, visual convergence), with a `TEMPLATE.md`: when a blocker on controlling, measuring or seeing something is solved, the loop adds or extends a guide there. It works on one subject at a time: a throwaway spike answers "does the idea work", a dev-only lab (model turntable, alignment, pose, animation, physics, material, UI component, app logic) makes the subject match the reference with measures in view, and only then is it integrated into the full project with the same shots and metrics. A row that passes only in its lab stays `lab-only`. The guide is `awesomeness-incremental-loop/references/labs.md`. `references/lessons.md` holds 30 traps from past long runs (engine numbers that pass while the delivered clip fails, metrics passed through a cheat, targets set from descriptions instead of the reference, loosened gates, full test sweeps per attempt, stale captures, builder self-reports), and the loop reads it at every start. Unlike the gauntlet loop, the harsh blind critic runs only at the "done" gate (a row about to be called done, a question no sense can answer, or a mode change), batched over a queue, and each critic deficit becomes a new sense check; the check ladder is in `awesomeness-incremental-loop/references/checks.md`. Everything starts small (one subject, one view, low rates, one builder, focused checks) and grows one step only when its checks pass twice in a row with no new invariant breaks. A script keeps a local, gitignored HTML report plus `report-data.json` of the captures, metrics, events and critic rounds, so anyone can see where the run is and the agent can recall history (`awesomeness-incremental-loop/references/report.md`). It starts in any state of any project without asking (dirty tree, work in progress, no journal), adopts the project's existing capture/test/gate tools before building new ones, follows the harness or project for who builds, works open cards first, commits each verified item on its own branch (worktrees for parallel builders), and keeps the project's own ledgers current. Shared data formats live in `references/schemas.md`, the blind critic brief in `references/critic-brief.md`, and `tools/report.py` (stdlib Python) builds the HTML report. The loop has no exit: the human stops it with Ctrl-C, `state.py pause`, or by ending the session, and each cycle leaves state that survives a kill. Only the human stops it. Adapted from the gauntlet loop. Triggered by `/awesomeness-incremental-loop`, "awesomeness loop", "what is next from the references", "keep improving until I stop you". Never pushes or posts.
-- **pr-triage** — Triage the open PRs of the current GitHub repo, made to run weekly. Own PRs: what blocks the merge (local `git merge-tree` trial merge, failing check with the failing test named, unresolved review threads, drafts, stacked base, overlap between sibling PRs) and the next action. Third-party PRs: a review draft from `reviewer` subagents (brief in `pr-triage/references/review-brief.md`) with a verdict and a suggested reply. Bot PRs: duplicate and base checks. `pr-snapshot.py` emits the JSON and keeps each PR's head SHA in a gitignored `local-state.json`, so later runs review only new or updated PRs. Triggered by `/pr-triage`, "triage the PRs", "review the open PRs", "what is blocking my PRs", "weekly PR review". Loads the shared tone rules from `shared/tone.md` for suggested replies. Draft-first: never comments, reviews, closes or merges without approval.
-- **good-morning** — Build the daily work plan from every inbox and report it in the session as an organized plan (main focus, order of the day, tables per section), with an optional HTML day sheet. `gm.py collect` runs four collectors at the same time (about 30 s) and prints an ~80-line digest with candidate rungs, newest first: `gm_jira.py` (my queue with priority projects first, plus only the changes and comments made by *other people* in the window, through the Jira REST API with the jira skill's Keychain token), `gm_chat.py` (rocket-cli attention limited to the window, with an `answered` check per mention, DM and thread), `gm_github.py` (direct review requests, my open PRs in the configured orgs with failing check names and human threads, threads where someone else wrote last with an `asks_me` hint, new PRs and issue comments, and release health: red runs on protected branches and release tags, draft releases, open PRs into release branches) and `gm_ledger.py` (open `.localdev/workflow` cards with the live state of the PRs they name, active blockers). The agent ranks every item on a fixed ladder (Fire, Unblock, Finish, Focus, FYI) and decides one main focus, a time-boxed unblock batch, at most two secondary items and a "Not today" list. `gm.py render` prints that plan (format in `good-morning/references/plan-schema.md`) as an organized Markdown report in the session (default); `--format html` also draws a theme-aware HTML day sheet, opened locally or published to one private claude.ai page that updates every day (opt-in through `report: local | artifact`); `gm.py save` stores the accepted plan so that carry-over days count up, and also writes it into the daily note of an Obsidian or Markdown vault when `vault_path` is set (optional). Triggered by `/good-morning`, "good morning", "bom dia", "plan my day", "what should I work on today", "morning briefing". Read-only: reply drafts load the shared tone rules from `shared/tone.md` and send nothing without approval. Window, repos, orgs, protected branches and report mode live in a gitignored `local-config.yml`, and the accepted plan in a gitignored `last-plan.json`, both created on first save. Needs `gh`, [rocket-cli](https://github.com/jeanfbrito/rocket-cli) and a Jira API token; requirements, setup and troubleshooting are in `good-morning/README.md`.
-- **good-night** — Close the work day with a closing note. `gn.py status` collects what you did today: the live state of the good-morning plan, PRs merged, opened and reviewed, your comments (checked by author and date), pushes, Jira tickets you moved or updated, local commits on any branch and ledger entries. The agent adds what the session did and drafts the note (Done, In progress, Waiting on, Tomorrow first, Notes) for you to edit; `gn.py note` saves it, optionally also into the daily note of an Obsidian or Markdown vault (`gn.py config --vault`), and good-morning shows its open items the next morning. An optional two-minute check-in follows (stress, load, interruptions, switching off, mood, energy, anxiety, sleep), with a 7-day trend table and a summary since a date on request. Triggered by `/good-night`, "good night", "boa noite", "wrap up the day", "closing notes". Local only: notes and the check-in journal live in `~/.local/share/good-night/`, never in this repo, and the skill posts a note only on request, draft first. Setup and formats are in `good-night/README.md`.
-- **yt-transcript** — moved to its own repo, `~/Github/yt2txt` (`skill/yt-transcript`); `./install.sh` there installs the `yt2txt` / `yt2frame` CLIs and links the skill.
+### Git and pull requests
 
-Shared references live in `shared/` — currently `tone.md`, the tone/framing rules for any outward-facing text (post-mortems, PR descriptions, channel posts, replies to bug reports). Skills reference it by absolute path so it works through the symlink install.
+| Skill | What it does | Notes |
+| --- | --- | --- |
+| [commit](commit/SKILL.md) | Groups related changes into separate commits, each with its own message. | |
+| [pr-description](pr-description/SKILL.md) | Drafts a PR title and body in the house style (Summary, What changed, Verification with real numbers) from the diff and the checks that ran. | Draft-first. Uses `shared/tone.md`. |
+| [babysit](babysit/SKILL.md) | Works on an open PR until every check is green. A watch script polls checks and review bots. The model triages each batch, fixes and pushes. It stops when a human reviewer comments. | Runs in its own worktree. Optional `local-config.yml`. |
+| [pr-triage](pr-triage/SKILL.md) | Weekly triage of the repo's open PRs: what blocks your own PRs, review drafts for third-party PRs, duplicate checks for bot PRs. | Draft-first. Keeps head SHAs in `local-state.json`. |
+| [branch-triage](branch-triage/SKILL.md) | Sorts a remote's branches into merged and open, and deletes merged ones after you confirm the list. | |
+| [worktree-gc](worktree-gc/SKILL.md) | Finds worktrees, branches and stashes left by merged or abandoned work. An audit script classifies each one first. | Deletes only what you confirm. |
+
+### Tickets, reports and team communication
+
+| Skill | What it does | Notes |
+| --- | --- | --- |
+| [jira](jira/SKILL.md) | Drives Jira through [jira-cli](https://github.com/ankitpokhrel/jira-cli): JQL, tickets, sprints, and `jira-link-pr` to link a PR to its ticket. | Run `setup.sh` once. Linux variant in `jira/hermes/`. |
+| [why](why/SKILL.md) | Finds why code, a setting or a behavior is the way it is, from git history, PRs and every connected source. Grades each claim. | |
+| [postmortem](postmortem/SKILL.md) | Writes a post-mortem after a hard task, extracts the lessons, and drafts the write-up and team summary. | Draft-first. Uses `shared/tone.md`. |
+| [weekly-digest](weekly-digest/SKILL.md) | Drafts a short weekly update in impact language from real sources (ledger, PRs, git, Jira). | Draft-first. Uses `shared/tone.md`. |
+| [proposal](proposal/SKILL.md) | Drafts a one-page technical proposal backed by evidence from the project. | Draft-first. Uses `shared/tone.md`. |
+
+### Daily routine
+
+| Skill | What it does | Notes |
+| --- | --- | --- |
+| [good-morning](good-morning/SKILL.md) | Builds the day plan from Jira, Rocket.Chat, GitHub and the ledgers, ranked on a fixed ladder, with one main focus. | Read-only. Setup in `good-morning/README.md`. |
+| [good-night](good-night/SKILL.md) | Collects what you did today and drafts the closing note that good-morning reads next. Optional wellbeing check-in. | Local only. Setup in `good-night/README.md`. |
+
+### Agents and skills
+
+| Skill | What it does | Notes |
+| --- | --- | --- |
+| [learn](learn/SKILL.md) | Saves lessons from a session into `lessons.md` files, or into the skill that missed them. | |
+| [update-skill](update-skill/SKILL.md) | Creates or updates a skill in this repo with the repo's conventions (frontmatter, absolute paths, README, symlink). | |
+| [skill-checkup](skill-checkup/SKILL.md) | Grades the skills against recent session history and drafts `SKILL.md` edits. | Local HTML report. |
+| [awesomeness-incremental-loop](awesomeness-incremental-loop/SKILL.md) | Runs an endless improvement loop against a project's reference material. One subagent per cycle, a journal and a trail on disk, step backs on stalls, and a blind critic at the done gate. | Never pushes. Guides in `references/` and `senses/`. |
+| [grok-build](grok-build/SKILL.md) | Hands coding tasks to the Grok CLI in headless mode, with verification and worktree isolation. | Needs `grok login`. |
+| [asd-ste100](asd-ste100/SKILL.md) | Rewrites English in Simplified Technical English. `scripts/ste-lint.py` checks the text. | Installs alone: `npx skills add jeanfbrito/agent-skills -s asd-ste100 -g`. |
+
+### Machine and measurement
+
+| Skill | What it does | Notes |
+| --- | --- | --- |
+| [disk-cleanup](disk-cleanup/SKILL.md) | Frees disk space on macOS. It measures first and cleans caches that rebuild themselves. It restarts a hung Docker before the prune, and asks before it touches your files. | |
+| [benchmark-checklist](benchmark-checklist/SKILL.md) | Checks a performance number before you report it or act on it. | |
+
+### Design and game development
+
+| Skill | What it does | Notes |
+| --- | --- | --- |
+| [one-page-design](one-page-design/SKILL.md) | Draws one printable diagram of one design idea. `fit-check.sh` fails on a second page or a broken layout rule. | Writes `designs/`. Does not commit. |
+| [procedural-animation](procedural-animation/SKILL.md) | Reference corpus for character and procedural animation (IK, foot sliding, springs, motion matching). | Self-contained. |
+| [mixamo-download](mixamo-download/SKILL.md) | Searches Mixamo and downloads clips through your logged-in Chrome session. | You approve each download list. |
+
+### Moved
+
+- **yt-transcript** now lives in `~/Github/yt2txt` (`skill/yt-transcript`). Its
+  `./install.sh` installs the CLIs and links the skill.
 
 ## Commands
 
-- **ticket** — Ticket/task workflow. Triggered by `/ticket`.
+- **ticket** (`commands/ticket.md`): the ticket and task workflow, `/ticket`.
+
+## Conventions
+
+- Cross-file references use absolute paths (`~/Github/agent-skills/...`),
+  because the skills are installed as symlinks. `asd-ste100` is the exception:
+  it uses paths relative to its own folder, so it works wherever it is
+  installed.
+- A skill that writes text for other people loads
+  [`shared/tone.md`](shared/tone.md) and shows the draft before it sends
+  anything.
+- Per-user settings and state live in a gitignored `local-config.yml` (or
+  `local-state.json`) next to the skill.
 
 ## Install
 
-Clone once, then symlink each skill into `~/.claude/skills/` and each command into `~/.claude/commands/` — symlinks mean a `git pull` updates everything, but only if every machine points at the SAME clone:
+Clone once, then link the skills into `~/.claude/skills/`. Symlinks let a
+`git pull` update every skill. Point every machine at the same clone.
 
 ```bash
 git clone https://github.com/jeanfbrito/agent-skills.git ~/Github/agent-skills
 mkdir -p ~/.claude/skills ~/.claude/commands
-ln -s ~/Github/agent-skills/learn ~/.claude/skills/learn
-ln -s ~/Github/agent-skills/commit ~/.claude/skills/commit
-ln -s ~/Github/agent-skills/pr-description ~/.claude/skills/pr-description
-ln -s ~/Github/agent-skills/babysit ~/.claude/skills/babysit
-ln -s ~/Github/agent-skills/jira ~/.claude/skills/jira
-ln -s ~/Github/agent-skills/grok-build ~/.claude/skills/grok-build
-ln -s ~/Github/agent-skills/postmortem ~/.claude/skills/postmortem
-ln -s ~/Github/agent-skills/weekly-digest ~/.claude/skills/weekly-digest
-ln -s ~/Github/agent-skills/proposal ~/.claude/skills/proposal
-ln -s ~/Github/agent-skills/update-skill ~/.claude/skills/update-skill
-ln -s ~/Github/agent-skills/skill-checkup ~/.claude/skills/skill-checkup
-ln -s ~/Github/agent-skills/worktree-gc ~/.claude/skills/worktree-gc
-ln -s ~/Github/agent-skills/branch-triage ~/.claude/skills/branch-triage
-ln -s ~/Github/agent-skills/one-page-design ~/.claude/skills/one-page-design
-ln -s ~/Github/agent-skills/procedural-animation ~/.claude/skills/procedural-animation
-ln -s ~/Github/agent-skills/mixamo-download ~/.claude/skills/mixamo-download
-ln -s ~/Github/agent-skills/benchmark-checklist ~/.claude/skills/benchmark-checklist
-ln -s ~/Github/agent-skills/why ~/.claude/skills/why
-ln -s ~/Github/agent-skills/asd-ste100 ~/.claude/skills/asd-ste100
-ln -s ~/Github/agent-skills/awesomeness-incremental-loop ~/.claude/skills/awesomeness-incremental-loop
-ln -s ~/Github/agent-skills/pr-triage ~/.claude/skills/pr-triage
-ln -s ~/Github/agent-skills/good-morning ~/.claude/skills/good-morning
-ln -s ~/Github/agent-skills/good-night ~/.claude/skills/good-night
-ln -s ~/Github/agent-skills/commands/ticket.md ~/.claude/commands/ticket.md
+for d in ~/Github/agent-skills/*/; do
+  [ -f "$d/SKILL.md" ] && ln -sfn "${d%/}" ~/.claude/skills/"$(basename "$d")"
+done
+ln -sfn ~/Github/agent-skills/commands/ticket.md ~/.claude/commands/ticket.md
 ```
 
-For the **jira** skill, also run the one-time setup to install jira-cli, store your API token in macOS Keychain, and capture per-user defaults into `local-config.yml` (gitignored):
+To install one skill only:
+`ln -s ~/Github/agent-skills/<name> ~/.claude/skills/<name>`.
+
+The **jira** skill also needs a one-time setup. It installs jira-cli, stores
+the API token in the macOS Keychain and writes `local-config.yml`:
 
 ```bash
 ~/.claude/skills/jira/setup.sh
 ```
 
-Restart Claude Code or start a new session — skills load on startup.
+Skills load when a session starts. Restart Claude Code or start a new session.
 
-## Layout
+## Credits
 
-Each subdirectory is a self-contained skill with a `SKILL.md` manifest. See [Claude Code skills docs](https://docs.claude.com/en/docs/claude-code/skills).
+- **skill-checkup** is adapted from
+  [warpdotdev/common-skills](https://github.com/warpdotdev/common-skills)
+  `skill-doctor` (MIT License).
+- **benchmark-checklist** and **why** are adapted from
+  [cursor/plugins](https://github.com/cursor/plugins) `pstack` (MIT License).
+- **asd-ste100** is vendored from
+  [danyuchn/asd-ste100-skill](https://github.com/danyuchn/asd-ste100-skill)
+  (MIT License). The local changes are in `asd-ste100/UPSTREAM.md`.
+- **one-page-design** uses Stone Librande's GDC 2010 one-page design tests.
+- **awesomeness-incremental-loop** is adapted from the gauntlet loop.
+- **pr-description** replaces the `pr` skill from `mattpocock/skills`.
+
+See `THIRD_PARTY_NOTICES.md` for the license texts.

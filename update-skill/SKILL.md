@@ -1,6 +1,6 @@
 ---
 name: update-skill
-description: Creates a new skill or updates an existing one in THIS repository (~/Github/agent-skills), writing/editing its SKILL.md frontmatter and body, wiring the README bullet + Install symlink, and installing the symlink into ~/.claude/skills/. Triggered by "/update-skill", "create a skill", "new skill", "update the X skill", "fix the description of skill Y", "add a skill for Z". Not for editing skills that live in other repos.
+description: Creates a new skill or updates an existing one in THIS repository (~/Github/agent-skills), writing/editing its SKILL.md frontmatter and body, wiring the README table row, and installing the symlink into ~/.claude/skills/. Triggered by "/update-skill", "create a skill", "new skill", "update the X skill", "fix the description of skill Y", "add a skill for Z". Not for editing skills that live in other repos.
 ---
 
 # Update Skill
@@ -71,14 +71,17 @@ trigger phrases, first person framing risk.
 ## Creating a NEW skill
 
 1. Write `<name>/SKILL.md` following the conventions above.
-2. Add a bullet to README's `## Skills` section, matching the existing
-   format: **name** — what it does, "Triggered by `/x`, 'trigger phrase'"
-   list, and a note if it loads `shared/tone.md` or has a
-   `local-config.yml`.
-3. Add `ln -s ~/Github/agent-skills/<name> ~/.claude/skills/<name>` to
-   README's `## Install` code block, in the same style/order as the
-   existing lines.
-4. Run that symlink command locally so the skill is actually installed.
+2. Add one row to the matching group table in README's `## Skills`
+   section: `| [<name>](<name>/SKILL.md) | <what it does, one or two short
+   sentences> | <notes: draft-first, tone.md, local-config, setup> |`.
+   Do not list trigger phrases or internals there: the triggers live in the
+   `description`, and the details live in `SKILL.md`. A README bullet that
+   grew to a full paragraph is the reason for this rule. Put credit for
+   adapted or vendored work in README's `## Credits`.
+3. The README `## Install` loop links every folder that has a `SKILL.md`,
+   so it needs no new line.
+4. Run `ln -s ~/Github/agent-skills/<name> ~/.claude/skills/<name>` so the
+   skill is installed now.
 5. If the skill has per-user state, add its `local-config.yml` (and any
    `.bak.*` pattern) to the repo `.gitignore`.
 6. Remind the user: skills load on the next session start (restart Claude
@@ -90,11 +93,11 @@ trigger phrases, first person framing risk.
 1. Read the current `SKILL.md` in full first — don't guess at existing
    structure or overwrite sections you haven't seen.
 2. Keep `name:` (and the directory name) stable. Renaming breaks the
-   `~/.claude/skills/<name>` symlink and the README bullet/Install line
-   that reference the old name — if a rename is genuinely required, update
-   all three together.
-3. If trigger phrases in the description change, update the matching
-   README `## Skills` bullet in the same edit so they don't drift apart.
+   `~/.claude/skills/<name>` symlink and the README row that reference the
+   old name — if a rename is genuinely required, update
+   all of them together.
+3. If what the skill does changes, update its README row in the same edit
+   so they don't drift apart.
 4. If any path in the body changes, verify it's still absolute
    (`~/Github/agent-skills/...`) — a copy-paste from elsewhere often
    introduces a relative path that breaks post-install.
@@ -105,6 +108,8 @@ trigger phrases, first person framing risk.
   directory name.
 - `ls -la ~/.claude/skills/<name>` — symlink resolves into this repo
   (`~/Github/agent-skills/<name>`).
+- README row check (prints nothing when every skill has a row):
+  `cd ~/Github/agent-skills && for d in */; do n=${d%/}; [ -f "$n/SKILL.md" ] && ! grep -q "\[$n\]($n/SKILL.md)" README.md && echo "no README row: $n"; done`
 - Optional: `skills-ref validate ./<name>` if the
   [skills-ref](https://github.com/agentskills/agentskills/tree/main/skills-ref)
   tool is installed — not required, skip silently if it isn't.
@@ -127,6 +132,6 @@ Before presenting a new or updated skill as done, verify:
 - [ ] Helper scripts are inside the skill directory and executable
 - [ ] `SKILL.md` is ≤ ~200 lines (or reference material moved to
       `references/`)
-- [ ] README `## Skills` bullet and `## Install` symlink line both added
-      (new skill) or kept in sync (renamed trigger phrases)
+- [ ] README `## Skills` row added (new skill) or kept in sync, and short
+      (no trigger list)
 - [ ] Nothing committed unless the user explicitly asked
