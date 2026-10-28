@@ -41,9 +41,30 @@ Capture it NOW before the context scrolls away.
    - Context the user pasted that a connected tool could have fetched (a Jira
      key, a Rocket.Chat thread, a PR, a log). The lesson goes to the skill
      that owns that workflow: fetch it next time
-   - Work that no skill covered but will come back (see 1d)
+   - Work that no skill covered but will come back (see 1e)
 
-1d. **Spot skill candidates.** Lessons are rules; a skill is a procedure.
+1b. **Enforce before you write.** For each candidate, ask whether a mechanism
+   can make the mistake impossible or make it fail loud. The mechanisms,
+   strongest first:
+   - Architecture: one owner, one way, internals unreachable.
+   - A type.
+   - A lint or CI check whose error names the fix.
+   - A test.
+   - A hook.
+
+   If one can, the lesson is that mechanism. Propose it (or build it when the
+   user asked for fixes) and record only a one-line pointer to it. Text is for
+   judgment calls nothing can check.
+
+1c. **Filter.** Drop a candidate unless it passes all of these:
+   - **Durable**: still true after paths, SHAs, and versions change.
+   - **Decision-changing**: a future agent acts differently because of it.
+   - **Not already covered**: read the target file first. If the rule exists
+     and was skipped, the fix is wording or placement that makes it fire, not
+     a second copy. A rule broken twice despite being written down goes to 1b.
+   - **Not a one-off**: one weird session is an anecdote.
+
+1e. **Spot skill candidates.** Lessons are rules; a skill is a procedure.
    Look for work in this session that a skill would make faster or right
    the first time:
    - A multi-step procedure the agent worked out by trial (commands, order,
@@ -67,27 +88,6 @@ Capture it NOW before the context scrolls away.
    - **More than a rule**: one sentence fits in `lessons.md`; a skill needs
      steps, a script, or a trigger worth matching.
 
-1b. **Enforce before you write.** For each candidate, ask whether a mechanism
-   can make the mistake impossible or make it fail loud. The mechanisms,
-   strongest first:
-   - Architecture: one owner, one way, internals unreachable.
-   - A type.
-   - A lint or CI check whose error names the fix.
-   - A test.
-   - A hook.
-
-   If one can, the lesson is that mechanism. Propose it (or build it when the
-   user asked for fixes) and record only a one-line pointer to it. Text is for
-   judgment calls nothing can check.
-
-1c. **Filter.** Drop a candidate unless it passes all of these:
-   - **Durable**: still true after paths, SHAs, and versions change.
-   - **Decision-changing**: a future agent acts differently because of it.
-   - **Not already covered**: read the target file first. If the rule exists
-     and was skipped, the fix is wording or placement that makes it fire, not
-     a second copy. A rule broken twice despite being written down goes to 1b.
-   - **Not a one-off**: one weird session is an anecdote.
-
 2. **Classify and write to the appropriate locations. There are FIVE levels:**
    - **Project-specific** → project memory `lessons.md`
      Things that only make sense in THIS codebase. Examples: "settings precedence: appAsar overrides userData in data.ts", "@ewsjs/xhr creates agents at xhrApi.ts:144", "use centralized outlookLog logger"
@@ -102,7 +102,7 @@ Capture it NOW before the context scrolls away.
      The lesson is about one of the user's own Claude Code skills (in `~/Github/agent-skills`, symlinked into `~/.claude/skills/`), not about the codebase. Signals: a skill that should have triggered didn't (or triggered wrongly); the agent followed a skill but its instructions were missing a rule/step/edge case this session exposed; a skill's description lacked the phrase the user actually said; a skill's step produced output the user had to correct. Examples: "postmortem skill: add a step to check for an existing Confluence page before drafting", "weekly-digest: 'what did I do this week' wasn't in the trigger list"
      **Test**: Would the fix be an edit to a SKILL.md rather than a note about code/tech? If yes → skill-specific.
    - **New skill** → a proposal (step 5b), built only after approval
-     A candidate from 1d. Scope: one repo → that project's `.claude/skills/`;
+     A candidate from 1e. Scope: one repo → that project's `.claude/skills/`;
      any repo → `~/Github/agent-skills` via `update-skill`.
      **Test**: Is it an ordered procedure that will run again, and does no existing skill own it? If yes → new skill.
 
