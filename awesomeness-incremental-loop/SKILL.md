@@ -2,7 +2,7 @@
 name: awesomeness-incremental-loop
 description: >-
   Runs an improvement loop on a project that has reference material in its
-  docs, on any agent harness, with an automatic hold on stalled cycles. Each cycle is a self-contained run. It reads
+  docs, on any agent harness, and never stops while work is left. Each cycle is a self-contained run. It reads
   its state from a journal and picks the most important gap against the
   references: human priorities first, then quick wins. It builds the smallest
   change that moves that gap's "done when" target. It checks the change with
@@ -10,13 +10,13 @@ description: >-
   later run continues where the last one stopped, and the trail is the live
   report. A row that stays open for
   3 cycles forces a step back: split it, change the approach, ask the critic,
-  or block it. A work cycle without product change pauses dispatch instead of
-  repeating diagnoses. A harsh blind
+  or block it. Two cycles in a row without product change force a new route
+  or another row, never a stop. A harsh blind
   critic runs only at the done gate. Past full
   parity it invents additions behind toggles until a human gives a verdict. The
   session that runs the skill is the orchestrator: it runs each cycle as a
   new subagent and spawns the next one when it ends. When only the human can
-  help, it writes its asks and waits with no agent run. It also holds after a work cycle with no committed product change. The human can stop it at any time. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. Adapted from the gauntlet loop. Triggered by
+  help, it keeps those decisions in a file, works on other rows, and asks them when the human comes back. It waits with no agent run only when no row is left to work on. The human can stop it at any time. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. Adapted from the gauntlet loop. Triggered by
   '/awesomeness-incremental-loop', 'awesomeness loop', 'run the awesome loop',
   'what is next from the references', 'find what is missing versus the
   reference', 'keep improving until I stop you', 'finish this loop cycle and stop', 'finish what is open so we can stop for today'.
@@ -25,7 +25,7 @@ argument-hint: "[optional: focus area] [optional: --no-commit] [optional: --refe
 
 # Awesomeness Incremental Loop
 
-The loop runs one **cycle** at a time. An unmet cycle goal holds the loop.
+The loop runs one **cycle** at a time. It does not stop while a row is left to work on.
 The session that runs the skill is the **orchestrator**. It gives each cycle to a new subagent, and it
 starts the next one when that one ends (`references/drivers.md`). No cycle keeps
 anything in memory, so the
@@ -42,9 +42,14 @@ it organizes the screenshots and metrics so anyone can see where the work is
 and recall what happened. Nobody builds the report as a separate job.
 
 **The human is the brake.** Each cycle starts with a clear goal and a check.
-One failed work goal or one work cycle without committed product change puts
-new cycles on auto-hold. Two review/step-back cycles without product change
-also hold the loop. Inspect the failed route before an explicit resume.
+Two cycles in a row without committed product change, or with an unmet goal,
+raise `NO-PRODUCT`. The next cycle does not repeat that route: it changes the
+product on another row, or steps back on the stalled row. A choice that only
+the human can make goes in the decisions file, and its row goes to `blocked`.
+The loop never stops to wait for a decision. The orchestrator asks the open
+decisions when the human comes back (`references/decisions.md`). The loop
+waits only when no row is left to work on. The human stops it with
+`state.py pause`.
 
 ## Start small, grow when stable
 
@@ -148,10 +153,8 @@ files and the numbers it produced. The form is
    session holds the lock. Exit 4 means paused. On 3 or 4, print the line and
    end the run.
    Each note renews the lock. Before a step that can take more than an hour,
-   write its `try` note first. Run `S brief`. If it says `AUTO-HOLD`, do not
-   start a new cycle. Inspect the last attempts, give the orchestrator a
-   different product-change route or a concrete blocker, and wait for an
-   explicit `S resume`; do not turn this into another review cycle. If it says `IN PROGRESS`,
+   write its `try` note first. Run `S brief`. If it says `NO-PRODUCT`, do
+   not repeat the route of those cycles. If it says `IN PROGRESS`,
    continue that cycle from its last note. Do not repeat a step that has a
    note, and do not retry what it lists under `DO NOT RETRY`.
    The brief's SIGNALS have two parts. Do every line under **DO FIRST** in
@@ -177,7 +180,7 @@ files and the numbers it produced. The form is
    The `why` ties the item to the product focus. The CLI refuses any pick
    without `--target` and `--check`. Work cycles need a product outcome.
    Review and step-back cycles need a concrete decision and its evidence.
-   Both count toward the auto-hold budget. If
+   Both count toward the `NO-PRODUCT` streak. If
    you cannot write one, the item is not worth a cycle: set its row `held`
    with `low value: <reason>` and pick another. The mode is
    `gap` for normal work, or the step that a signal named: `step-back`,
@@ -200,7 +203,7 @@ files and the numbers it produced. The form is
    checks. It does not loosen or rewrite an existing check to fit its own
    output (lesson 26). A sense measures the distance to the reference, not
    the numbers that the current code makes. A sense-only commit does not
-   satisfy the cycle goal or reset auto-hold. Follow it with the product
+   satisfy the cycle goal or reset `NO-PRODUCT`. Follow it with the product
    change in the same cycle or end the cycle as unmet.
 6. **Build** the smallest change that moves the done-when metric. In
    `pr-per-task` mode, build it in the item's own task worktree, never on the
@@ -224,7 +227,7 @@ files and the numbers it produced. The form is
      Commit. Progress is the metric's move toward `Done when`. A cycle that
      leaves that metric the same made no progress, even when every check passes.
      A test or a changed metric without committed product behavior does not
-     reset auto-hold. End and report why the stated cycle objective failed;
+     reset `NO-PRODUCT`. End and report why the stated cycle objective failed;
      do not call the diagnosis a delivered result.
    - Senses fail: fix and check again. Revert a change that made it worse.
      After two failed attempts at the same step, do the step back.

@@ -11,23 +11,29 @@ stops it.
 The session is the **orchestrator**. It does no cycle work itself:
 
 0. Before the first spawn, after each cycle, and after any long gap, run
-   `state.py brief` and read its `LOCK`, `PAUSED`, and `AUTO-HOLD` lines.
-   `LOCK: BUSY` means another live session runs the loop. `PAUSED` or
-   `AUTO-HOLD` means no cycle starts. Tell the human the concrete last outcome
-   and stop dispatching. The guard in `state.py lock` also refuses a new cycle.
-   Before an explicit resume, inspect the last attempts and name a different
-   product-change route; do not reset the budget merely to rerun probes.
+   `state.py brief` and read its `LOCK`, `PAUSED` and `DECISIONS` lines.
+   `LOCK: BUSY` means another live session runs the loop. `PAUSED` means the
+   human stopped it: no cycle starts. Nothing else stops the loop while a row
+   is left to work on. `DECISIONS` counts the open entries in the decisions
+   file. Do not wait for them. Ask them when the human comes back
+   (`references/decisions.md`).
 1. Before a new subagent starts, read the first item under `THIS CYCLE'S ITEM`.
    Choose its row and mode. Write one result this cycle can deliver and one
    real-artifact acceptance check. Run `state.py arm --row "<row>" --mode <mode>
    --target "<result>" --check "<check>"`. For a review or step-back, name
    the decision and its evidence. Do not arm a new diagnostic probe as the
-   goal of a work cycle. If the next result cannot be stated, keep the loop
-   held and report the missing dependency. Then spawn one new subagent. Give it the prompt in `references/fire-prompt.md`,
+   goal of a work cycle. If `NO-PRODUCT` names a row, arm another row, or a
+   step back on that row with a new route. If the next result of a row cannot
+   be stated because only the human can choose, write that choice in the
+   decisions file, and arm another row. Then spawn one new subagent. Give it the prompt in `references/fire-prompt.md`,
    with `{project}` filled. Give it nothing else: its state is on disk.
+   Start it as `general-purpose` with the model from the journal's
+   `Cycle model:` line. If the line is empty, use `sonnet`. A cycle with no
+   model runs on the session model. In one run, that made the cycles more
+   than a third of all spend (lesson 42).
 2. Wait for it to end. Read only its last line, the status line.
 3. Print that status line for the human. Run `state.py brief` again. Spawn the
-   next new subagent only if the loop is neither paused nor on auto-hold.
+   next new subagent unless the loop is paused or waiting.
    When the human says finish this cycle and stop, do
    "Stop for the day" (below).
 
@@ -53,12 +59,13 @@ Rules:
   orchestrator does not run those checks again. It opens the evidence only
   when a status line has no commit or no evidence, or disagrees with the
   journal. The live report shows the same facts.
-- **Auto-hold is a real stop.** A status line that says "nothing left" is not
-  proof of completion, but `AUTO-HOLD` stops new cycles after one work cycle
-  without committed product code, or two review/step-back cycles. A probe, a
-  journal edit or a new metric cannot reset the streak. The failed cycle writes
-  one end note so its evidence survives, but the orchestrator must not start
-  another cycle. Report the unmet goal and the failed route, not completion.
+- **Never stop for a stall or a decision.** `NO-PRODUCT` comes after two
+  cycles in a row without committed product code or with an unmet goal. It
+  does not stop the loop. It changes the next cycle: another row, or a step
+  back with a new route. A probe, a journal edit or a new metric cannot reset
+  the streak. A choice that only the human can make goes in the decisions
+  file, and its row goes to `blocked`. The other rows continue. A status line
+  that says "nothing left" is not proof of completion.
 - **Blocked cycle.** A `blocked` note is not a live job. The cycle sets the
   row to `blocked` and writes its `end` note once. A new cycle skips that
   parked row until a human verdict or new evidence addresses its blocker.

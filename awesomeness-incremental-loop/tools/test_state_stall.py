@@ -1,4 +1,4 @@
-"""Regression checks for the no-product automatic hold."""
+"""Regression checks for the no-product signal, which never stops the loop."""
 
 import contextlib
 import importlib.util
@@ -56,32 +56,40 @@ class StallHoldTest(unittest.TestCase):
                              "progress": "none" if not product else "0 -> 1", "status": "partial -> partial"}])
         (self.root / "trail.jsonl").write_text("".join(json.dumps(e) + "\n" for e in entries))
 
+    def assertLoopContinues(self):
+        """The signal steers the next cycle; arm and lock still start it."""
+        self.arm_goal()
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(state.lock(self.args), 0)
+
     def brief(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             state.brief(self.args)
         return out.getvalue()
 
-    def test_three_nonproduct_cycles_hold_even_when_review_and_step_back_interleave(self):
+    def test_nonproduct_cycles_signal_but_never_stop_when_review_interleaves(self):
         self.write_cycles([(93, "gap", False), (94, "review", False)])
-        self.assertIn("AUTO-HOLD:", self.brief())
+        text = self.brief()
+        self.assertIn("NO-PRODUCT:", text)
+        self.assertNotIn("No new cycle starts", text)
+        self.assertLoopContinues()
         with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(state.lock(self.args), 4)
-            self.assertEqual(state.note(self.args), 4)
-        self.assertFalse((self.root / "lock").exists())
-        self.assertEqual(len((self.root / "trail.jsonl").read_text().splitlines()), 4)
+            self.assertEqual(state.note(self.args), 0)
+        self.assertEqual(len((self.root / "trail.jsonl").read_text().splitlines()), 5)
 
     def test_committed_tree_probe_is_not_a_product_change(self):
-        self.write_cycles([(93, "gap", False)])
+        self.write_cycles([(93, "gap", False), (94, "gap", False)])
         trail = state.read_trail(str(self.root))
         trail[0]["target"] = "Branches yield to both actors"
-        trail[1]["commit"] = "823e6f1"
-        trail[1]["progress"] = "0/3 -> 3/3 blocked rays"
+        for i in (1, 3):
+            trail[i]["commit"] = "823e6f1"
+            trail[i]["progress"] = "0/3 -> 3/3 blocked rays"
         (self.root / "trail.jsonl").write_text("".join(json.dumps(e) + "\n" for e in trail))
         original = state.commit_files
         try:
             state.commit_files = lambda project, sha: ["godot/src/tools/tree_collision_probe.gd"]
-            self.assertIn("AUTO-HOLD:", self.brief())
+            self.assertIn("NO-PRODUCT:", self.brief())
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(state.lock(self.args), 4)
         finally:
@@ -94,25 +102,28 @@ class StallHoldTest(unittest.TestCase):
         journal = self.project / "docs/awesomeness-loop.md"
         journal.write_text(JOURNAL + "\n## Senses\n| Sense | How to call it |\n| --- | --- |\n"
                            "| Actor contact | godot/src/tools/actor_contact_sensor.gd |\n")
-        self.write_cycles([(93, "gap", False)])
+        self.write_cycles([(93, "gap", False), (94, "gap", False)])
         trail = state.read_trail(str(self.root))
-        trail[1]["commit"] = "sensor-only"
+        trail[1]["commit"] = trail[3]["commit"] = "sensor-only"
         (self.root / "trail.jsonl").write_text("".join(json.dumps(e) + "\n" for e in trail))
         original = state.commit_files
         try:
             state.commit_files = lambda project, sha: ["godot/src/tools/actor_contact_sensor.gd"]
-            self.assertIn("AUTO-HOLD:", self.brief())
+            self.assertIn("NO-PRODUCT:", self.brief())
         finally:
             state.commit_files = original
 
-    def test_one_diagnostic_work_cycle_stops_dispatch_even_when_metric_claims_progress(self):
+    def test_one_diagnostic_work_cycle_does_not_signal(self):
         self.write_cycles([(93, "gap", False)])
+        self.assertNotIn("NO-PRODUCT:", self.brief())
+
+    def test_two_nonproduct_work_cycles_signal_even_when_metric_claims_progress(self):
+        self.write_cycles([(93, "gap", False), (94, "gap", False)])
         trail = state.read_trail(str(self.root))
         trail[-1]["progress"] = "0 verified branch routes -> 1 verified branch route"
         (self.root / "trail.jsonl").write_text("".join(json.dumps(e) + "\n" for e in trail))
-        self.assertIn("AUTO-HOLD:", self.brief())
-        with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(state.lock(self.args), 4)
+        self.assertIn("NO-PRODUCT:", self.brief())
+        self.assertLoopContinues()
 
     def test_intervening_product_commit_counts_even_if_end_notes_only_docs_commit(self):
         self.write_cycles([(101, "gap", False), (102, "gap", False)])
@@ -125,7 +136,7 @@ class StallHoldTest(unittest.TestCase):
         try:
             state.commit_files = lambda project, sha: ["docs/awesomeness-loop.md"]
             state.commit_range_files = lambda project, before, after: ["godot/src/map/private_scene_adapter.gd"]
-            self.assertNotIn("AUTO-HOLD:", self.brief())
+            self.assertNotIn("NO-PRODUCT:", self.brief())
         finally:
             state.commit_files = original_files
             state.commit_range_files = original_range
@@ -140,18 +151,18 @@ class StallHoldTest(unittest.TestCase):
             trail = state.read_trail(str(self.root))
             trail.insert(3, {"cycle": 94, "row": "Branch sound", "kind": "commit", "commit": "product"})
             (self.root / "trail.jsonl").write_text("".join(json.dumps(e) + "\n" for e in trail))
-            self.assertNotIn("AUTO-HOLD:", self.brief())
+            self.assertNotIn("NO-PRODUCT:", self.brief())
         finally:
             state.commit_files = original
 
-    def test_explicit_resume_grants_one_new_budget_without_erasing_history(self):
+    def test_explicit_resume_clears_the_signal_without_erasing_history(self):
         self.write_cycles([(93, "gap", False), (94, "review", False)])
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(state.pause(self.args, False), 0)
-        self.assertNotIn("AUTO-HOLD:", self.brief())
+        self.assertNotIn("NO-PRODUCT:", self.brief())
         self.write_cycles([(93, "gap", False), (94, "review", False),
                            (96, "gap", False), (97, "review", False)])
-        self.assertIn("AUTO-HOLD:", self.brief())
+        self.assertIn("NO-PRODUCT:", self.brief())
 
     def test_new_work_requires_a_measurable_product_objective_before_pick(self):
         self.args.target = None
@@ -181,7 +192,7 @@ class StallHoldTest(unittest.TestCase):
             self.assertEqual(state.note(self.args), 0)
         self.assertEqual(state.read_trail(str(self.root))[0]["target"], self.args.target)
 
-    def test_unmet_armed_goal_holds_even_with_product_commit(self):
+    def test_two_unmet_armed_goals_signal_even_with_product_commit(self):
         self.arm_goal()
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(state.note(self.args), 0)
@@ -193,7 +204,14 @@ class StallHoldTest(unittest.TestCase):
         original = state.commit_files
         try:
             state.commit_files = lambda project, sha: ["godot/src/game/tree_branch_bend.gd"]
-            self.assertIn("AUTO-HOLD:", self.brief())
+            self.assertNotIn("NO-PRODUCT:", self.brief())
+            with (self.root / "trail.jsonl").open("a") as fh:
+                for e in ({"cycle": 2, "row": "Branch sound", "kind": "pick", "mode": "gap"},
+                          {"cycle": 2, "row": "Branch sound", "kind": "commit", "commit": "product"},
+                          {"cycle": 2, "row": "Branch sound", "kind": "end", "status": "partial -> partial",
+                           "progress": "none", "achieved": "no"}):
+                    fh.write(json.dumps(e) + "\n")
+            self.assertIn("NO-PRODUCT:", self.brief())
         finally:
             state.commit_files = original
 
@@ -234,7 +252,7 @@ class StallHoldTest(unittest.TestCase):
             self.assertEqual(state.arm(self.args), 0)
             self.assertEqual(state.note(self.args), 0)
 
-    def test_open_cycle_can_finish_before_hold(self):
+    def test_open_cycle_can_finish_after_signal(self):
         self.write_cycles([(93, "gap", False), (94, "review", False)])
         with (self.root / "trail.jsonl").open("a") as fh:
             fh.write(json.dumps({"cycle": 96, "row": "Branch sound", "kind": "pick"}) + "\n")

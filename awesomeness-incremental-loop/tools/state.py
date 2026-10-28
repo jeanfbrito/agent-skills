@@ -51,7 +51,7 @@ QUEUED = {"queued"}
 CLOSED = {"matches", "exceeds"}
 PARKED = {"blocked", "held"}
 STALL_CYCLES = 3
-LOAD_MAX = 10  # 1-minute load at or above which a timing is not valid (lesson 39)
+LOAD_MAX = 10  # 1-minute load at or above which a timing row also needs a load-independent target (lesson 39)
 LOG_ROW_MAX = 300
 LOG_ROWS_MAX = 30
 JOURNAL_MAX = 40_000
@@ -65,7 +65,7 @@ ROTATION = ["coverage", "unblock", "beyond"]  # the steps of the exhausted proce
 NO_CODE_CYCLES = 3
 VERDICT_CAP = 5  # inventions that wait for a verdict before beyond mode stops adding more
 IDLE_CYCLES = 6  # unproductive cycles before a human-blocked or exhausted loop waits
-AUTO_HOLD_CYCLES = 2  # one diagnosis cycle may precede a change; reviews and step-backs count
+AUTO_HOLD_CYCLES = 2  # one diagnosis cycle may precede a change; any mode counts. A signal, never a stop.
 AGENT_NAMES = ("grok", "claude", "codex")
 # Files that do not change the product: docs, the journal, tests and probes, loop data.
 NOT_PRODUCT = re.compile(r"(^|/)(docs|tests?|spec|__tests__|\.localdev)/|\.md$|\.(spec|test)\.[a-z]+$|_test\.[a-z]+$|(^|/)probe|(^|/)tools/[^/]*_probe\.[a-z]+$", re.I)
@@ -347,9 +347,7 @@ def auto_hold_state(project, root, trail, sense):
     except (OSError, ValueError, TypeError, AttributeError):
         resume_after = 0
     run = auto_hold_run(project, trail, sense, resume_after)
-    cycles = cycles_of(trail)
-    failed_work = any(cycle_mode(cycles[n]) in NEEDS_WHY for n in run)
-    return run if failed_work or len(run) >= AUTO_HOLD_CYCLES else []
+    return run if len(run) >= AUTO_HOLD_CYCLES else []
 
 
 def idle_run(project, trail, sense):
@@ -502,12 +500,7 @@ def brief(a):
     trail = read_trail(root)
     oc = open_cycle(trail)
     hold = auto_hold_state(a.project, root, trail, sense_paths(a.project, senses)) if not oc else []
-    if hold:
-        out.append(f"AUTO-HOLD: cycles {min(hold)}-{max(hold)} ({len(hold)}) committed no product change. "
-                   "One work cycle without a product change, or two review/step-back cycles, exhausts the budget. "
-                   "No new cycle starts. Inspect the failed goal and give a different product-change route "
-                   "before an explicit state.py resume.")
-    if not oc and not hold and not os.path.exists(os.path.join(root, "PAUSE")):
+    if not oc and not os.path.exists(os.path.join(root, "PAUSE")):
         goal = armed_goal(root, trail)
         out.append(f"ARMED: cycle {goal['cycle']} on '{goal['row']}' targets {goal['target']}; check: {goal['check']}"
                    if goal else "UNARMED: define --row, --target and --check with state.py arm before a new cycle.")
@@ -647,23 +640,21 @@ def brief(a):
         if any(e.get("kind") == "end" for e in notes_):
             since_review += 1
     idle = idle_run(a.project, trail, sense_paths(a.project, senses)) if gap else []
-    blocked_human_rows = {norm(r.get("Item", "")) for r in parked if status_of(r) == "blocked"}
-    latest_blockers = {}
-    for e in trail:
-        if e.get("kind") == "blocked" and norm(e.get("row", "")) in blocked_human_rows:
-            latest_blockers[norm(e.get("row", ""))] = e
-    human_blocked = any(e.get("blocker") == "human" or
-                        (not e.get("blocker") and re.search(r"\bhuman\b", e.get("text", ""), re.I))
-                        for e in latest_blockers.values())
-    if human_blocked and work:
-        ends = {e.get("cycle"): e for e in trail if e.get("kind") == "end"}
-        idle = idle[:next((i for i, n in enumerate(idle) if moved(ends.get(n, {}).get("progress"))), len(idle))]
-    if len(idle) >= IDLE_CYCLES and (human_blocked or (not work and not queued)):
+    # A row that waits on the human never stops the loop while another row is open (decisions wait in their file).
+    if len(idle) >= IDLE_CYCLES and not work and not queued:
         items.append(f"WAITING: cycles {min(idle)}-{max(idle)} ({len(idle)}) changed no product file "
-                     "and a human-blocked row cannot advance, or no row is open. Stop repeating stalled work, even if other rows are open. "
+                     "and no row is open. "
                      "This cycle builds nothing and does no review: write at most 5 verdicts and asks for the human, "
                      "most useful first, in the journal's 'Waiting on you' section (pick --mode waiting). "
                      "Commit it, and end with --status waiting. The orchestrator then runs `state.py wait` (references/drivers.md).")
+    if hold:
+        rows = sorted({cyc_row for n_ in hold for cyc_row in [next((e.get("row") for e in cycles_of(trail)[n_]
+                                                                    if e.get("kind") == "pick"), "")] if cyc_row})
+        items.append(f"NO-PRODUCT: cycles {min(hold)}-{max(hold)} ({len(hold)}) committed no product change "
+                     f"(rows: {', '.join(r[:40] for r in rows) or '?'}). Do not repeat that route. This cycle changes "
+                     "the product on another open row, or steps back on the stalled row: split it, change the "
+                     "approach, or set it blocked and write the choice in the decisions file. Never stop the loop "
+                     "for a decision: the orchestrator asks it when the human comes back.")
     if since_review >= REVIEW_EVERY:
         items.append(f"REVIEW-DUE: {since_review} cycles since the last sense-check review. This cycle is the review "
                      "(pick --mode review). Follow references/review-prompt.md.")
@@ -746,10 +737,6 @@ def note(a):
             print(f"REFUSED: cycle {oc[0]} on '{oc[1]}' is still open. Continue it, or close it with "
                   f"`note end --status abandoned --progress none` and say why.")
             return 2
-        if current_auto_hold(a):
-            print("AUTO-HOLD: a new cycle is refused after a work cycle without product change or two review cycles. "
-                  "Inspect the trail and resume explicitly with a product-change route.")
-            return 4
         goal = armed_goal(root, trail)
         if not goal and (a.mode or "gap") == "gap":
             jpath = os.path.join(a.project, a.journal)
@@ -824,8 +811,8 @@ def note(a):
         except OSError:
             pass
     if kind == "predict" and isinstance(metrics.get("load1"), float) and metrics["load1"] >= LOAD_MAX:
-        print(f"LOAD {metrics['load1']} (>= {LOAD_MAX}): a timing measured now is not valid. For a cost row, use a "
-              f"count or a gate that the load does not change, and keep the timing target for a quiet window.")
+        print(f"LOAD {metrics['load1']} (>= {LOAD_MAX}): the timing counts: record the load next to it and do "
+              f"not wait for a quiet window. Also give the cost row a count or a gate that the load does not change.")
     files =[os.path.abspath(os.path.join(a.project, f)) for f in (a.file or [])]
     entry = {"t": time.strftime("%Y-%m-%dT%H:%M:%S"), "cycle": cycle, "row": row, "kind": kind}
     commit = a.commit
@@ -902,8 +889,8 @@ def arm(a):
     if open_cycle(trail) or os.path.exists(os.path.join(root, "lock")):
         print("REFUSED: finish the current cycle before arming another goal.")
         return 2
-    if current_auto_hold(a) or os.path.exists(os.path.join(root, "PAUSE")):
-        print("REFUSED: loop is held or paused. Inspect the failed goal before an explicit resume.")
+    if os.path.exists(os.path.join(root, "PAUSE")):
+        print("REFUSED: the human paused the loop.")
         return 4
     if a.mode and a.mode not in MODES:
         print(f"REFUSED: --mode is one of {', '.join(MODES)}.")
@@ -919,16 +906,6 @@ def arm(a):
     return 0
 
 
-def current_auto_hold(a):
-    root = os.path.join(a.project, a.root)
-    jpath = os.path.join(a.project, a.journal)
-    if not os.path.isfile(jpath):
-        return []
-    with open(jpath, encoding="utf-8") as fh:
-        senses = find(md_tables(fh.read()), "Senses") or []
-    return auto_hold_state(a.project, root, read_trail(root), sense_paths(a.project, senses))
-
-
 def lock(a):
     root = os.path.join(a.project, a.root)
     os.makedirs(root, exist_ok=True)
@@ -937,10 +914,6 @@ def lock(a):
         return 4
     trail = read_trail(root)
     if not open_cycle(trail):
-        if current_auto_hold(a):
-            print("AUTO-HOLD: no new cycle starts after a work cycle without product change. "
-                  "Inspect the trail and resume explicitly with a different route.")
-            return 4
         if not armed_goal(root, trail):
             print("UNARMED: set a goal and a check with state.py arm before a new cycle.")
             return 4

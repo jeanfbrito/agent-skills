@@ -83,8 +83,8 @@ class BlockedCycleTest(unittest.TestCase):
         entries = state.read_trail(str(self.root))
         self.assertEqual(entries[-1]["blocker"], "human")
 
-    def test_six_idle_cycles_wait_even_with_open_rows_after_human_block(self):
-        """Catches cycling reviews and blocked rows when an unrelated row is still open."""
+    def test_human_block_does_not_wait_while_another_row_is_open(self):
+        """Catches stopping the loop for a decision while an unrelated row still has work."""
         entries = []
         for n in range(68, 74):
             row = "Ground footsteps" if n == 73 else "Door routing"
@@ -96,8 +96,8 @@ class BlockedCycleTest(unittest.TestCase):
                             "status": "blocked -> blocked" if n == 73 else "partial -> partial",
                             "progress": "none"})
         text = self.brief(entries)
-        self.assertIn("WAITING:", text)
-        self.assertLess(text.index("WAITING:"), text.index("REVIEW-DUE:"))
+        self.assertNotIn("WAITING:", text)
+        self.assertIn("STALL:", text)
 
     def test_parked_row_cannot_be_picked_again_as_normal_work(self):
         """Catches picking the same blocked listening row after its cycle ended."""

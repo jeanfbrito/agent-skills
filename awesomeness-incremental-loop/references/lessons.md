@@ -269,3 +269,30 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
     - Mechanism: `END-BLOCKED-CYCLE` closes a stranded cycle, `note pick`
       rejects a parked gap row, and `WAITING` checks the last human blocker
       and the idle run. The loop tests reproduce these states.
+42. **The cycles ran on the session model.**
+    - Sign: the orchestrator started each cycle with no role and no model, so
+      each cycle ran on Opus, the model of the session. In 14 days, 608 cycles
+      were 37% of all local spend at list prices (`role-spend.py --top`).
+      Cycles from the same skill also ran as `claude` in one project and as
+      `general-purpose` in another.
+    - Rule: start each cycle as `general-purpose` with the model from the
+      journal's `Cycle model:` line, `sonnet` by default. Use `opus` for a
+      project only when sonnet cycles keep raising `NO-PRODUCT`.
+    - Mechanism: the orchestrator step in `references/drivers.md` names the
+      role and the model, and the journal template has the `Cycle model:`
+      line.
+43. **The loop stopped while work was left.**
+    - Sign: since 2026-10-27, the loop stopped overnight after one cycle.
+      `AUTO-HOLD` refused every new cycle after one work cycle without a
+      product change, until an explicit resume. `WAITING` also stopped the
+      loop when one row waited on the human, "even if other rows are open".
+    - Rule: the loop never stops while a row is left to work on. A stall
+      changes the next cycle: another row, or a step back with a new route.
+      A choice that only the human can make goes in the decisions file. The
+      orchestrator asks it when the human comes back. The loop waits only
+      when no row is open.
+    - Mechanism: `NO-PRODUCT` is a brief signal, and `lock`, `arm` and `pick`
+      do not refuse a cycle for it. `WAITING` needs no open row.
+      `test_nonproduct_cycles_signal_but_never_stop_when_review_interleaves`
+      and `test_human_block_does_not_wait_while_another_row_is_open` fail on
+      the old rules.
