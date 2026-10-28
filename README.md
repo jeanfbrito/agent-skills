@@ -39,7 +39,7 @@ procedure.
 
 | Skill | What it does | Notes |
 | --- | --- | --- |
-| [learn](learn/SKILL.md) | Saves lessons from a session into `lessons.md` files, or into the skill that missed them. | |
+| [learn](learn/SKILL.md) | Saves lessons from a session into `lessons.md` files or into the skill that missed them, and proposes new skills for repeated work. | |
 | [update-skill](update-skill/SKILL.md) | Creates or updates a skill in this repo with the repo's conventions (frontmatter, absolute paths, README, symlink). | |
 | [skill-checkup](skill-checkup/SKILL.md) | Grades the skills against recent session history and drafts `SKILL.md` edits. | Local HTML report. |
 | [awesomeness-incremental-loop](awesomeness-incremental-loop/SKILL.md) | Runs a reference-based improvement loop with a product objective per cycle. It never stops while work is left: it keeps decisions for the human and asks them when the human comes back. | Never pushes. Guides in `references/` and `senses/`. |

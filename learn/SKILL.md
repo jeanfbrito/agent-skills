@@ -1,6 +1,6 @@
 ---
 name: learn
-description: Capture durable lessons from the current session into project and global lessons.md files, or feed skill-specific lessons back into the skill itself. Use when the user types /learn, says "remember this", "capture this lesson", "add this to lessons", "write this down so we don't repeat it", "the skill should have caught this", "add this to the X skill", or "the X skill missed this" — and proactively offer it after any session where the agent was corrected repeatedly, burned multiple attempts on the same problem, discovered a non-obvious behavior worth keeping, or a skill fired wrong (or should have fired and didn't).
+description: Capture durable lessons from the current session into project and global lessons.md files, feed skill-specific lessons back into the skill itself, and spot new skills that would help with the work (repeated procedures, ad-hoc scripts, recipes outgrowing lessons.md). Use when the user types /learn, says "remember this", "capture this lesson", "add this to lessons", "write this down so we don't repeat it", "the skill should have caught this", "add this to the X skill", "the X skill missed this", "should this be a skill", "what skills could help here", or "suggest skills" — and proactively offer it after any session where the agent was corrected repeatedly, burned multiple attempts on the same problem, discovered a non-obvious behavior worth keeping, worked out a multi-step procedure it will need again, or a skill fired wrong (or should have fired and didn't).
 ---
 
 # /learn — Capture Knowledge
@@ -41,6 +41,31 @@ Capture it NOW before the context scrolls away.
    - Context the user pasted that a connected tool could have fetched (a Jira
      key, a Rocket.Chat thread, a PR, a log). The lesson goes to the skill
      that owns that workflow: fetch it next time
+   - Work that no skill covered but will come back (see 1d)
+
+1d. **Spot skill candidates.** Lessons are rules; a skill is a procedure.
+   Look for work in this session that a skill would make faster or right
+   the first time:
+   - A multi-step procedure the agent worked out by trial (commands, order,
+     checks) and will need again on the next ticket, repo, or release.
+   - Instructions the user had to spell out step by step, or has given in
+     earlier sessions (grep `lessons.md`, project memory, and handoffs).
+   - An ad-hoc script or command chain that does a reusable job.
+   - A `lessons.md` section that has grown into an ordered recipe: move it
+     into a skill and leave a one-line pointer.
+   - A connected tool or MCP used by hand each time with the same pattern.
+
+   Keep a candidate only if it passes all of these:
+   - **Repeats**: seen at least twice (this session plus one earlier piece of
+     evidence). For one session alone, propose it as "watch" and do not
+     build it. For cross-session evidence, offer `session-mining` ("skill
+     candidates from repeated work").
+   - **Not already covered**: check the installed skill list, plugin skills,
+     and (for Rocket.Chat work) the rocketchat-skills catalog. If a skill
+     covers it but did not fire or missed a step, it is skill feedback
+     (level 4), not a new skill.
+   - **More than a rule**: one sentence fits in `lessons.md`; a skill needs
+     steps, a script, or a trigger worth matching.
 
 1b. **Enforce before you write.** For each candidate, ask whether a mechanism
    can make the mistake impossible or make it fail loud. The mechanisms,
@@ -63,7 +88,7 @@ Capture it NOW before the context scrolls away.
      a second copy. A rule broken twice despite being written down goes to 1b.
    - **Not a one-off**: one weird session is an anecdote.
 
-2. **Classify and write to the appropriate locations. There are FOUR levels:**
+2. **Classify and write to the appropriate locations. There are FIVE levels:**
    - **Project-specific** → project memory `lessons.md`
      Things that only make sense in THIS codebase. Examples: "settings precedence: appAsar overrides userData in data.ts", "@ewsjs/xhr creates agents at xhrApi.ts:144", "use centralized outlookLog logger"
      **Test**: Would this help someone working on a DIFFERENT project with the same tech stack? If no → project.
@@ -76,6 +101,10 @@ Capture it NOW before the context scrolls away.
    - **Skill-specific** → the skill's own `SKILL.md`, via `update-skill`, NOT a lessons.md
      The lesson is about one of the user's own Claude Code skills (in `~/Github/agent-skills`, symlinked into `~/.claude/skills/`), not about the codebase. Signals: a skill that should have triggered didn't (or triggered wrongly); the agent followed a skill but its instructions were missing a rule/step/edge case this session exposed; a skill's description lacked the phrase the user actually said; a skill's step produced output the user had to correct. Examples: "postmortem skill: add a step to check for an existing Confluence page before drafting", "weekly-digest: 'what did I do this week' wasn't in the trigger list"
      **Test**: Would the fix be an edit to a SKILL.md rather than a note about code/tech? If yes → skill-specific.
+   - **New skill** → a proposal (step 5b), built only after approval
+     A candidate from 1d. Scope: one repo → that project's `.claude/skills/`;
+     any repo → `~/Github/agent-skills` via `update-skill`.
+     **Test**: Is it an ordered procedure that will run again, and does no existing skill own it? If yes → new skill.
 
 3. **For struggles/bugs — use this structure in project `lessons.md`:**
    ```
@@ -110,6 +139,21 @@ Capture it NOW before the context scrolls away.
    fall back to a general-engineering rule in `~/.claude/lessons.md`
    noting the workaround, since those files aren't ours to edit.
 
+5b. **For new-skill candidates — propose, do not build.** Show each one:
+   ```
+   ## Skill candidate: <kebab-name>  (build | watch)
+   **Evidence**: where it happened — this session + earlier occurrence
+   **Description**: draft frontmatter line — what, when, trigger phrases
+   **Steps**: 3–7 line outline; scripts it would ship
+   **Location**: project .claude/skills/ | ~/Github/agent-skills
+   **Replaces**: lessons.md entries or manual steps it absorbs
+   ```
+   On approval, build it with `update-skill` (agent-skills) or write the
+   project skill directly, reusing the commands and scripts that worked in
+   this session. A "watch" candidate goes to project `lessons.md` as
+   `- **Skill candidate: <name>.** <one line>` so the next /learn can count
+   the second occurrence. Never commit.
+
 6. **For global `~/.claude/lessons.md`:**
    Add a concise rule under the appropriate section (create if needed):
    ```
@@ -120,7 +164,8 @@ Capture it NOW before the context scrolls away.
 
 8. **Update project MEMORY.md** if the learning changes how the project should be approached.
 
-9. **Report** to the user: what was learned, where it was saved.
+9. **Report** to the user: what was learned, where it was saved, and the
+   skill candidates (build / watch), or "no skill candidates" in one line.
 
 ## Rules
 - Be honest about mistakes — don't euphemize
@@ -130,4 +175,5 @@ Capture it NOW before the context scrolls away.
 - Keep entries concise (under 10 lines each)
 - For struggles: estimate cost (user corrections x ~2min, or count failed attempts)
 - Skill lessons go into the skill, not lessons.md — a rule the agent only reads when it remembers to is weaker than a rule inside the skill that triggers
+- A procedure that repeats belongs in a skill, not in a long lessons.md entry — but one session is not a pattern
 </content>
