@@ -12,7 +12,7 @@ procedure.
 | Skill | What it does | Notes |
 | --- | --- | --- |
 | [commit](commit/SKILL.md) | Groups related changes into separate commits, each with its own message. | |
-| [pr-description](pr-description/SKILL.md) | Drafts a PR title and body in the house style (Summary, What changed, Verification with real numbers) from the diff and the checks that ran. | Draft-first. Uses `shared/tone.md`. |
+| [pr-description](pr-description/SKILL.md) | Drafts a PR title and body in the house style (Summary, What changed, Verification with real numbers) from the diff and the checks that ran. A large feature PR lists its decisions to validate before the code. | Draft-first. Uses `shared/tone.md`. |
 | [babysit](babysit/SKILL.md) | Works on an open PR until every check is green. A watch script polls checks and review bots. The model triages each batch, fixes and pushes. It stops when a human reviewer comments. | Runs in its own worktree. Optional `local-config.yml`. |
 | [pr-triage](pr-triage/SKILL.md) | Weekly triage of the repo's open PRs: what blocks your own PRs, review drafts for third-party PRs, duplicate checks for bot PRs. | Draft-first. Keeps head SHAs in `local-state.json`. |
 | [branch-triage](branch-triage/SKILL.md) | Sorts a remote's branches into merged and open, and deletes merged ones after you confirm the list. | |

@@ -1,6 +1,6 @@
 ---
 name: pr-description
-description: Drafts a pull request title and body in the house style used on Rocket.Chat.Electron — prose Summary (or Problem and Cause), a What changed list with bold lead-ins, optional Behaviour change / Known limitations / Out of scope, and a Verification or Test plan with real numbers — from the branch diff, its commits and the verification actually run, then opens or edits the PR only after the user approves the exact text. Triggered by '/pr-description', 'write the PR description', 'draft the PR body', 'open a PR', 'make the PR', 'faça o PR', 'update the PR description'.
+description: Drafts a pull request title and body in the house style used on Rocket.Chat.Electron — prose Summary (or Problem and Cause), a What changed list with bold lead-ins, optional Behaviour change / Known limitations / Out of scope, and a Verification or Test plan with real numbers, and for a large feature PR a Decisions to validate section and a review guide — from the branch diff, its commits and the verification actually run, then opens or edits the PR only after the user approves the exact text. Triggered by '/pr-description', 'write the PR description', 'draft the PR body', 'open a PR', 'make the PR', 'faça o PR', 'update the PR description'.
 ---
 
 # PR description
@@ -31,6 +31,14 @@ Do not draft from memory of the session alone.
 - **Evidence:** test, lint, type-check and build output from this session,
   with the actual counts. Also every live or manual check, its platform and
   what it showed, and what was not run.
+- **Size and decisions:** sum `git diff --numstat <base>...HEAD` without
+  lockfiles and build output. Past about 1000 changed lines or 40 files, the
+  PR is a large feature PR (§3). Then find its decisions: a design record
+  (`docs/awesomeness-loop-design-record.md` from the loop, or the design
+  doc's decision list) and a split plan. With no split plan, tell the user
+  before the draft and propose a stack by layer
+  (`~/Github/agent-skills/awesomeness-incremental-loop/references/shipping.md`,
+  "Split plan"). The user decides whether to split.
 
 ## 2. Title
 
@@ -48,6 +56,7 @@ Do not draft from memory of the session alone.
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Bug fix                    | `## Summary` (or `## Problem` + `## Cause` when the root cause needs its own space) → `## What changed` → `## Verification` |
 | Feature / behaviour change | `## Summary` → `## What changed` → `## Behaviour change` (only if users notice) → `## Test plan`                            |
+| Large feature (§1 size)    | `## Summary` → `## Decisions to validate` → `## Review guide` → `## What changed` → `## Test plan`                          |
 | CI, infra, performance     | `## Why` → `## Result` (measured numbers) → `## What changed` → `## Validation` → `## Out of scope`                         |
 | Cleanup / removal          | `## Summary` → `## Deleted` or `## Changes` → `## Skipped` / `## Out of scope` → `## Test plan`                             |
 | Version bump, one-line fix | No headings. One or two sentences.                                                                                          |
@@ -68,6 +77,20 @@ is not optional when §1 found a related issue or PR.
   "web-side half", "touches the same preload").
 - A mention notifies the other thread. That is the point: the people on the
   source issue or PR learn that the change exists.
+
+### Decisions to validate / Review guide (large feature PRs)
+
+- **Decisions to validate** comes before the code, because reviewers agree
+  on the decisions first. Group them by the reviewers who must agree
+  (security, server, product, infra). One line each: the choice, the main
+  alternative, and fixed or configurable (setting and default). Write
+  "proposed" until a reviewer validates it, never "decided".
+- Rewrite each decision in public words. The design record can hold ticket
+  keys, internal links and customer context, and none of it goes here.
+- **Review guide** gives the reading order by layer (contract, storage,
+  logic, UI), with the main paths. It also gives the PR's place in the split
+  plan: "PR 2 of 4, after #N". When the PR stays whole past the size limit, say why in
+  one sentence.
 
 ### Summary / Problem / Why
 
