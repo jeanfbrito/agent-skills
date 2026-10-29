@@ -16,6 +16,7 @@ Keep the data root in a gitignored folder. Default: `.localdev/awesomeness/`.
     metrics.json            the digest numbers of this run
     *.png, *.json           images and their sidecar records
   critic/<round-id>.json    one file per critic round
+  commit-files.json         the paths of each trail commit, cached by state.py (a commit never changes)
   report/index.html         made by tools/report.py
   report/report-data.json   made by tools/report.py
 ```
@@ -94,5 +95,7 @@ The sidecar `<image>.json` holds the same object as its line.
 ## `report-data.json`
 
 `tools/report.py` writes it. It holds the gap rows from the journal, and for
-each row its captures, metrics, events and critic verdicts in time order. The
+each row its captures, metrics, events and critic verdicts in time order. It also holds
+the design record entries (`design_record`) and the commits that a cycle
+acknowledged as no new decision (`decision_acks`). The
 agent searches this file to recall history. It does not read the HTML.

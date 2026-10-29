@@ -296,3 +296,31 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
       `test_nonproduct_cycles_signal_but_never_stop_when_review_interleaves`
       and `test_human_block_does_not_wait_while_another_row_is_open` fail on
       the old rules.
+
+## Handover (2026-10-29, a cross-repo security feature)
+
+44. **A working POC read as a skipped validation.**
+    - Sign: a 171-cycle run built a POC across two repos. The decisions were
+      in a long design doc and in two PRs of 16533 and 23198 changed lines.
+      A reviewer liked the result and asked to go back to the decisions
+      before anyone reads the PRs. The plan was always POC first, then
+      validation, but nothing showed the decisions as a short list.
+    - Rule: each choice that a reviewer could make differently is a record,
+      with its options, evidence, fixed or configurable, and who must
+      validate it. The handover starts with those records. A branch past the
+      PR size limit gets a split plan before the handover.
+    - Mechanism: `UNRECORDED-DECISION`, `RECORD-INCOMPLETE` and `PR-SPLIT`
+      in `state.py brief`, and `RECORD-NOW` after `note commit`. On a copy
+      of that run's trail, with both repos in `Other repos`, the brief
+      listed 47 contract commits with no record. It also listed five
+      branches of 9511 to 17818 changed lines with no plan.
+      `test_state_decisions.py` fails on the old code (18 of 26 tests).
+    - The check refuses three empty gestures. The first is an ack with a
+      vague reason or many shas. The others are a copied template record,
+      and a plan that names a 16000-line branch as PR 1.
+    - The real PR branches of that run were rebuilt from the loop work, not
+      cherry-picked. Only 4 of 75 desktop commits and 3 of 18 core commits
+      had a patch id in the trail. File overlap also matched about 60 other
+      branches. No signal in git finds such a branch, so the check sizes
+      each branch that the PR plan names. On that run, the plan rows found
+      the two `feat/` branches: 23067 and 5326 changed lines.

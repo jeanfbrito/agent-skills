@@ -56,7 +56,7 @@ waits only when no row is left to work on. The human stops it with
 Every dimension starts at its smallest useful size. It grows one step only
 when the current step is stable: its checks pass on two runs in a row, and no
 new invariant breaks. Small is about scope. Small is not a reason to keep an
-approach that cannot reach the reference (see "Step back").
+approach that cannot reach the reference (`references/signals.md`, "Step back").
 
 | Dimension | Start | Grow to |
 | --- | --- | --- |
@@ -79,8 +79,10 @@ Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 | `references/fire-prompt.md` | The fixed prompt that each cycle subagent gets |
 | `references/review-prompt.md` | The sense-check review every 3 cycles: is the loop making the project better for its users? |
 | `references/checks.md`, `critic-brief.md` | The check ladder and the blind critic |
+| `references/signals.md` | What a `STALL`, `EXHAUSTED` or `WAITING` cycle does |
 | `references/decisions.md` | The decisions file: what the human must decide, asked when the human comes back |
-| `references/shipping.md` | Shipping modes: one loop branch, or one worktree and PR for each task |
+| `references/design-record.md` | The design record: every choice the loop made, for reviewers to validate at the handover |
+| `references/shipping.md` | Shipping modes (one loop branch, or one worktree and PR for each task), and the split plan for PRs too big to review |
 | `references/gap-matrix.md` | Sources, coverage, `Done when`, statuses |
 | `references/lessons.md` | Traps from past runs |
 | `references/labs.md`, `beyond.md`, `report.md`, `schemas.md` | Labs, toggles, report, data formats |
@@ -109,6 +111,9 @@ the files that the loop changed.
    each open row a `Done when`.
 4. **Senses**: list the project's own capture, test, gate and analysis tools
    before you build any. Write them in the Senses table. Run each one once.
+   Fill the "Contract surfaces" table with the paths where a change decides
+   something that other people depend on (`references/design-record.md`).
+   List any other repo that the loop will commit to in Setup, `Other repos:`.
 5. **Git**: on the default branch, create `awesomeness/<YYYY-MM-DD>`. Add the
    data root `.localdev/awesomeness/` to `.gitignore`. Add
    `docs/awesomeness-loop*.md` to the ignore file of each formatter that the
@@ -125,7 +130,7 @@ the files that the loop changed.
    entries, the orchestrator asks them first (`references/decisions.md`). For
    each cycle, it spawns one new subagent with the cycle prompt in
    `references/fire-prompt.md`, reads the status line that comes back, and
-   spawns the next one. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. When the human asks for a report, or stops the loop after a milestone, write the feature report and the process retrospective from `references/final-reports.md`, as two separate documents. The orchestrator does no cycle work itself, so its
+   spawns the next one. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. When the human asks for a report, or stops the loop after a milestone, write the feature report and the process retrospective from `references/final-reports.md`, as two separate documents. The feature report starts with the decisions to validate. The orchestrator does no cycle work itself, so its
    context stays small. Each subagent starts new and reads its state from
    the trail, so no cycle carries the history of the cycles before it.
    A journal line, a memory or an old note that says to start `drive.sh` or a
@@ -144,7 +149,8 @@ Each step names its note. Write the note right after the step, with the
 files and the numbers it produced. The form is
 `S note <kind> "<what>" [--file <capture>] [--metric name=value]`. Kinds:
 `pick`, `predict`, `try`, `see`, `keep`, `revert`, `commit`, `step-back`,
-`blocked`, `end`, and `ack` (a reviewed sense drift).
+`blocked`, `end`, and `ack` (a reviewed sense drift, or a contract commit
+that decides nothing new).
 
 1. **Lock and read.** The orchestrator sets this cycle's goal with `S arm`
    before it starts the subagent. Run `S lock`. It knows your agent session.
@@ -160,7 +166,8 @@ files and the numbers it produced. The form is
    The brief's SIGNALS have two parts. Do every line under **DO FIRST** in
    this cycle, before the item: they are small chores (`APPLY` verdicts and
    answers, `MISMATCH`, `NO-DONE-WHEN`, `QUEUED-NO-PROGRESS`, `SENSE-DRIFT`,
-   `JOURNAL-LONG`, `STALE-DRIVER`, `DISK-LOW`). A chore marked `OVERDUE` was
+   `UNRECORDED-DECISION`, `RECORD-INCOMPLETE`, `PR-SPLIT`, `JOURNAL-LONG`,
+   `STALE-DRIVER`, `DISK-LOW`). A chore marked `OVERDUE` was
    skipped in an earlier cycle. For a verdict: `keep` sets the toggle default
    ON, `kill` deletes it and its toggle, `tweak: <note>` queues it. If
    `END-BLOCKED-CYCLE` appears, do not check the same evidence again: end the
@@ -236,7 +243,12 @@ files and the numbers it produced. The form is
      "<before> -> blocked" --progress none`. Do not leave a picked cycle open
      while waiting.
    Write a status change in the gap matrix when you decide it, not later.
-   When the step needs a human choice (an `ask`, a decision-type
+   A change can pick between options that a reviewer could choose
+   differently, or change a contract surface. Then write or update its entry in
+   `docs/awesomeness-loop-design-record.md` in the same commit
+   (`references/design-record.md`). `S note commit` prints `RECORD-NOW`
+   when you missed one. The entry stays `proposed` until a
+   reviewer validates it. When the step needs a human choice (an `ask`, a decision-type
    `assumption`, a toggle verdict), write it also as an entry in
    `docs/awesomeness-loop-decisions.md` (`references/decisions.md`).
 9. **End the cycle.** Run the predeclared check. Record `--achieved yes` only
@@ -270,74 +282,17 @@ Take the first rule that gives an item:
 **Anti-lazy rule:** after 3 quick wins in a row, the next item comes from rule
 2, 4, 6 or 8.
 
-## Step back (signal `STALL`)
+## Signal cycles
 
-A row can stay open for 3 cycles, or for 2 cycles in a row with no progress.
-Then the row is too big, or its approach is wrong. More cycles of the same kind
-will not close it. This cycle does no build. It does this:
+`STALL`, `EXHAUSTED` and `WAITING` replace the normal item. Each brief line
+names its section in `references/signals.md`:
 
-1. Read the row's `Done when`, its trail notes, its commits, and
-   `references/lessons.md`.
-2. Write the one sentence that every cycle on this row assumed. Test it. Ask:
-   can this approach reach `Done when` at all? Does it drive the cause, or
-   does it pose the output?
-3. Choose one result and write it in the journal:
-   - **Split**: replace the row with smaller rows that can each close in 1–2
-     cycles. Give each one its own `Done when`.
-   - **Change the approach**: write the new approach and why the old one
-     cannot reach the target. You can make a structural change here. Do it in
-     a lab when the project is busy.
-   - **Ask the critic**: for a `quality bar` row, run one direction round on
-     the current state (`references/critic-brief.md`).
-   - **Block**: no path remains. Set `blocked` with the root constraint.
-4. Note it: the cycle pick needs `--target "choose a different route or block this row"`
-   and `--check "test the premise against the trail and source"`. Record
-   `S note step-back "<result and why>"`. Commit the journal, and
-   end the cycle. The step-back note resets the row's cycle count.
-
-## When no row is open (signal `EXHAUSTED`)
-
-`EXHAUSTED` means that no row is open or queued, and some rows are `blocked`
-or `held` (the human froze them). Do not stop the loop. The three steps take
-turns, one round each, and the brief names the next one. A round is one
-cycle, and the work it opens is done before the next `EXHAUSTED`.
-
-1. **Coverage**: compare the matrix with the reference, area by area. Add a
-   row for each area with no row. A row names something that a user sees or
-   does (a mode, a screen, a mechanic, a behavior, a look). It is not a
-   constant, a byte or one value of a parameter: put those in the `Done when`
-   of the row they belong to.
-2. **Unblock**: take the oldest `blocked` row. Attack its premise, or send it
-   to an auditor. A new path sets the row back to `partial`. With no
-   `blocked` row (only `held`), the brief skips this step.
-3. **Beyond mode**: invent (`references/beyond.md`).
-
-## When only the human can help (signal `WAITING`)
-
-`WAITING` applies after six cycles with no product change, in one of two
-cases. In the first case, no row is open or queued. In the second case, a
-row waits for a human verdict, and no cycle in the run made measured
-progress on another row.
-In the second case, open rows do not keep the loop running. A product change
-or measured progress resets the count. This cycle
-does not build and does not review. It does this:
-
-1. Read the empty cells in "Pending verdicts" and "Assumptions and asks", and
-   the `Next priorities` in `Direction`.
-2. Write at most 5 items in the journal's `Waiting on you` section, the most
-   useful first. Each one names what the human gives (a `keep`, a reference
-   frame, a decision) and what a user then sees. Write each decision also as
-   an entry in `docs/awesomeness-loop-decisions.md`
-   (`references/decisions.md`).
-3. Commit the journal. `S note end --status waiting --progress none --next
-   "<the first item>"`.
-
-The orchestrator then runs `S wait`, which uses no agent. It returns when the
-human changes the journal, the code or the ledger cards. If the human gave a
-verdict in chat, record it in the journal first. Set its blocked row back to
-`partial` only when the verdict addresses the blocker. The next cycle can then
-pick that row. A `waiting` end resets the count, so a wake gets 6 more cycles
-before the loop waits again. Waiting is not a stop: the human is still the brake.
+- `STALL` (step back): a row stays open too long. Do no build. Split the
+  row, change the approach, ask the critic, or block it.
+- `EXHAUSTED`: no row is open. Coverage, unblock and beyond mode take turns.
+  Do not stop the loop.
+- `WAITING`: only the human can help. Write at most 5 asks, end the cycle
+  with `--status waiting`, and the orchestrator runs `S wait`.
 
 ## Critic gate and beyond mode
 

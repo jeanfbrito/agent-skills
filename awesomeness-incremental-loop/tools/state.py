@@ -21,6 +21,7 @@ Usage:
   state.py arm --row ROW --mode MODE --target "<goal>" --check "<acceptance check>"
       # Define the next cycle goal before a subagent starts.
       ack --drift <sha> "<why the check change is right>" clears a SENSE-DRIFT
+      ack --decision <sha[,sha]> "no new decision: <why>" clears an UNRECORDED-DECISION
   state.py lock    [--project DIR] [--owner NAME] [--stale-min 90]
       # The same agent session takes its own lock back (after a compaction).
       # A lock whose session has ended is taken over. Only another live session gets BUSY (exit 3).
@@ -44,7 +45,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from report import md_setup, md_tables  # noqa: E402  (one parser for both tools)
+from report import design_records, md_setup, md_tables, validators  # noqa: E402  (one parser for both tools)
 
 WORK = {"missing", "partial", "below", "unknown", "lab-only", ""}
 QUEUED = {"queued"}
@@ -70,6 +71,30 @@ AGENT_NAMES = ("grok", "claude", "codex")
 # Files that do not change the product: docs, the journal, tests and probes, loop data.
 NOT_PRODUCT = re.compile(r"(^|/)(docs|tests?|spec|__tests__|\.localdev)/|\.md$|\.(spec|test)\.[a-z]+$|_test\.[a-z]+$|(^|/)probe|(^|/)tools/[^/]*_probe\.[a-z]+$", re.I)
 IMAGE = re.compile(r"\.(png|jpe?g|webp|gif)$", re.I)
+DESIGN_RECORD = "awesomeness-loop-design-record.md"
+RECORD_FIELDS = ("Question", "Options", "Choice", "Why", "Evidence", "Kind", "Validate with")
+PLACEHOLDERS = {"", "-", "?", "...", "tbd", "todo", "n/a", "na", "none", "fixed | configurable"}
+RECORD_STATUSES = ("proposed", "validated", "changed", "reverted")
+# Words in a path where a change usually decides something that other people depend on: an API, a bridge, a
+# stored format, a setting, a key. The journal's "Contract surfaces" table adds globs, and `!glob` removes paths.
+CONTRACT_WORDS = {"api", "apis", "rest", "route", "routes", "endpoint", "endpoints", "ipc", "preload", "bridge",
+                  "protocol", "proto", "graphql", "gql", "openapi", "swagger", "schema", "schemas", "migration",
+                  "migrations", "storage", "database", "setting", "settings", "config", "types", "typings",
+                  "crypto", "cipher", "encrypt", "encryption", "key", "keys", "keychain", "secret", "secrets",
+                  "auth", "permission", "permissions", "security", "store", "stores", "persist", "persistence",
+                  "cache", "db", "limit", "limits", "quota", "lifecycle"}
+UI_FILE = re.compile(r"\.(tsx|jsx|vue|svelte)$")  # only the file name counts for a UI component
+NAME_ONLY_WORDS = {"store", "stores", "cache"}  # these count in a file name, not in a folder name
+CONTRACT_FILES = re.compile(r"(^|/)package\.json$")  # a dependency is a decision too
+# Build and editor config: words such as `config` or `settings` in these paths decide nothing for users.
+NOT_CONTRACT = re.compile(r"(^|/)\.vscode/|(^|/)\.idea/|(^|/)[^/]+\.config\.[a-z]+$", re.I)
+ACK_PREFIX, ACK_MIN_WHY, ACK_MAX = "no new decision:", 15, 5  # an ack names its reason and covers a few commits only
+PR_LINES, PR_FILES = 1000, 40  # past either one, a reviewer cannot agree with the whole PR at once
+RECENT_COMMITS = 10  # trail commits that find the branches a PR will come from
+# Files that do not count toward a PR's size: lockfiles, build output, snapshots, the loop's own docs.
+GENERATED = re.compile(r"(^|/)(yarn\.lock|package-lock\.json|pnpm-lock\.yaml|Cargo\.lock|go\.sum|poetry\.lock"
+                       r"|Gemfile\.lock)$|(^|/)(dist|build|vendor)/|\.(snap|min\.js|min\.css|map)$"
+                       r"|(^|/)docs/awesomeness-loop", re.I)
 # A line that asserts or compares: an expectation, an assert, a limit, a miss count.
 CHECK_LINE = re.compile(r"expect\(|assert|\.to[A-Z]\w*\(|\bcheck\w*\(|_fail\(|violation|miss|[<>]=?\s*-?\d")
 
@@ -248,6 +273,276 @@ def commit_range_files(project, before, after):
     except (OSError, subprocess.SubprocessError):
         return None
     return r.stdout.splitlines() if r.returncode == 0 else None
+
+
+def git(repo, *args, timeout=30):
+    try:
+        r = subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout if r.returncode == 0 else None
+
+
+def repos_of(project, setup):
+    """The project, then each repo that the journal's Setup names in `Other repos:` (a loop can commit to more than one)."""
+    out = [project]
+    cell = setup.get("Other repos", "")
+    paths = re.findall(r"`([^`]+)`", cell) or [re.sub(r"\(.*?\)", "", p) for p in cell.split(",")]
+    for p in paths:
+        p = p.strip()
+        if p and p.lower() not in ("none", "-"):
+            p = os.path.abspath(os.path.join(project, os.path.expanduser(p)))
+            if os.path.isdir(p) and p not in out:
+                out.append(p)
+    return out
+
+
+def default_branches(setup):
+    """{"": the project's base, "<repo folder>": its base} from Setup `Default branch: dev, core: develop`."""
+    out = {}
+    for part in re.sub(r"`", "", setup.get("Default branch", "")).split(","):
+        name, sep, branch = part.partition(":")
+        if not sep:
+            name, branch = "", name
+        if branch.strip() and branch.strip().lower() not in ("none", "-"):
+            out[os.path.basename(name.strip().rstrip("/"))] = branch.strip()
+    return out
+
+
+def commit_index(repos, root, shas):
+    """{sha: [repo, subject, files]} for each sha that one of the repos knows. A commit never changes, so a cache keeps it."""
+    path = os.path.join(root, "commit-files.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            cache = json.load(fh)
+    except (OSError, ValueError):
+        cache = {}
+    if not isinstance(cache, dict):
+        cache = {}
+    missing = [s for s in shas if s not in cache]
+    for repo in repos:
+        if not missing:
+            break
+        # -m lists the files of a merge commit too (once per parent). Unknown, blob and tree ids are skipped, not fatal.
+        out = git(repo, "log", "--no-walk", "--ignore-missing", "-m", "--name-only", "--format=@%H %s", *missing, timeout=60)
+        cur = None
+        for line in (out or "").splitlines():
+            if line.startswith("@"):
+                full, _, subject = line[1:].partition(" ")
+                short_ = next((s for s in missing if full.startswith(s)), None)
+                cur = cache.setdefault(short_, [repo, subject, []]) if short_ else None
+            elif line.strip() and cur is not None and line.strip() not in cur[2]:
+                cur[2].append(line.strip())
+        missing = [s for s in missing if s not in cache]  # unknown here: a later repo, or a sha that a fetch brings later
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(cache, fh)
+    except OSError:
+        pass
+    return {s: cache[s] for s in shas if s in cache}
+
+
+def surface_matcher(rows):
+    """A test for contract-surface paths: the default words and files, plus the globs of the journal's Contract surfaces table."""
+    import fnmatch
+    add, drop = [], []
+    for r in rows:
+        for g in re.split(r"[,\s]+", re.sub(r"`", "", r.get("Pattern", ""))):
+            if g:
+                (drop if g.startswith("!") else add).append(g.lstrip("!"))
+
+    def match(path):
+        if any(fnmatch.fnmatchcase(path, g) for g in add):
+            return True
+        if NOT_PRODUCT.search(path) or NOT_CONTRACT.search(path) or any(fnmatch.fnmatchcase(path, g) for g in drop):
+            return False
+        split = lambda s: {w.lower() for w in re.findall(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+", s)}  # keyStore -> key, store
+        folder, name = os.path.split(path)
+        # A screen in a settings or security folder only shows a choice. A `store/` folder is often app state.
+        words = split(name) | (set() if UI_FILE.search(name) else split(folder) - NAME_ONLY_WORDS)
+        return path.endswith(".d.ts") or bool(CONTRACT_FILES.search(path)) or bool(words & CONTRACT_WORDS)
+    return match
+
+
+def default_ref(repo, preferred=""):
+    """The branch a PR targets: the journal's `Default branch:`, then the remote HEAD, then the usual names."""
+    head = (git(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD") or "").strip()
+    names = [f"origin/{preferred}", preferred] if preferred else []
+    for name in (*names, head, "origin/main", "origin/master", "main", "master"):
+        if name and git(repo, "rev-parse", "--verify", "--quiet", name + "^{commit}") is not None:
+            return name
+    return None
+
+
+def pr_sizes(repos, setup, index, recent, planned=None):
+    """[(repo, branch, base, files, lines)] for each branch that holds recent loop commits not yet in its base,
+    and for each branch that the PR plan names. A slice rebuilt by cherry-picks has other shas, so only the plan finds it."""
+    by_repo = {repo: [] for repo in repos}
+    for sha in recent:
+        if sha in index:
+            by_repo.setdefault(index[sha][0], []).append(sha)
+    bases = default_branches(setup)
+    folders = {os.path.basename(r) for r in by_repo}
+    out = []
+    for repo, shas in by_repo.items():
+        base = default_ref(repo, bases.get("" if repo == repos[0] else os.path.basename(repo), ""))
+        if not base:
+            continue
+        shas = [s for s in shas if git(repo, "merge-base", "--is-ancestor", s, base) is None]  # merged work needs no plan
+        refs = (git(repo, "for-each-ref", "--format=%(refname:short)", *[f"--contains={s}" for s in shas],
+                    "refs/heads/") or "").split() if shas else []
+        for name, cells in (planned or {}).items():
+            if cells & folders and os.path.basename(repo) not in cells:
+                continue  # the plan's Repo column names another repo folder
+            # A local branch, or the pushed one when no local copy exists.
+            ref = next((r for r in (name, f"origin/{name}")
+                        if git(repo, "rev-parse", "--verify", "--quiet", r + "^{commit}") is not None), None)
+            if ref and ref not in refs and name not in refs:
+                refs.append(ref)
+        base_name = base.split("/", 1)[1] if base.startswith("origin/") else base
+        for branch in refs:
+            name = branch[len("origin/"):] if branch.startswith("origin/") else branch
+            if name == base_name or re.match(r"(main|master|dev|develop|trunk)$|release/", name):
+                continue
+            mb = (git(repo, "merge-base", base, branch) or "").strip()
+            if not mb:
+                continue
+            files = lines = 0
+            for row in (git(repo, "diff", "--numstat", mb, branch, timeout=60) or "").splitlines():
+                parts = row.split("\t")
+                if len(parts) != 3 or GENERATED.search(parts[2]):
+                    continue
+                files += 1
+                if parts[0] != "-":
+                    lines += int(parts[0]) + int(parts[1])
+            if files:
+                out.append((repo, name, base, files, lines))
+    return out
+
+
+def placeholder(value):
+    """True when a record field still holds a template value: `<...>`, `a | b`, TBD, a dash."""
+    bare = re.sub(r"`[^`]*`", "", value or "").strip()
+    return not bare or bool(re.search(r"<[^<>]{2,}>", bare)) or bare.lower().strip(" .") in PLACEHOLDERS
+
+
+def record_problems(records):
+    """['R2: Options, Evidence', ...] for each record that a reviewer cannot validate as written."""
+    out, seen = [], {}
+    for rec in records:
+        rid = rec.get("id", "?")
+        seen[rid] = seen.get(rid, 0) + 1
+        miss = [f for f in RECORD_FIELDS if f != "Options" and placeholder(rec.get(f))]
+        if not re.fullmatch(r"R\d+", rid):
+            miss.append("heading is `### R<n> · <title> · <status>`")
+        options = rec.get("Options") or ""
+        items = re.findall(r"(?m)^\s*(?:\d+[.)]|[-*])\s+\S", options) or [o for o in options.split(" | ") if o.strip()]
+        if placeholder(options) or len(items) < 2:
+            miss.append("Options lists 2 or more")
+        elif "**" not in options:
+            miss.append("Options marks the chosen one in bold")
+        question = rec.get("Question") or ""
+        if question and not placeholder(question) and "?" not in question:
+            miss.append("Question ends with ?")
+        kind = rec.get("Kind") or ""
+        if kind and not placeholder(kind):
+            if "|" in kind or not re.match(r"(fixed|configurable)\b", kind, re.I):
+                miss.append("Kind is fixed or configurable")
+            elif kind.lower().startswith("configurable") and "default" not in kind.lower():
+                miss.append("Kind names the setting and its default")
+        if rec.get("status") not in RECORD_STATUSES:
+            miss.append(f"status is {'|'.join(RECORD_STATUSES)}")
+        if rec.get("status") in ("validated", "changed") and placeholder(rec.get("Validation")):
+            miss.append("Validation (who, when)")
+        if miss:
+            out.append(f"{rid}: {', '.join(miss)}")
+    out += [f"{rid}: the number is used {n} times" for rid, n in seen.items() if n > 1]
+    return out
+
+
+def unrecorded(a, tables, trail, records, rpath, index, shas):
+    """[(sha, subject, contract paths)] for each commit that changes a contract surface with no record and no ack."""
+    surface = surface_matcher(find(tables, "Contract surfaces") or [])
+    record_file = os.path.relpath(rpath, a.project)
+    covered = set()
+    for rec in records:
+        covered |= {s.lower() for s in re.findall(r"\b[0-9a-f]{7,40}\b", rec.get("Commits", ""), re.I)}
+    for e in trail:
+        if e.get("kind") == "ack" and e.get("decision"):
+            covered |= {s for s in str(e["decision"]).lower().split(",") if re.fullmatch(r"[0-9a-f]{7,40}", s)}
+    out = []
+    for sha in shas:
+        if sha not in index or any(sha.startswith(c) or c.startswith(sha) for c in covered):
+            continue
+        repo, subject, files = index[sha]
+        if repo == a.project and record_file in files:  # the record was written in the same commit
+            continue
+        hits = [f for f in files if surface(f)]
+        if hits:
+            out.append((sha, subject, hits))
+    return out
+
+
+def design_chores(a, root, text, tables, setup, trail, records, rpath):
+    """DO FIRST chores that keep every loop decision reviewable: unrecorded contract commits, incomplete records, PRs too big to review."""
+    chores = []
+    repos = repos_of(a.project, setup)
+    shas = list(dict.fromkeys(str(e["commit"]).strip().lower() for e in trail if e.get("commit")))
+    shas = [s for s in shas if re.fullmatch(r"[0-9a-f]{7,40}", s)]  # one bad value would fail the whole git call
+    index = commit_index(repos, root, shas)
+    todo = unrecorded(a, tables, trail, records, rpath, index, shas)
+    if todo:
+        rel = os.path.relpath(rpath, a.project)
+        where = f"Add them to {rel}" if records or os.path.isfile(rpath) else f"{rel} does not exist. Create it"
+        listed = "; ".join(f"{s[:9]} '{subj[:40]}' ({os.path.basename(h[0])}{f', +{len(h) - 1}' if len(h) > 1 else ''})"
+                           for s, subj, h in todo[:4])
+        empty = "" if find(tables, "Contract surfaces") else (
+            " The journal's Contract surfaces table is empty: add this project's own decision files to it.")
+        # Keyed by the oldest commit: a cycle that records the listed ones is not OVERDUE for the commits after them.
+        chores.append((f"UNRECORDED-DECISION:{todo[0][0]}", f"UNRECORDED-DECISION: {len(todo)} loop commit(s) change a "
+                       f"contract surface and no design record lists them. Oldest first: {listed}. {where} "
+                       "(references/design-record.md) for at least these in this cycle: one record for each decision, "
+                       "with the question, two or more options, the choice and why, the evidence, fixed or configurable, "
+                       "and who must validate it. Put the commits in its Commits line. For a commit that decides nothing "
+                       f"new: note ack --decision <sha> \"no new decision: <why>\".{empty}"))
+    problems = record_problems(records)
+    if problems:
+        chores.append((f"RECORD-INCOMPLETE:{problems[0].split(':')[0]}", f"RECORD-INCOMPLETE: {len(problems)} design "
+                       f"record(s) cannot be validated as written ({'; '.join(problems[:4])}). Fill them from the trail "
+                       "and the commits. Write `guess` as the evidence when nothing measured it."))
+    limit = re.sub(r"(?<=\d)[,_](?=\d{3})", "", setup.get("PR size limit", ""))  # 1,500 lines is 1500
+    max_lines = int((re.search(r"(\d+)\s*lines?", limit) or [0, PR_LINES])[1])
+    max_files = int((re.search(r"(\d+)\s*files?", limit) or [0, PR_FILES])[1])
+    plan = section(text, "PR plan")
+    plan_rows = find(tables, "PR plan") or []
+    big, slices = {}, []
+    planned = {}
+    for r in plan_rows:
+        for b in re.findall(r"`([^`\s]+)`", str(r.get("Branch", ""))):
+            planned.setdefault(b, set()).add(re.sub(r"`", "", str(r.get("Repo", ""))).strip())
+    for repo, branch, base, files, lines in pr_sizes(repos, setup, index, shas[::-1][:RECENT_COMMITS], planned):
+        if lines <= max_lines and files <= max_files:
+            continue
+        named = re.compile(rf"(?<![\w/.-]){re.escape(branch)}(?![\w/.-])")
+        row = next((r for r in plan_rows if any(named.search(str(v)) for v in r.values())), None)
+        if row is None and not named.search(plan):
+            big.setdefault((os.path.basename(repo), base), []).append((lines, files, branch))
+        elif row is not None and re.match(r"\s*\d", str(next(iter(row.values()), ""))) and \
+                not any("whole:" in str(v).lower() for v in row.values()):
+            slices.append(f"{os.path.basename(repo)} '{branch}' {lines} lines in {files} files")
+    for (name, base), rows in big.items():
+        rows.sort(reverse=True)
+        listed = "; ".join(f"'{b}' {n} lines in {f} files" for n, f, b in rows[:3])
+        more = f" (+{len(rows) - 3} more)" if len(rows) > 3 else ""
+        chores.append((f"PR-SPLIT:{name}", f"PR-SPLIT: {name} has loop work too big to review as one PR, against {base} "
+                       f"(limit {max_lines} lines or {max_files} files): {listed}{more}. The journal's PR plan names none of "
+                       "them. Write the PR plan (references/shipping.md, Split plan): the design record first, then a stack "
+                       "of PRs by layer, each under the limit, in merge order. Name each branch above in the plan, with its role."))
+    if slices:
+        chores.append(("PR-SPLIT:slices", f"PR-SPLIT: {len(slices)} numbered PR slice(s) in the PR plan are past the limit "
+                       f"({max_lines} lines or {max_files} files): {'; '.join(slices[:3])}. Split each one, or write "
+                       "`whole: <why>` in its row (references/shipping.md, Split plan)."))
+    return chores
 
 
 def cycles_of(trail):
@@ -586,6 +881,22 @@ def brief(a):
                            f"({'; '.join(unapplied[:3])}). Apply each. When an answer picks one option over another, "
                            "add a check that passes on the chosen option and fails on the rejected one. "
                            "Then fill its Applied line with the commit and the check."))
+    rpath = os.path.join(a.project, os.path.dirname(a.journal), DESIGN_RECORD)
+    records = load_records(rpath)
+    if records:
+        states = {}
+        for rec in records:
+            states[rec.get("status") or "?"] = states.get(rec.get("status") or "?", 0) + 1
+        groups = {}
+        for rec in records:
+            if rec.get("status") == "proposed":
+                for g in validators(rec):
+                    groups[g] = groups.get(g, 0) + 1
+        conf = sum(1 for rec in records if rec.get("Kind", "").lower().startswith("configurable"))
+        out.append(f"DESIGN RECORD: {len(records)} decision(s) ({', '.join(f'{n} {s}' for s, n in states.items())}; "
+                   f"{conf} configurable). Proposed, by validator: "
+                   f"{', '.join(f'{g} {n}' for g, n in sorted(groups.items(), key=lambda x: -x[1])) or 'none'}.")
+    chores += design_chores(a, root, text, tables, setup, trail, records, rpath)
     blocked_names = {norm(r.get("Item", "")) for r in blocked_tbl}
     for r in gap:
         if norm(r.get("Item", "")) in blocked_names and status_of(r) not in PARKED:
@@ -646,7 +957,8 @@ def brief(a):
                      "and no row is open. "
                      "This cycle builds nothing and does no review: write at most 5 verdicts and asks for the human, "
                      "most useful first, in the journal's 'Waiting on you' section (pick --mode waiting). "
-                     "Commit it, and end with --status waiting. The orchestrator then runs `state.py wait` (references/drivers.md).")
+                     "Commit it, and end with --status waiting. The orchestrator then runs `state.py wait` "
+                     "(references/signals.md, WAITING).")
     if hold:
         rows = sorted({cyc_row for n_ in hold for cyc_row in [next((e.get("row") for e in cycles_of(trail)[n_]
                                                                     if e.get("kind") == "pick"), "")] if cyc_row})
@@ -663,7 +975,8 @@ def brief(a):
         n, no_prog = counts.get(name, (0, 0))
         if n >= STALL_CYCLES or no_prog >= 2:
             why = f"{n} cycles since its last step-back" if n >= STALL_CYCLES else f"{no_prog} cycles in a row with no progress"
-            items.append(f"STALL: '{r.get('Item', '')[:60]}' has {why}. This cycle is the step back (pick --mode step-back).")
+            items.append(f"STALL: '{r.get('Item', '')[:60]}' has {why}. This cycle is the step back "
+                         "(pick --mode step-back; references/signals.md, Step back).")
     run = no_code_run(a.project, trail, sense_paths(a.project, senses))
     if len(run) >= NO_CODE_CYCLES:
         items.append(f"NO-CODE: cycles {', '.join(str(c) for c in sorted(run))} changed no product file and closed no row. This cycle "
@@ -679,7 +992,8 @@ def brief(a):
         if full:
             why += f"; beyond is skipped: {len(unjudged)} toggles wait for a verdict, the cap is {VERDICT_CAP}"
         items.append(f"EXHAUSTED: no open rows ({len(parked)} parked). Next step: {step.upper()} ({why}). "
-                     f"Pick with --mode {step}. Each step gets one round, in turn: coverage, unblock, beyond. Do not stop the loop.")
+                     f"Pick with --mode {step}. Each step gets one round, in turn: coverage, unblock, beyond "
+                     "(references/signals.md, EXHAUSTED). Do not stop the loop.")
 
     # A chore that shows up in a second cycle is overdue. Track it by cycle number, not by brief call.
     cur = oc[0] if oc else max([e.get("cycle", 0) for e in trail] or [0]) + 1
@@ -780,9 +1094,23 @@ def note(a):
         cycle = max([e.get("cycle", 0) for e in trail] or [0]) + 1
         row = a.row
     elif kind == "ack":
-        if not a.drift or not text:
-            print('REFUSED: ack needs --drift <sha> and the reason, for example: note ack --drift 13caac5 "the spec now adds stone"')
+        decision = getattr(a, "decision", None)
+        if not (a.drift or decision) or not text:
+            print('REFUSED: ack needs --drift <sha> or --decision <sha[,sha]>, and the reason, for example: '
+                  'note ack --drift 13caac5 "the spec now adds stone", or '
+                  'note ack --decision 9f2c1e0 "no new decision: moves the setting key, same default"')
             return 2
+        if decision:
+            shas = [s.strip().lower() for s in decision.split(",")]
+            if not all(re.fullmatch(r"[0-9a-f]{7,40}", s) for s in shas) or len(shas) > ACK_MAX:
+                print(f"REFUSED: --decision takes 1 to {ACK_MAX} commit shas (7 to 40 hex characters), comma-separated. "
+                      "Acknowledge the commits that the brief lists, one reason each group.")
+                return 2
+            why = text[len(ACK_PREFIX):].strip() if text.lower().startswith(ACK_PREFIX) else ""
+            if len(why) < ACK_MIN_WHY:
+                print(f'REFUSED: the reason starts with "{ACK_PREFIX}" and says in {ACK_MIN_WHY} or more characters why the '
+                      'commit changes no contract, for example: "no new decision: moves the setting key, same default".')
+                return 2
         cycle = oc[0] if oc else max([e.get("cycle", 0) for e in trail] or [0])
         row = oc[1] if oc else ""
     else:
@@ -825,6 +1153,8 @@ def note(a):
                  ("check", getattr(a, "check", None) if kind == "pick" else None),
                  ("blocker", a.blocker if kind == "blocked" else None),
                  ("drift", a.drift.strip().lower() if kind == "ack" and a.drift else None),
+                 ("decision", ",".join(s.strip().lower() for s in a.decision.split(","))
+                  if kind == "ack" and getattr(a, "decision", None) else None),
                  ("status", a.status), ("progress", a.progress), ("next", a.next),
                  ("achieved", getattr(a, "achieved", None) if kind == "end" else None)):
         if v:
@@ -848,7 +1178,37 @@ def note(a):
     except Exception as exc:  # the note is written; a report failure must not lose it
         where = f"report not rebuilt ({exc.__class__.__name__}: {exc})"
     print(f"noted {kind} in cycle {cycle} ('{row}'). report: {where}")
+    if kind == "commit" and re.fullmatch(r"[0-9a-f]{7,40}", str(commit or "").strip().lower()):
+        advice = record_now(a, root, trail + [entry], str(commit).strip().lower())
+        if advice:
+            print(advice)
     return 0
+
+
+def load_records(rpath):
+    if not os.path.isfile(rpath):
+        return []
+    with open(rpath, encoding="utf-8") as fh:
+        return design_records(fh.read())
+
+
+def record_now(a, root, trail, sha):
+    """One line after a commit note: does this commit decide something with no record? The cycle that decided knows why."""
+    jpath = os.path.join(a.project, a.journal)
+    try:
+        with open(jpath, encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError:
+        return ""
+    tables, setup = md_tables(text), md_setup(text)
+    rpath = os.path.join(a.project, os.path.dirname(a.journal), DESIGN_RECORD)
+    index = commit_index(repos_of(a.project, setup), root, [sha])
+    todo = unrecorded(a, tables, trail, load_records(rpath), rpath, index, [sha])
+    if not todo:
+        return ""
+    return (f"RECORD-NOW: {sha[:9]} changes a contract surface ({', '.join(todo[0][2][:3])}) and no design record lists it. "
+            f"You made this choice: write its record now, with the options you weighed "
+            f"({os.path.relpath(rpath, a.project)}, references/design-record.md), or ack it if it decides nothing new.")
 
 
 def lock_status(root, stale_min):
@@ -1051,6 +1411,7 @@ def main():
     ap.add_argument("--check", help="for a pick: the real-artifact acceptance check")
     ap.add_argument("--achieved", choices=["yes", "no"], help="for end: whether the armed goal passed its check")
     ap.add_argument("--drift", help="for ack: the commit whose check change you reviewed")
+    ap.add_argument("--decision", help="for ack: commit(s), comma-separated, that touch a contract surface and decide nothing new")
     ap.add_argument("--blocker", choices=["human"], help="for blocked: only a human verdict can unblock this row")
     ap.add_argument("--project", default=".")
     ap.add_argument("--journal", default="docs/awesomeness-loop.md")

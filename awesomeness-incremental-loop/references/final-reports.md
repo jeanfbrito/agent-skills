@@ -4,7 +4,7 @@ The live HTML report (`references/report.md`) is a filing system for the loop's
 own evidence. Other people need two different documents. Write them when the
 human asks for a report, or when the human stops the loop after a milestone.
 Write each one with the orchestrator, from the trail, the journal, the
-decisions file, git and the tickets. Do not write them from memory.
+design record, the decisions file, git and the tickets. Do not write them from memory.
 
 | Report | Reader | Question it answers | Life |
 | --- | --- | --- | --- |
@@ -32,12 +32,27 @@ from the feature report's appendix. Do not merge them.
   disagree. Fix those or name them in the report.
 - Publish as a document the human can share (a Docs artifact or the team's
   doc tool). It stays private until the human shares it.
+- A design record entry with status `proposed` is a proposal. Write
+  "proposed" or "the POC uses", never "decided", until the reviewers validate
+  it. The work is a proposal that runs, not a closed design.
 
 ## Template 1: the feature report
 
 Title: the feature's name ("E2EE Local Search on Desktop"). Byline: date and
 author.
 
+0. **Decisions to validate.** This section comes first, because reviewers
+   validate the decisions before they read the code. Build it from the design
+   record (`references/design-record.md`). Run `state.py brief` first: an
+   `UNRECORDED-DECISION` or `RECORD-INCOMPLETE` chore means the list is not
+   complete yet.
+   - One bold sentence: how many decisions wait, and for which groups.
+   - One table per `Validate with` group: decision, the POC's choice, the
+     main alternative, fixed or configurable, status. Put the fixed choices
+     first, because they cost the most to change later.
+   - For a configurable choice, ask only for the default. Name the setting.
+   - Link each row to its section in "Technical decisions".
+   - End with the ask: who should join each group, and by when.
 1. **The feature for users.** One bold sentence on what users can now do.
    - The problem today: what the user sees or lacks without it.
    - What the user can do: a short list of abilities.
@@ -49,11 +64,14 @@ author.
 2. **How it works.** One diagram of the components and the data flow, each box
    with the few lines that say what it does. Highlight the one box that holds
    the critical asset. One paragraph under it.
-3. **Technical decisions.** A summary table first: decision, choice, status
-   (decided and built, decided for now, open). Then one section per decision:
-   - the question;
-   - an options table: option, for, against, with the chosen one in bold;
-   - the choice, who made it and when, and the evidence;
+3. **Technical decisions.** One section per design record entry, in the
+   order of section 0. The status comes from the record: proposed, validated,
+   changed or reverted. Each section has:
+   - the question
+   - an options table: option, for, against, with the chosen one in bold
+   - the choice, who made it and when (loop cycle or human answer), and the
+     evidence
+   - fixed or configurable, with the setting and its default
    - "Open:" with what is still undecided and its ticket.
    Include lifecycle, limits and scale numbers as their own sections when the
    feature has them.
@@ -68,16 +86,32 @@ author.
    status. A proof is a test that failed first on the naive or old code, or a
    live run. Say "spec only" or "live missing" where that is the truth. Then
    the suite totals per PR.
-7. **PR plan and remaining work.** A table of open PRs: PR, repo, what it
-   carries, depends on. The merge order. What to fix in the PR bodies. Then a
-   numbered table of remaining work with tickets, then the next phase, then
-   later items.
+7. **PR plan and open work.** The split plan from the journal
+   (`references/shipping.md`, "Split plan"): a table of PR, repo, what it
+   carries, size, depends on, in merge order. A PR past the size limit says
+   why it stays whole. What to fix in the PR bodies. Then a numbered table of
+   open work with tickets, then the next phase, then later items.
 
 **Appendix: how it was built.** At most one screen: the method (loop, fail
 first, live after mock), the environments, the security reviews, the human
 rules that decided trade-offs, and a link to the process retrospective. Then a
 glossary of the loop labels used in tickets, and the list of places where older
 design docs no longer match the code.
+
+### The handover message
+
+The human usually announces the work in a chat post or an email. Draft it in
+this order, in at most 10 lines:
+
+1. What works now, and where to try it (demo, build, branch).
+2. The decisions to validate, by group, with the count, and a link to
+   section 0.
+3. The ask: who should join each group.
+4. The PR plan: what to review first, and that the PRs wait for the
+   decisions.
+
+Say that the POC exists to make the discussion concrete. Do not apologize for
+the order of the work.
 
 ## Template 2: the process retrospective
 
@@ -108,7 +142,3 @@ tickets) with "every number comes from those records".
    that a skill, a check or a hook can carry. Apply the accepted ones to this
    skill (`update-skill`), not only to the report.
 9. **Where things are.** A table of item, status, next step.
-</content>
-</invoke>
-<invoke name="Bash">
-<parameter name="command">cd ~/Github/agent-skills && grep -n 'references/report.md' awesomeness-incremental-loop/SKILL.md; grep -n 'awesomeness-incremental-loop' README.md

@@ -80,6 +80,43 @@ def md_tables(text):
     return tables
 
 
+def md_records(text):
+    """Return one dict per `### <id> · <title> · <status>` entry, with its `- Field: value` lines.
+
+    The decisions file and the design record share this format. A field can go on over indented lines.
+    """
+    out = []
+    text = re.sub(r"(?ms)^(```|~~~).*?^\1", "", text)  # a format example in a code block is not an entry
+    for chunk in re.split(r"(?m)^(?=### )", text):
+        if not chunk.startswith("### "):
+            continue
+        head, _, body = chunk.partition("\n")
+        parts = [p.strip() for p in head[4:].split("·")]
+        rec = {"id": parts[0], "title": " · ".join(parts[1:-1]) if len(parts) > 2 else "".join(parts[1:2]),
+               "status": parts[-1].lower() if len(parts) > 2 else ""}
+        field = None
+        for line in body.splitlines():
+            m = re.match(r"^- ([A-Z][\w ]*?):[ \t]*(.*)$", line)
+            if m:
+                field = m.group(1)
+                rec[field] = m.group(2).strip()
+            elif field and line.startswith((" ", "\t")) and line.strip():
+                rec[field] = (rec[field] + "\n" + line.strip()).strip()
+            elif line.strip():
+                field = None
+        out.append(rec)
+    return out
+
+
+def design_records(text):
+    """The design record entries: `### R<n> · ...` headings. Other `###` headings (notes, guides) are not records."""
+    return [r for r in md_records(text) if re.match(r"R\d", r["id"])]
+
+
+def validators(rec):
+    return [g.strip() for g in re.split(r"[,;/]|\band\b", (rec.get("Validate with") or "").lower()) if g.strip()] or ["unassigned"]
+
+
 def md_setup(text):
     setup = {}
     m = re.search(r"^## Setup\s*$(.*?)(?=^## )", text, re.M | re.S)
@@ -160,11 +197,19 @@ def build(root, journal, out):
     verdicts = find_table(tables, "Pending verdicts")
     asks = find_table(tables, "Assumptions")
     cycle_log = find_table(tables, "Cycle log")
+    record_path = os.path.join(os.path.dirname(journal or ""), "awesomeness-loop-design-record.md")
+    records = []
+    if journal and os.path.isfile(record_path):
+        with open(record_path, encoding="utf-8") as fh:
+            records = design_records(fh.read())
     now_m = re.search(r"^## Now[^\n]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
     now = [l[2:] for l in (now_m.group(1).splitlines() if now_m else []) if l.startswith("- ")]
     runs = load_runs(root)
     critic = load_critic(root)
     trail = read_jsonl(os.path.join(root, "trail.jsonl"))
+    # Commits that a cycle declared free of decisions. Reviewers audit these next to the records.
+    acks = [{"cycle": e.get("cycle"), "commits": e["decision"], "why": e.get("text", "")}
+            for e in trail if e.get("kind") == "ack" and e.get("decision")]
     cycles = defaultdict(list)
     for e in trail:
         cycles[e.get("cycle", 0)].append(e)
@@ -192,6 +237,8 @@ def build(root, journal, out):
         "generated": datetime.now().isoformat(timespec="seconds"),
         "setup": setup,
         "gap_matrix": gap_rows,
+        "design_record": records,
+        "decision_acks": acks,
         "pending_verdicts": verdicts,
         "now": now,
         "assumptions_and_asks": asks,
@@ -262,6 +309,30 @@ Generated {esc(data['generated'])} · {len(runs)} runs · {len(critic)} critic r
                      f"<td><span class='st' style='background:{color}'>{esc(st)}</span></td>"
                      f"<td>{esc(r.get('Done when', ''))}</td><td>{esc(ev)}</td><td>{esc(r.get('Impact', ''))}</td><td>{esc(r.get('Effort', ''))}</td></tr>")
     parts.append("</table></div>")
+
+    if records or acks:
+        parts.append("<h2>Design record</h2><p class='meta'>The decisions the loop made, grouped by who must validate "
+                     "them. <b>proposed</b>: nobody outside the loop has validated it yet.</p>")
+        groups = defaultdict(list)
+        for r in records:
+            for g in validators(r):
+                groups[g].append(r)
+        for g in sorted(groups):
+            waiting = sum(1 for r in groups[g] if r.get("status") == "proposed")
+            parts.append(f"<h3>{esc(g)} · {waiting} to validate</h3><div class='wrap'><table><tr><th>Id</th><th>Question</th>"
+                         "<th>Choice</th><th>Kind</th><th>Status</th><th>Validation</th></tr>")
+            for r in groups[g]:
+                parts.append(f"<tr><td>{esc(r.get('id', ''))}</td><td>{esc(r.get('Question') or r.get('title', ''))}</td>"
+                             f"<td>{esc(r.get('Choice', ''))}</td><td>{esc(r.get('Kind', ''))}</td>"
+                             f"<td>{esc(r.get('status', ''))}</td><td>{esc(r.get('Validation', ''))}</td></tr>")
+            parts.append("</table></div>")
+        if acks:
+            parts.append(f"<h3>Acknowledged as no new decision · {len(acks)}</h3><p class='meta'>Contract commits that a "
+                         "cycle said decide nothing new. Check the reasons.</p><div class='wrap'><table><tr><th>Cycle</th>"
+                         "<th>Commits</th><th>Why</th></tr>")
+            for k in acks:
+                parts.append(f"<tr><td>{esc(str(k['cycle']))}</td><td>{esc(k['commits'])}</td><td>{esc(k['why'])}</td></tr>")
+            parts.append("</table></div>")
 
     if breaks:
         parts.append("<h2>Invariant breaks</h2><div class='wrap'><table><tr><th>Run</th><th>Frame</th><th>Rule</th><th>Object</th><th>Value / limit</th></tr>")

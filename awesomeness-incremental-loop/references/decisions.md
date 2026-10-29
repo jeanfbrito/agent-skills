@@ -13,6 +13,13 @@ loop may not take alone. Write one entry each time a cycle writes one of
 these: an `ask` row, a decision-type `assumption` row, a toggle verdict, or a
 "Tell me if..." line in "Waiting on you".
 
+The loop's own choices do not go here. They go in the design record
+(`references/design-record.md`), which nobody is asked about while the loop
+runs. A cycle can apply a human answer to an entry here. Then that cycle also
+writes or updates the design record entry, with `Decided by: human
+<date>, D<n>`. So the design record lists every decision, and this file
+lists only the open questions.
+
 Do not write a decision for a check that the loop can run itself. That
 includes checks on the project's test VMs and test servers, specs
 and the dev app. Run the check instead.

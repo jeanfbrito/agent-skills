@@ -9,7 +9,9 @@ and the live report shows it: `.localdev/awesomeness/report/index.html`.
 Write your verdicts in "Pending verdicts" and your answers in "Assumptions and
 asks". The next cycle applies them. Every decision that waits on you is also
 in `docs/awesomeness-loop-decisions.md`. The orchestrator asks those when you
-come back. To pause every driver, run `state.py pause`.
+come back. Every choice the loop made on its own is in
+`docs/awesomeness-loop-design-record.md`, for reviewers to validate at the
+handover. To pause every driver, run `state.py pause`.
 
 ## Setup
 
@@ -17,10 +19,13 @@ come back. To pause every driver, run `state.py pause`.
 - Reference (current bar):
 - Earlier references (too easy):
 - Branch:
+- Default branch: (the branch PRs target, when the remote HEAD is wrong: `dev`, or `dev, core: develop`)
 - Frame-rate target: 30 | 60 | other (reason)
 - Physics rate: (Hz, substeps, solver iterations, and the metric that proved each raise)
 - Mode: gap | beyond
 - Cycle model: sonnet (`opus` when sonnet cycles keep raising `NO-PRODUCT`)
+- Other repos: (paths of other repos that the loop commits to, or none)
+- PR size limit: 1000 lines, 40 files
 
 ## Direction
 
@@ -69,6 +74,17 @@ frames. Write your answer in the Verdict column.
 | Sense | How to call it | Returns | Cost | Proven to fail on |
 | --- | --- | --- | --- | --- |
 
+## Contract surfaces
+
+Paths where a change decides something that other people depend on. A
+commit that touches one needs a design record entry or an ack
+(`references/design-record.md`). The defaults already cover paths with words
+such as `api`, `ipc`, `schema`, `settings`, `key` or `security`. Add the
+project's own surfaces here. A pattern that starts with `!` removes paths.
+
+| Pattern | What it decides | Validate with |
+| --- | --- | --- |
+
 ## Invariants
 
 Rules from `senses/invariants.md` that this project uses, and its exceptions.
@@ -97,6 +113,16 @@ whole queue (at about 5 rows, at a milestone, or before a mode change).
 
 | Item | Shots to compare | Sense evidence | Queued at cycle |
 | --- | --- | --- | --- |
+
+## PR plan
+
+How the loop's branches become reviewable PRs (`references/shipping.md`,
+"Split plan"). Name every branch that holds loop work, also a PR branch
+that you rebuild from it. Number the PRs for review in merge order. Write `-`
+for a branch that is not for review. `Repo` is the repo folder name.
+
+| # | Repo | Branch | Carries | Size | Depends on |
+| --- | --- | --- | --- | --- | --- |
 
 ## Blocked
 
