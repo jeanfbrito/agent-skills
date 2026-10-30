@@ -44,6 +44,7 @@ procedure.
 | [skill-checkup](skill-checkup/SKILL.md) | Grades the skills against recent session history and drafts `SKILL.md` edits. | Local HTML report. |
 | [awesomeness-incremental-loop](awesomeness-incremental-loop/SKILL.md) | Runs a reference-based improvement loop with a product objective per cycle. It never stops while work is left: it keeps decisions for the human and asks them when the human comes back. It records each choice it makes for reviewers to validate, and plans the PR split. | Never pushes. Guides in `references/` and `senses/`. |
 | [grok-build](grok-build/SKILL.md) | Hands coding tasks to the Grok CLI in headless mode, with verification and worktree isolation. | Needs `grok login`. |
+| [session-mining](session-mining/SKILL.md) | Reads coding-agent history to find repeated work and review tool use. | Local, read-only. Python standard library. Uses `shared/tone.md` for public drafts. |
 | [asd-ste100](asd-ste100/SKILL.md) | Rewrites English in Simplified Technical English. `scripts/ste-lint.py` checks the text. | Installs alone: `npx skills add jeanfbrito/agent-skills -s asd-ste100 -g`. |
 
 ### Machine and measurement
@@ -61,6 +62,7 @@ procedure.
 | [one-page-design](one-page-design/SKILL.md) | Draws one printable diagram of one design idea. `fit-check.sh` fails on a second page or a broken layout rule. | Writes `designs/`. Does not commit. |
 | [procedural-animation](procedural-animation/SKILL.md) | Reference corpus for character and procedural animation (IK, foot sliding, springs, motion matching). | Self-contained. |
 | [mixamo-download](mixamo-download/SKILL.md) | Searches Mixamo and downloads clips through your logged-in Chrome session. | You approve each download list. |
+| [codex-imagegen](codex-imagegen/SKILL.md) | Generates or edits raster assets through Codex and checks the saved image. | Needs Codex authentication and its built-in imagegen skill. Uses `shared/tone.md`. |
 
 ### Moved
 

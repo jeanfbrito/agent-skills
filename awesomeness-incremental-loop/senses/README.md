@@ -62,6 +62,25 @@ Build only what the current items need, in this order:
 | `metrics.md` | Metrics for motion, physics, feel and performance |
 | `visual-convergence.md` | Shot lists, measurement views, critic mode, fresh frames, blind pairs |
 
+## Capture and inspect a render
+
+Use these guides for screenshots, render timings, fixed camera views, and
+reference comparisons. This procedure also works outside a running loop.
+A capture request alone does not start a loop or authorize commits.
+
+1. Apply the rules above. Register the sense in the journal only during a loop.
+2. Read the platform guide and its traps: `browser.md` for Three.js or WebGL,
+   `godot.md` for Godot, or `desktop.md` for Electron and native windows.
+3. Read `3d-views.md` for fixed angles or contact sheets. Read
+   `visual-convergence.md` for reference comparisons and `metrics.md` for timings.
+4. Keep reusable capture scripts in the project's tools directory, not only
+   in a temporary directory.
+5. Open every captured image before reporting the result. Passing tests do
+   not prove that the rendered image matches the request.
+6. Add a newly solved capture problem to the platform guide's trap section.
+   Follow step 2 of "Add a guide when a blocker teaches something" below: do
+   not name the project, its people or its private paths.
+
 ## When a sense is the next item
 
 - A gap row that says `unknown` because nothing can measure it: build the sense.

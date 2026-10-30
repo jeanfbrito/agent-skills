@@ -87,7 +87,7 @@ Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 | `references/lessons.md` | Traps from past runs |
 | `references/labs.md`, `beyond.md`, `report.md`, `schemas.md` | Labs, toggles, report, data formats |
 | `references/final-reports.md` | The two reports for other people: the feature report and the process retrospective |
-| `senses/README.md` | How to control, measure and see the project |
+| `senses/README.md` | How to control, measure and see the project, including render capture outside a loop |
 | `journal-template.md` | The journal |
 | `examples.md` | The gauntlet-style prompt that this procedure carries out, with example fills |
 
