@@ -52,6 +52,7 @@ procedure.
 | --- | --- | --- |
 | [disk-cleanup](disk-cleanup/SKILL.md) | Frees disk space on macOS. It measures first and cleans caches that rebuild themselves. It restarts a hung Docker before the prune, and asks before it touches your files. | |
 | [benchmark-checklist](benchmark-checklist/SKILL.md) | Checks a performance number before you report it or act on it. | |
+| [proxmox-lxc-service](proxmox-lxc-service/SKILL.md) | Deploys native LXC services with persistent data, address planning, and recovery checks. Includes read-only inventory and access-policy checks. | Reuses `opnsense` for router changes. Uses `shared/tone.md`. |
 
 ### Design and game development
 
