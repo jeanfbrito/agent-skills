@@ -11,7 +11,7 @@ procedure.
 
 | Skill | What it does | Notes |
 | --- | --- | --- |
-| [commit](commit/SKILL.md) | Groups changes by concern and reports each branch, commit, and uncommitted remainder. Requires verification of each stack node. | Uses `shared/tone.md` for PR drafts. |
+| [commit](commit/SKILL.md) | Groups changes by concern. Checks staged publication against a reviewed task delta and checks each stack node. Reports commits and uncommitted changes. | Uses `shared/tone.md` for PR drafts. |
 | [pr-description](pr-description/SKILL.md) | Drafts PR text from exact heads and separates local, CI, and missing proof. Checks batch workflow fanout before authorized publication waves. | Draft-first. Uses `shared/tone.md`. |
 | [babysit](babysit/SKILL.md) | Fixes open PRs until checks pass, reviews threads sequentially, or makes authorized finite corrections while PRs stay closed. | Own worktree for fixes. Verified resolutions and supported declines. Comments are draft-first. Optional `local-config.yml`. |
 | [pr-triage](pr-triage/SKILL.md) | Weekly triage of the repo's open PRs: what blocks your own PRs, review drafts for third-party PRs, duplicate checks for bot PRs. | Draft-first. Keeps head SHAs in `local-state.json`. |

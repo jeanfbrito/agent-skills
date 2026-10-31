@@ -32,6 +32,15 @@ The `<base>..HEAD` log tells you whether this branch already has commits — thi
 
 ### 2. Analyze and group changes
 
+For task-specific publication from a shared or dirty tree, use task-delta isolation.
+Read `~/Github/agent-skills/commit/references/task-delta.md` before editing source.
+Capture explicit paths before the task. A reviewer must inspect the full delta before sealing it.
+The agent can act as reviewer within the authorized task. Ask the user only about ambiguous ownership or expanded scope.
+A baseline does not establish authorship. Do not seal unrelated edits, including edits in the same file.
+After authorized staging, run the sealed delta check against the publication repository.
+Stop if the source, baseline, or reviewed delta changed, or if application is ambiguous.
+The helper does not stage, commit, push, execute manifest commands, or change source files.
+
 Use context-mode to read the actual diffs — these can be very large and must not flood the context window:
 
 ```
@@ -62,9 +71,19 @@ Track implementation, commit, push, PR state, comments, thread resolution, and m
 Record the source and scope of each permission. A push restriction does not prohibit an authorized commit.
 An action not requested is not a user prohibition. Do not commit or push without authorization.
 
+Keep local isolation separate from the delivery destination. A worktree or local branch does not require publication of an intermediate branch.
+Follow the user's authorized destination and the repository's branch rules.
+When the user explicitly authorizes direct integration into the base, use a fast-forward when possible.
+Preserve unrelated local changes. Verify the remote SHA after the push.
+Keep this authorization specific to the current task, not future work.
+
 For a stack, follow `~/Github/agent-skills/commit/references/stack-verification.md` before reporting completion.
 
-For each group, stage the relevant files and commit. Use native git commands only — this ensures the user's configured git identity (name, email, GPG signing) is used correctly.
+Existing commit authorization includes normal staging within its scope. Do not request separate staging approval.
+For a sealed task delta, stage only that concern in the publication tree under that authorization.
+Run `verify-staged` immediately before each authorized commit. Stop if the check fails.
+Do not stage a whole shared-source file merely because it is a captured task path.
+For other groups, stage the relevant files and commit. Use native git commands only — this ensures the user's configured git identity (name, email, GPG signing) is used correctly.
 
 ```bash
 git add <file1> <file2> ...

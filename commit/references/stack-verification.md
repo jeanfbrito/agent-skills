@@ -24,6 +24,11 @@ A missing checker, missing log, or blocked dependency installation is `UNVERIFIE
 A dependency installation failure does not establish a code failure.
 The checker tests evidence records. It does not establish evidence quality or grant permission.
 
+For evidence tied to final heads, follow `~/Github/agentic-workflow-framework/skills/agentic-workflow/references/publication-evidence.md`.
+This opt-in check binds the pre-run snapshot, declared dependencies, and evidence manifest to each final head.
+It leaves the version 1 evidence schema unchanged. Do not infer this binding from an ordinary evidence-check PASS.
+Keep task-delta review separate. A staged-delta PASS does not check a final commit or its test evidence.
+
 Report each node's validator result and the evidence-check result.
 A partial lint command is different from the CI command. Label it separately.
 Reuse a PASS only for the same source and relevant conditions.
