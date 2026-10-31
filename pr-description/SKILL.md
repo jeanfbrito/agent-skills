@@ -1,6 +1,6 @@
 ---
 name: pr-description
-description: Drafts a pull request title and body in the house style used on Rocket.Chat.Electron — prose Summary (or Problem and Cause), a What changed list with bold lead-ins, optional Behaviour change / Known limitations / Out of scope, and a Verification or Test plan with real numbers, and for a large feature PR a Decisions to validate section and a review guide — from the branch diff, its commits and the verification actually run, then opens or edits the PR only after the user approves the exact text. Triggered by '/pr-description', 'write the PR description', 'draft the PR body', 'open a PR', 'make the PR', 'faça o PR', 'update the PR description'.
+description: 'Drafts PR titles and bodies from verified heads, diffs, and checks, then publishes only approved text. Triggers: /pr-description, write the PR description, draft the PR body, open a PR, make the PR, faça o PR, update the PR description.'
 ---
 
 # PR description
@@ -14,8 +14,9 @@ language the conversation is in.
 
 Do not draft from memory of the session alone.
 
-- **Base branch:** read it from the repo's `AGENTS.md`. On Rocket.Chat.Electron
-  it is `dev`, or `release/X.Y.x` for a backport.
+- **Repository and base:** read the destination repository's instructions. Do not assume the integration branch.
+- **Publication preflight:** follow `~/Github/agent-skills/pr-description/references/publication-preflight.md`.
+  Record exact heads, bases, actual CI commands, and evidence before publishing.
 - **What changed:** `git log --oneline <base>..HEAD`,
   `git diff --stat <base>...HEAD`, and the diff itself. Describe behaviour,
   not file churn.
@@ -52,6 +53,7 @@ Do not draft from memory of the session alone.
 
 ## 3. Body: pick the shape by PR type
 
+Feature template: `~/Github/agent-skills/pr-description/references/feature-template.md`.
 | PR type                    | Sections, in order                                                                                                          |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Bug fix                    | `## Summary` (or `## Problem` + `## Cause` when the root cause needs its own space) → `## What changed` → `## Verification` |
@@ -139,33 +141,10 @@ is not optional when §1 found a related issue or PR.
 - **Live checks** say the platform, what was done and what was observed: "Dev
   app on macOS: the window opens at 900x720 and reports
   `isResizable() === false`".
-- **Name the gaps:** "The Windows variant is covered by spec only; not
-  exercised on a Windows machine."
-
-### Skeleton (feature / behaviour change)
-
-```markdown
-## Summary
-
-<What the user saw or lacked, then the mechanism. One or two paragraphs.>
-
-## What changed
-
-- **<Behaviour, one sentence.>** <How: `function` / file, what still works as before.>
-- **<Next behaviour.>** <…>
-- Specs: <what the new tests assert>.
-
-## Behaviour change
-
-<Only if users notice: who, when, and how to get the old behaviour.>
-
-## Test plan
-
-- [x] `tsc --noEmit` clean; `yarn lint` 0 errors (existing warnings only)
-- [x] <N>/<N> across `<spec>` specs; new tests cover <assertions>
-- [x] Dev app on macOS: <action> → <observed result>
-- [ ] <What still needs a platform or a person>
-```
+- **Separate proof:** label local evidence, CI evidence, and missing proof for each PR.
+  Include the exact SHA, command, environment, result, and log or run URL.
+- **Name the gaps:** use `UNVERIFIED` for required checks that did not run.
+  A partial local check is not the actual CI command.
 
 ## 4. Writing rules
 
@@ -203,6 +182,7 @@ Repo and house rules:
 ## 5. Workflow (draft-first)
 
 1. Gather the facts (§1) and pick the shape (§3).
+   Complete the publication preflight for the exact heads. For batches, report workflow fanout and propose authorized publication waves.
 2. Draft the title and body. Check that each issue and PR from §1 appears in
    `## Related`. Reread them once as the reviewer, then run both
    mechanical checks in `shared/tone.md` §5 (the tone grep and the STE linter)
@@ -211,7 +191,9 @@ Repo and house rules:
    means the body names embargoed work: remove it before you show the draft.
 3. Show the user the exact title and body, and wait for explicit approval.
    Never post first and offer to adjust later.
-4. On approval, run `gh pr create --base <base> --title "<title>" --body-file -`,
+4. Recheck the approved head, base, and scope before publication. Stop if they changed.
+   Publish only the authorized batch or wave. Text approval alone does not authorize branch pushes or CI cancellation.
+   On approval, run `gh pr create --base <base> --title "<title>" --body-file -`,
    or `gh pr edit <number> --body-file -`, with the body in a quoted heredoc so
    backticks and `$` survive. Return the PR URL.
 5. Ticket linking, labels and reviewers belong to the caller's workflow, not

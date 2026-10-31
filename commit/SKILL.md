@@ -58,6 +58,12 @@ When in doubt, fewer commits is better than too many. Don't split things that na
 
 ### 3. Create commits
 
+Track implementation, commit, push, PR state, comments, thread resolution, and merge permissions separately.
+Record the source and scope of each permission. A push restriction does not prohibit an authorized commit.
+An action not requested is not a user prohibition. Do not commit or push without authorization.
+
+For a stack, follow `~/Github/agent-skills/commit/references/stack-verification.md` before reporting completion.
+
 For each group, stage the relevant files and commit. Use native git commands only — this ensures the user's configured git identity (name, email, GPG signing) is used correctly.
 
 ```bash
@@ -85,7 +91,20 @@ Format for subsequent commits:
 Fix serializer to include nested document metadata
 ```
 
-### 4. Generate MR/PR description
+### 4. Report the delivered artifact
+
+Read `git status --short` and the resulting commit IDs after committing.
+Report one row per concern: repository, branch, commit SHA, and uncommitted remainder (paths or hunks).
+Use `none` only when no remainder exists for that concern. List unrelated local changes separately.
+Mark uncommitted concerns `NOT COMMITTED`. A backup or worktree is not a commit.
+For stacks, include each node's validator result and remaining `FAIL` or `UNVERIFIED` checks.
+Do not describe an incomplete node as verified because the integrated tree passed.
+
+### 5. Generate MR/PR description
+
+Read `~/Github/agent-skills/shared/tone.md` before drafting outward-facing text.
+Use real numbers, frame gaps as scope, avoid a defensive lead, and anonymize customer details.
+Show the exact draft for approval before any external publication.
 
 After all commits are made, produce a short summary suitable for a Merge Request or Pull Request description. To write this, look at **all commits on the branch** (not just the ones you created now) via context-mode:
 
