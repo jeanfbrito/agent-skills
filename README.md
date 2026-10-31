@@ -13,7 +13,7 @@ procedure.
 | --- | --- | --- |
 | [commit](commit/SKILL.md) | Groups related changes into separate commits, each with its own message. | |
 | [pr-description](pr-description/SKILL.md) | Drafts a PR title and body in the house style (Summary, What changed, Verification with real numbers) from the diff and the checks that ran. A large feature PR lists its decisions to validate before the code. | Draft-first. Uses `shared/tone.md`. |
-| [babysit](babysit/SKILL.md) | Works on an open PR until every check is green. A watch script polls checks and review bots. The model triages each batch, fixes and pushes. It stops when a human reviewer comments. | Runs in its own worktree. Optional `local-config.yml`. |
+| [babysit](babysit/SKILL.md) | Fixes and pushes open PRs until checks pass. Resolves verified corrections and supported decline decisions, including in sequential review-only mode for closed PRs. | Own worktree for fixes. Evidence and decline reasons required. Comments are draft-first. Optional `local-config.yml`. |
 | [pr-triage](pr-triage/SKILL.md) | Weekly triage of the repo's open PRs: what blocks your own PRs, review drafts for third-party PRs, duplicate checks for bot PRs. | Draft-first. Keeps head SHAs in `local-state.json`. |
 | [branch-triage](branch-triage/SKILL.md) | Sorts a remote's branches into merged and open, and deletes merged ones after you confirm the list. | |
 | [worktree-gc](worktree-gc/SKILL.md) | Finds worktrees, branches and stashes left by merged or abandoned work. An audit script classifies each one first. | Deletes only what you confirm. |
