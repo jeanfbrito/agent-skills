@@ -64,12 +64,18 @@ procedure.
 | [procedural-animation](procedural-animation/SKILL.md) | Reference corpus for character and procedural animation (IK, foot sliding, springs, motion matching). | Self-contained. |
 | [mixamo-download](mixamo-download/SKILL.md) | Searches Mixamo and downloads clips through your logged-in Chrome session. | You approve each download list. |
 | [codex-imagegen](codex-imagegen/SKILL.md) | Generates or edits raster assets through Codex and checks the saved image. | Needs Codex authentication and its built-in imagegen skill. Uses `shared/tone.md`. |
-| [fit-to-object](fit-to-object/SKILL.md) | Runs the test-print loop for a part that must fit a real object: measure at the part's height, label inputs measured or guessed, back up each print, read the fit photos and refit only the measured misfit. | Uses photo-measure, plus freecad-mcp-modeling and freecad-render-check from the private `freecad-skills` repo. |
+| [fit-to-object](fit-to-object/SKILL.md) | Runs the test-print loop for a part that must fit a real object: measure at the part's height, label inputs measured or guessed, back up each print, read the fit photos and refit only the measured misfit. | Uses photo-measure, plus freecad-mcp-modeling and freecad-render-check from the private [freecad-skills](https://github.com/jeanfbrito/freecad-skills) repo. |
 
 ### Moved
 
-- **yt-transcript** now lives in `~/Github/yt2txt` (`skill/yt-transcript`). Its
-  `./install.sh` installs the CLIs and links the skill.
+- **yt-transcript** now lives in
+  [jeanfbrito/yt2txt](https://github.com/jeanfbrito/yt2txt), in
+  [`skill/yt-transcript`](https://github.com/jeanfbrito/yt2txt/tree/main/skill/yt-transcript).
+  Its `./install.sh` installs the CLIs and links the skill.
+- **freecad-mcp-modeling**, **freecad-render-check** and
+  **freecad-photo-reference** now live in
+  [jeanfbrito/freecad-skills](https://github.com/jeanfbrito/freecad-skills)
+  (private).
 
 ## Commands
 
