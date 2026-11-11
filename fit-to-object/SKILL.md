@@ -9,7 +9,7 @@ A part that fits a free-shape object takes several prints. Each print is a
 measurement. Three things break the loop. You carry a guess as a
 measurement. You read a photo past its accuracy. You overwrite an old print.
 
-Related skills:
+Related skills (the `freecad-*` skills live in the `freecad-skills` repo):
 - `photo-measure`: sizes from photos, the cutting-mat method for sections.
 - `freecad-mcp-modeling`: script structure and OpenCascade failure recipes.
 - `freecad-render-check`: solid and STL checks before every hand-over.

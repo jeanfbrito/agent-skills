@@ -64,10 +64,7 @@ procedure.
 | [procedural-animation](procedural-animation/SKILL.md) | Reference corpus for character and procedural animation (IK, foot sliding, springs, motion matching). | Self-contained. |
 | [mixamo-download](mixamo-download/SKILL.md) | Searches Mixamo and downloads clips through your logged-in Chrome session. | You approve each download list. |
 | [codex-imagegen](codex-imagegen/SKILL.md) | Generates or edits raster assets through Codex and checks the saved image. | Needs Codex authentication and its built-in imagegen skill. Uses `shared/tone.md`. |
-| [freecad-render-check](freecad-render-check/SKILL.md) | Renders FreeCAD views and close-ups through the MCP with the animation off, and checks solids and STL files (slivers, corner probes, mesh, overhang). | `fc_check.py` runs inside FreeCAD. |
-| [freecad-photo-reference](freecad-photo-reference/SKILL.md) | Places reference photos in a FreeCAD model with a scale and anchor, reads a user's marked screenshot in model millimetres, and exports outlines for overlays on photos of a test print. | `photo_ref.py` (FreeCAD), `screenshot_mm.py` (needs Pillow). |
-| [freecad-mcp-modeling](freecad-mcp-modeling/SKILL.md) | Scripts parametric FreeCAD parts through the MCP: which execution tool to use, how to measure shapes, loft sections without slivers, and a table of OpenCascade errors with their fixes. | Build script stays in the project repo. |
-| [fit-to-object](fit-to-object/SKILL.md) | Runs the test-print loop for a part that must fit a real object: measure at the part's height, label inputs measured or guessed, back up each print, read the fit photos and refit only the measured misfit. | Uses photo-measure, freecad-mcp-modeling, freecad-render-check. |
+| [fit-to-object](fit-to-object/SKILL.md) | Runs the test-print loop for a part that must fit a real object: measure at the part's height, label inputs measured or guessed, back up each print, read the fit photos and refit only the measured misfit. | Uses photo-measure, plus freecad-mcp-modeling and freecad-render-check from the private `freecad-skills` repo. |
 
 ### Moved
 
