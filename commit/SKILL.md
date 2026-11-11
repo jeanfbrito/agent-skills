@@ -79,6 +79,8 @@ Keep this authorization specific to the current task, not future work.
 
 For a stack, follow `~/Github/agent-skills/commit/references/stack-verification.md` before reporting completion.
 
+Before the first commit in a repo, turn on the commit hooks the repo ships. If `.githooks/` exists and `git config core.hooksPath` prints nothing, run the setup that `AGENTS.md` or the README gives (usually `git config core.hooksPath .githooks`). Then a failing `commit-msg` hook stops the commit. A lint that only prints a count does not stop it. Do not bypass a hook with `--no-verify` unless the user asks.
+
 Existing commit authorization includes normal staging within its scope. Do not request separate staging approval.
 For a sealed task delta, stage only that concern in the publication tree under that authorization.
 Run `verify-staged` immediately before each authorized commit. Stop if the check fails.
