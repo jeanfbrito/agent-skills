@@ -24,6 +24,10 @@ Once the ticket is pasted:
 3. List acceptance criteria / definition of done
 4. Identify any ambiguities or missing information - ask the user to clarify before proceeding
 
+**Evidence first.** If the ticket links a recording, screenshots, or logs, get them before you research code. If a link needs a login you do not have (a Loom page, a private drive), ask the user for the file at once — do not reason from the ticket text alone. For a video: `ffmpeg -i <file> -vf "fps=1/3,scale=1280:-1" f_%02d.jpg`, tile the frames into one sheet with `ffmpeg -i f_%02d.jpg -vf "scale=640:-1,tile=5x5" -frames:v 1 sheet.jpg`, read the sheet, and transcribe the audio with `whisper`. A ticket written from a transcript drops the visual detail that decides the cause (which page, which part of the window).
+
+**Cause outside this repo.** If research shows the root cause is in another system (server config, a third-party deployment, another repo), skip Steps 4-9. Draft a ticket comment with the cause, the evidence, and the fix steps, post it only after the user approves the text, and stop. Do not create a branch. Routing the work to the owner is the managers' job.
+
 ## Step 3: Research the Codebase
 
 Before planning, deeply research the relevant parts of the codebase:

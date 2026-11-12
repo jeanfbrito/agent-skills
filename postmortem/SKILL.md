@@ -48,7 +48,12 @@ Then identify:
 
 ### 2. Write the post-mortem document
 
-Create `docs/postmortem-<topic>.md` in the project root:
+Create `docs/postmortem-<topic>.md` in the project root, on a `docs/<topic>`
+branch in a worktree cut from the integration branch — never on whatever
+feature branch is checked out. In a **public repo**, the repo doc leaves out
+internal hostnames, recording links, people's names and personal tooling
+(skills, memories, hooks); put the full internal copy in Confluence or a file
+the user shares (e.g. `~/Downloads`).
 
 ```markdown
 # Post-Mortem: <Topic>
@@ -178,6 +183,9 @@ Before finishing, verify:
 - [ ] done.md entry appended (if the project uses the ledger)
 - [ ] Tone check passed per `shared/tone.md`: grep ran, every hit reviewed,
       no customer names, no external tracker IDs, no invented numbers
+- [ ] Every URL resolves (`~/Github/agent-skills/postmortem/check-links.sh <doc>`)
+      and every claim about a tool or hook matches what it did in the session
+      record, not what it is designed to do
 - [ ] Distribution drafts offered; nothing was sent without explicit approval
 
 ## Anti-patterns to avoid
