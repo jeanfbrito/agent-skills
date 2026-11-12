@@ -23,6 +23,7 @@ procedure.
 | Skill | What it does | Notes |
 | --- | --- | --- |
 | [jira](jira/SKILL.md) | Drives Jira through [jira-cli](https://github.com/ankitpokhrel/jira-cli): JQL, tickets, sprints, and `jira-link-pr` to link a PR to its ticket. | Run `setup.sh` once. Linux variant in `jira/hermes/`. |
+| [ticket](commands/ticket.md) | Runs a ticket, Jira task or bug report from start to finish: analyze, research, branch, plan, implement, validate, self-review. Takes a Jira key or URL. | A command (`/ticket`), not a skill. See [Commands](#commands). |
 | [why](why/SKILL.md) | Finds why code, a setting or a behavior is the way it is, from git history, PRs and every connected source. Grades each claim. | |
 | [postmortem](postmortem/SKILL.md) | Writes a post-mortem after a hard task, extracts the lessons, and drafts the write-up and team summary. | Draft-first. Uses `shared/tone.md`. |
 | [weekly-digest](weekly-digest/SKILL.md) | Drafts a short weekly update in impact language from real sources (ledger, PRs, git, Jira). | Draft-first. Uses `shared/tone.md`. |
