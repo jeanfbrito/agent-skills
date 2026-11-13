@@ -39,10 +39,10 @@ Before planning, deeply research the relevant parts of the codebase:
 
 ## Step 4: Create a Branch
 
-**IMPORTANT**: Always start fresh from the project's integration branch. Do NOT reuse the current branch and do NOT skip this step even if you are already on a branch.
+Start from a fresh branch off the project's integration branch, also when you are already on a branch, so that the work does not inherit unrelated commits.
 
 Resolve the integration branch in this order:
-1. What the project's CLAUDE.md / CONTRIBUTING.md says (some projects branch off `dev`, never `master`)
+1. What the project's AGENTS.md, CLAUDE.md or CONTRIBUTING.md says (some projects branch off `dev`, never `master`)
 2. `origin/dev` if it exists
 3. The repo default branch (`git symbolic-ref --short refs/remotes/origin/HEAD`)
 

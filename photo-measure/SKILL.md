@@ -1,6 +1,6 @@
 ---
 name: photo-measure
-description: Measures real objects in photos in millimetres. It makes a printable marker card and asks the user for photos with a size reference in the plane of the feature (the card, a test print of known geometry, a bank card, an A4 sheet). It finds the reference points (marker corners automatically, or points read on grid crops), fits a homography with a leave-one-out check, and converts photo pixels to positions, lengths and circle radii in mm with their error. Use before you estimate any size from a photo with no scale, when a part must fit an object known only from photos, or when the user sends photos of a test print on the object. Triggered by "measure this from the photo", "how big is this", "I have no calipers", "get the size from the pictures", "what size reference do you need", "here is the print on the helmet", "the photos show the adjustments needed", "it does not fit here".
+description: Measures real objects in photos in millimetres, with the error of each value, from a size reference in the plane of the feature (its printable marker card, a test print of known geometry, a bank card, an A4 sheet). Use before estimating any size from a photo with no scale, when a part must fit an object known only from photos, or when the user sends photos of a test print on the object and asks what to adjust. Triggered by "measure this from the photo".
 ---
 
 # Photo measure

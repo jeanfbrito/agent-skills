@@ -211,13 +211,12 @@ Status: investigating, no PR yet." \
 2. Decide project + type. If ambiguous, **ask before drafting** — a single
    clarifying question is cheaper than a wrong-shaped ticket.
 3. Draft summary + description.
-4. Echo the proposed `jira issue create` command back to the user
-   **including** the rendered summary + description as a block quote so
-   they can read what's about to land.
-5. Wait for confirmation. Stop.
-6. After creation, jira-cli prints the new key. Capture it and offer
-   follow-ups: _"Created PROJ-2117. Want me to (a) assign it to you, (b)
-   add it to the active sprint?"_ If a PR already exists, run
+4. Create it, assigned to the user. A single ticket is a simple write
+   (see "Simple writes run, complex writes ask" in `SKILL.md`). Ask first
+   only when it goes to a project that the user does not work in.
+5. Report the new key with the rendered summary and description as a
+   block quote, so the user can read what landed.
+6. If a PR already exists, run
    `~/.claude/skills/jira/jira-link-pr PROJ-2117 <PR>` as part of the
    create (no extra question) and report its dev-status result.
 

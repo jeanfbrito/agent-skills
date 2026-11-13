@@ -25,15 +25,17 @@ Every `SKILL.md` starts with YAML frontmatter:
 
 - `name`: kebab-case, MUST match the directory name exactly (the harness
   resolves skills by directory, not by the frontmatter alone).
-- `description`: action verb, third person, one sentence covering **what**
-  the skill does, **when** to use it, and the **trigger phrases** a user
-  would say — pack in key terms since this is what discovery search
-  actually matches against. No vague descriptions ("helps with X",
-  "does development tasks").
+- `description`: action verb, third person. Say **what** the skill does
+  and **when** to use it: name the categories of request it serves and its
+  slash command. Add a quoted phrase only when no general words cover it (an
+  error string, a non-English request). The description loads in every
+  session, so do not add one phrase per missed trigger. No vague
+  descriptions ("helps with X", "does development tasks").
 
-Good: `"Drafts a one-page technical initiative proposal backed by real
-evidence mined from the project. Triggered by '/proposal', 'draft a
-proposal', 'propose an initiative'."`
+Good: `"Drafts a short weekly work digest in impact language from the
+ledger, merged PRs and git history. Use when the user asks for a weekly
+status update or what they shipped this week. Triggered by
+'/weekly-digest'."`
 
 Bad: `"Helps write proposals for the team."` — no what/when specificity, no
 trigger phrases, first person framing risk.

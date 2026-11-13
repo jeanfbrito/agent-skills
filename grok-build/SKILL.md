@@ -73,11 +73,11 @@ grok -w grok-attempt -p "<task>" --always-approve --output-format json
 SID=$(grok -p "Step 1: analyze X. Report findings, change nothing." --cwd <repo> --output-format json | jq -r '.sessionId')
 grok -p "Step 2: now implement what you proposed." -r "$SID" --always-approve --output-format json
 ```
-Continuation is via `-r/--resume <sessionId|title>` (or `-c` for the most recent session in the cwd). **`-s/--session-id` no longer resumes** — since ~0.2.11x it only names a NEW session and must be an unused UUID; passing a prior id errors. `--fork-session` branches a resumed session instead of extending it; `--restore-code` checks out the original session's commit when resuming.
+Continuation is via `-r/--resume <sessionId|title>` (or `-c` for the most recent session in the cwd). `-s/--session-id` names a NEW session and takes an unused UUID; it does not resume, and passing a prior id errors. `--fork-session` branches a resumed session instead of extending it; `--restore-code` checks out the original session's commit when resuming.
 
 ### Hard problems
 - `--reasoning-effort <effort>` (alias `--effort`) — crank for strategy-grade tasks.
-- `--best-of-n` and `--check` were REMOVED from the CLI (gone by 0.2.118) — don't use them; run parallel worktree attempts (`-w a1`, `-w a2`) yourself if you want best-of-N.
+- For best-of-N, run parallel worktree attempts (`-w a1`, `-w a2`) yourself; the CLI has no best-of-N flag.
 
 ### Structured output
 ```bash

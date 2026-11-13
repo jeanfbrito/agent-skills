@@ -1,6 +1,6 @@
 ---
 name: fit-to-object
-description: Runs the test-print loop for a 3D-printed part that must fit a real object of free shape (helmet, handlebar, bike frame, dashboard) - measures the object at the part's own height, keeps every shape input labelled measured or guessed, models the contact faces as lofted sections with a tape or clearance gap, backs up each print, reads the user's photos and reports of the print on the object, refits only the measured misfit, and records each round. Use when a user prints a part, puts it on the object and reports or photographs the fit. Triggered by "here is the print on the helmet", "it does not touch here", "there is a gap", "the tape does not stick", "it fits better now", "make it follow the shape", "what is the newest to print", "print N".
+description: "Runs the test-print loop for a 3D-printed part that must fit a free-form real object (helmet, handlebar, bike frame, dashboard): measures the object at the part's height, labels every shape input measured or guessed, refits only the measured misfit, and records each round. Use when the user prints a part, puts it on the object and reports or photographs the fit, or asks which version to print next."
 ---
 
 # Fit to object
@@ -25,8 +25,7 @@ Related skills (the `freecad-*` skills live in the `freecad-skills` repo):
   hex keys, paper sheets) give the gap in mm. A photo from closer than
   about 15 cm cannot show a 1-2 mm gap.
 - Copy an interface from a part that fits, when the user has one. Measure the section of that part's STL (trimesh `section`). Do not
-  use generic dimensions. Generic GoPro buckle sizes were 0.1-0.6 mm loose.
-  The user's Airoh STL had no play.
+  use generic dimensions: generic mount sizes can be 0.1-0.6 mm loose.
 
 ## 2. Keep an input inventory
 
@@ -76,8 +75,8 @@ asks for a print from estimates (`MEASURED = None` gives a check-only build).
 - Photos of a print with no text mean "fix what these show". Find the
   misfit, measure it, change the model and report. Ask only what the
   photos cannot show.
-- The user's correction is right. On the chin mount, "the tips touch" (my
-  reading of a photo) was wrong.
+- When the user's report contradicts your reading of a photo, the user's
+  report is right.
 - Foam tape on a translucent print is a contact map: light grey = foam with
   air behind it (no contact). Dark = contact, or a wall too thick to see
   through.

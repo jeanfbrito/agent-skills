@@ -56,7 +56,7 @@ nothing is a result.
 | Confluence | written design rationale, post-mortems | CQL search on the feature, symbol, or ticket key |
 | Rocket.Chat | deliberation that never reached a doc | `rocket-cli` search_messages on the ticket key, symbol, or feature name |
 | Zoho Desk | the customer report behind a defensive fix | ticket lookup by SUP key or customer symptom, when the connector is enabled |
-| Session memory | what earlier sessions learned | `mm_search`, project memory, `lessons.md` |
+| Session memory | what earlier sessions learned | ai-memory retrieval (`memory_query`), project memory, `lessons.md` |
 | Upstream source | the server or library behavior the code reacts to | GitNexus over the indexed repo, plus the library's source at its pinned version |
 
 Run the source queries yourself for a narrow target. For a broad history

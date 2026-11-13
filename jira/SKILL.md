@@ -1,6 +1,6 @@
 ---
 name: jira
-description: Drive your Atlassian Jira workspace from a terminal session via the `jira` CLI (ankitpokhrel/jira-cli). Use this skill ANY time the user asks about Jira tickets, issues, sprints, JQL, boards, story points, worklogs, or names a project key from your org — even if they don't say the word "Jira". Also use it for vague work-status questions like "what's on my plate", "what am I working on", "what's blocked", "show me my open tickets", "current sprint", "ready for dev queue", because that work usually lives in Jira. Also use it to link a PR or branch to a ticket ("link the PR to the ticket", "hook the PR to Jira"). Skip this skill only when the user is clearly asking about something else (Confluence pages, GitHub PRs, Slack messages) — for those, use the appropriate other tool. Personal defaults (primary project key, default component, default assignee, workflow status names) live in `local-config.yml` next to this file (gitignored), populated by `setup.sh`.
+description: Drive the Atlassian Jira workspace from a terminal through the `jira` CLI (ankitpokhrel/jira-cli). Use this skill ANY time the user asks about Jira tickets, issues, sprints, JQL, boards, story points or worklogs, names a project key, asks about their own work status (what is on their plate, blocked, or in the current sprint), or wants a PR or branch linked to a ticket, even when they do not say "Jira". Not for Confluence pages, GitHub PRs or Slack messages.
 ---
 
 # Atlassian Jira workflow (jira-cli)
@@ -21,7 +21,7 @@ stop before any project/issue-type probing: run
 key once and write `defaults.primary_project` to `local-config.yml`
 yourself). Do not re-derive project keys, boards, or issue types ad hoc
 with `jira project list` / grep chains — that costs 5–10 tool calls per
-session and was the top waste in three of the last twelve sessions.
+session.
 
 ## Preconditions — verify before running commands
 
@@ -123,7 +123,7 @@ top of the answer), then everything else ordered by priority.
 jira issue view <KEY>
 ```
 
-**Create** (draft-first — see below). First search the project for an
+**Create** (a simple write — see below). First search the project for an
 open ticket on the same subject (step 0 in
 `~/Github/agent-skills/jira/references/workflows.md`):
 
@@ -198,20 +198,27 @@ PR is opened**. A remote link alone does not fill that panel.
 title for `RocketChat/Rocket.Chat`: core PR titles must not carry Jira
 keys, so there the remote link is the only link.
 
-A title edit on an open PR did not fill the panel within 10 min
-(CORE-2764 / PR #3548, Oct 2026). For an existing PR, the merge commit
-is what links it, so do not report the panel as linked until the
-helper's poll says so.
+A title edit on an open PR can leave the panel empty. For an existing PR,
+the merge commit is what links it, so do not report the panel as linked
+until the helper's poll says so.
 
-## Draft-first — required for every write
+## Simple writes run, complex writes ask
 
-Mutations are cheap to perform but expensive to undo (especially in
-projects with many watchers). Before `jira issue create`, `comment add`,
-`edit`, `move`, `assign`, `worklog add`, or `link`: **show the user the
-exact fields (summary, body/comment text, target status, command) and ask
-"shall I run this?"** — unless the user explicitly said "go ahead and X"
-with the specifics already given. Wait for explicit confirmation before
-running the write.
+**Simple writes run directly** when the user asks for the work. Report
+what you ran and the result. These are simple writes:
+- Create one ticket, assigned to the user.
+- Move a ticket to another status.
+- Assign a ticket, or add a worklog.
+- Link a PR or another ticket.
+
+**Complex writes ask first.** Show the exact fields (summary, body or
+comment text, target, command), ask "shall I run this?", and wait for an
+explicit yes. These are complex writes:
+- A comment. Other people read it.
+- An edit that rewrites a summary or a description.
+- A write that touches more than one ticket.
+- A move to another project, or a delete.
+- A ticket in a project that the user does not work in.
 
 For the two highest-value write workflows — synthesizing a session into a
 ticket comment, and opening a new ticket for in-flight work (plus

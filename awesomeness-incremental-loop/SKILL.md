@@ -1,25 +1,6 @@
 ---
 name: awesomeness-incremental-loop
-description: >-
-  Runs an improvement loop on a project that has reference material in its
-  docs, on any agent harness, and never stops while work is left. Each cycle is a self-contained run. It reads
-  its state from a journal and picks the most important gap against the
-  references: human priorities first, then quick wins. It builds the smallest
-  change that moves that gap's "done when" target. It checks the change with
-  cheap senses and commits. It writes each step to a trail as it happens. A
-  later run continues where the last one stopped, and the trail is the live
-  report. A row that stays open for
-  3 cycles forces a step back: split it, change the approach, ask the critic,
-  or block it. Two cycles in a row without product change force a new route
-  or another row, never a stop. A harsh blind
-  critic runs only at the done gate. Past full
-  parity it invents additions behind toggles until a human gives a verdict. The
-  session that runs the skill is the orchestrator: it runs each cycle as a
-  new subagent and spawns the next one when it ends. When only the human can
-  help, it keeps those decisions in a file, works on other rows, and asks them when the human comes back. It waits with no agent run only when no row is left to work on. The human can stop it at any time. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. Adapted from the gauntlet loop. Triggered by
-  '/awesomeness-incremental-loop', 'awesomeness loop', 'run the awesome loop',
-  'what is next from the references', 'find what is missing versus the
-  reference', 'keep improving until I stop you', 'finish this loop cycle and stop', 'finish what is open so we can stop for today'.
+description: Runs a continuous improvement loop that closes gaps between a project and the reference material in its docs. Each cycle runs as a new subagent, picks the most important open gap from the journal, builds and checks the smallest change, commits it, and records it in a trail. Use for /awesomeness-incremental-loop, when the user asks to run the awesomeness loop, to find what is missing versus the references, to keep improving until stopped, or to finish the open cycle and stop.
 argument-hint: "[optional: focus area] [optional: --no-commit] [optional: --reference NAME]"
 ---
 

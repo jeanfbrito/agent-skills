@@ -72,7 +72,7 @@ gh pr view <n> --json number,url,title,state,headRefName,headRefOid,author
 ## 2. Worktree — always, without asking
 
 Every babysit runs in a worktree on the PR's head branch, without asking.
-Follow `superpowers:using-git-worktrees` with that preference answered:
+Pick the worktree in this order:
 
 - Already in a linked worktree on `<headRefName>` → use it.
 - Native tool available (`EnterWorktree`) → use it, checking out the
@@ -134,9 +134,8 @@ No file is touched until the whole batch has been read and planned.
 
 1. **Read every item** in the report — every comment, every review body,
    every inline finding, every failed-check excerpt. Not the first few.
-2. **Route every item through `superpowers:receiving-code-review`.** It
-   exists to stop feedback being implemented on reflex. Do not skip it
-   because a suggestion looks obvious.
+2. **Check every item against the code before you accept it.** A
+   suggestion that looks obvious still needs evidence that it is right.
 3. **Write the plan** — one table for the batch, one row per item:
    `#id | source | verdict | evidence | commit group`. Verdicts:
    - **Act** — the finding is real. Say which files change.

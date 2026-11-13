@@ -132,9 +132,9 @@ assumptions, update or delete the stale entries.
 For lessons that apply ACROSS projects (porting mistakes, verification
 failures, debugging anti-patterns, architectural insights):
 
-- If the mastermind MCP is available, capture with `mm_write` (war-story or
-  lesson type).
-- Otherwise, use the `/learn` skill to write project + global `lessons.md`.
+- When the user asks to remember it, capture it with the ai-memory
+  durable-page flow. Otherwise, use the `/learn` skill to write project +
+  global `lessons.md`.
 
 Only truly general lessons go here — project-specific knowledge stays in
 AGENTS.md and auto-memory.
@@ -156,8 +156,8 @@ the exact draft first:
   post-mortem (Atlassian MCP, `createConfluencePage`). Ask which space, or
   reuse the space from a previous run. Link it from the done.md entry.
   If an `updateConfluencePage` call **times out, re-read the page before
-  retrying** — the write usually applied (a 2026-09-21 timeout had already
-  bumped the page to v2) and a blind retry creates a needless version.
+  retrying**. The write usually applies despite the timeout, and a blind
+  retry creates a needless version.
 - **Team-channel summary**: draft a 5–10 line post for the team channel —
   what happened, impact, one key lesson, link to the full doc. Run it through
   the tone rules. Before offering to send it yourself, check the target
@@ -179,7 +179,7 @@ Before finishing, verify:
 - [ ] Impact section states observable effects only (or was consciously skipped)
 - [ ] Rules in AGENTS.md are actionable imperatives, not vague advice
 - [ ] Memory files use the frontmatter format and are linked from MEMORY.md
-- [ ] Cross-project lessons captured (mastermind or /learn) — general ones only
+- [ ] Cross-project lessons captured (ai-memory or /learn) — general ones only
 - [ ] done.md entry appended (if the project uses the ledger)
 - [ ] Tone check passed per `shared/tone.md`: grep ran, every hit reviewed,
       no customer names, no external tracker IDs, no invented numbers

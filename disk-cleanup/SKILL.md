@@ -7,8 +7,7 @@ description: Frees disk space on a macOS dev machine. Measures the known large s
 
 Let `D` = `~/Github/agent-skills/disk-cleanup/scripts`.
 
-This skill came from 3 sessions (Oct 2026) that found the same steps again
-each time. Use these steps. Do not search old transcripts for the method.
+Use these steps. Do not search old transcripts for the method.
 
 ## Rules
 

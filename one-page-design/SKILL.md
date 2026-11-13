@@ -19,7 +19,7 @@ vault write-up with the examples is
 - A text one-pager (goals, problem, alternatives, priorities), a GDD,
   or a feature index. Those say where a decision is written. This
   sheet shows how the parts act on each other.
-- A proposal. Use the `proposal` skill.
+- A text proposal or initiative pitch. Write it as a document.
 - A design bible, a wiki page, or a poster of prose. Shrinking a long
   document onto one page fails the method.
 - A generated picture. Labels must be facts. Draw vector marks.

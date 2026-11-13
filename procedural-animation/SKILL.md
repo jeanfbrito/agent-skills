@@ -1,6 +1,6 @@
 ---
 name: procedural-animation
-description: Routes character and procedural animation problems to the technique that solves them - foot sliding and foot locking, leg-chain and two-bone IK, locomotion and movement models, springs/dampers/inertialization, motion matching, and rotation representations for neural networks. Use when implementing or debugging character movement, foot contact, animation blending, offset decay, or animation data fed to a model. Triggered by "foot sliding", "foot locking", "two-bone IK", "inverse kinematics", "locomotion model", "character feels floaty", "spring damper", "inertialization", "motion matching", "unroll rotations", "procedural animation".
+description: "Routes character and procedural animation problems to the technique that solves them: foot sliding and foot locking, leg-chain and two-bone inverse kinematics, locomotion and movement models, springs/dampers/inertialization, motion matching, and rotation representations for neural networks. Use when implementing or debugging character movement, foot contact, animation blending, offset decay, or animation data fed to a model, including a character that feels floaty."
 ---
 
 # Procedural Animation

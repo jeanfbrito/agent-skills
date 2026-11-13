@@ -1,6 +1,6 @@
 ---
 name: good-night
-description: 'Closes the work day: collects what got done today (morning plan from good-morning, PRs opened, merged and reviewed, comments, pushes, Jira tickets, local commits and ledger entries, plus this session), drafts a closing note (Done, In progress, Waiting on, Tomorrow first, Notes) that good-morning reads the next morning, then runs an optional short check-in on stress, load, mood, energy, anxiety and sleep with a trend table. Triggered by "/good-night", "good night", "boa noite", "end of day", "wrap up the day", "closing notes", "day notes", "how was my day", "prepare my session". Local only: notes and journal stay in ~/.local/share/good-night.'
+description: 'Closes the work day: collects what got done today, drafts a closing note (Done, In progress, Waiting on, Tomorrow first, Notes) that good-morning reads the next morning, then offers an optional check-in with a trend table. Use for /good-night, when the user ends the work day (in English or Portuguese), asks for closing or day notes, asks how the day went, or asks to prepare a session summary from the check-ins. Notes stay local in ~/.local/share/good-night.'
 ---
 
 # Good Night
@@ -53,7 +53,7 @@ Write the note in the user's language, with these five sections in this
 order. Each line is one item with its link (PR URL, Jira key, ledger card).
 
 ```markdown
-# Closing note — 2026-10-15
+# Closing note — <YYYY-MM-DD>
 
 ## Done
 - <what got finished, with link>
