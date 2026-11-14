@@ -40,6 +40,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -57,6 +58,9 @@ LOG_ROW_MAX = 300
 LOG_ROWS_MAX = 30
 JOURNAL_MAX = 40_000
 DISK_MIN_GB = 15  # below this, builds and captures fail with ENOSPC in the middle of a cycle
+DISK_CLEAR_GB = 5  # a low-disk episode ends when the free space is this far above DISK_MIN_GB
+DISK_PASS_MIN = 30  # minutes that the cycle which claimed the cache pass has for it
+DISK_EPISODE_H = 24  # one cache pass for each low-disk episode, and at most one in this many hours
 TRAIL = "trail.jsonl"
 KINDS = ["pick", "predict", "try", "see", "keep", "revert", "commit", "step-back", "blocked", "end", "ack"]
 MODES = ["gap", "coverage", "unblock", "beyond", "step-back", "critic", "review", "waiting"]
@@ -938,13 +942,25 @@ def brief(a):
     if long_rows or len(log) > LOG_ROWS_MAX or size > JOURNAL_MAX:
         chores.append(("JOURNAL-LONG", f"JOURNAL-LONG: {size} bytes, {len(log)} log rows, {len(long_rows)} over {LOG_ROW_MAX} chars. "
                        f"The history lives in the trail. Move the cycle log out of the journal and keep the tables short."))
-    try:
-        free_gb = __import__("shutil").disk_usage(a.project).free / 2**30
-    except OSError:
-        free_gb = None
+    # A low disk gets one cache pass, in the cycle whose lock claimed it. Later cycles get a note, not a chore:
+    # a pass that cannot reach the limit must not use up every cycle (lesson 45).
+    free_gb = disk_free_gb(a.project)
+    disk_note = None
+    episode = disk_episode(root, free_gb)
     if free_gb is not None and free_gb < DISK_MIN_GB:
-        chores.append(("DISK-LOW", f"DISK-LOW: {free_gb:.1f} GB free, below {DISK_MIN_GB} GB. Builds and captures fail with ENOSPC. "
-                       f"Run the disk-cleanup skill's rules: clean only caches that rebuild themselves. Ask the human for anything else."))
+        this_cycle = oc[0] if oc else max([e.get("cycle", 0) for e in trail] or [0]) + 1
+        in_pass = episode and episode["cycle"] == this_cycle and time.time() - episode["t"] < DISK_PASS_MIN * 60
+        if not episode or in_pass:
+            chores.append(("DISK-LOW", f"DISK-LOW: {free_gb:.1f} GB free, below {DISK_MIN_GB} GB. Builds and captures can fail with ENOSPC. "
+                           "Do one pass, in this cycle only: delete caches that rebuild themselves (package manager, build and "
+                           "tool caches). Do not delete user files, repos or downloads. Do not start a second pass. If the disk "
+                           "is still below the limit after the pass, write one entry in the decisions file that names what the "
+                           "human can delete (references/decisions.md). Then do the cycle's item."))
+        else:
+            disk_note = (f"DISK: {free_gb:.1f} GB free, below {DISK_MIN_GB} GB. Cycle {episode['cycle']} had the one cache pass "
+                         f"for this ({episode.get('free_gb', '?')} GB free before it). Do not clean again: more space needs the "
+                         "human. If the decisions file has no entry for it, write one. Keep builds and captures small, and do "
+                         "the cycle's item.")
 
     cyc_all = cycles_of(trail)
     since_review = 0
@@ -1020,6 +1036,8 @@ def brief(a):
         json.dump(fresh, open(seen_path, "w"))
     except OSError:
         pass
+    if disk_note:
+        out.append(disk_note)
     if chores or items:
         out.append("SIGNALS:")
     else:
@@ -1236,6 +1254,45 @@ def lock_status(root, stale_min):
             f"holds it, renewed {age:.0f} min ago. Do not spawn a cycle: tell the human which session runs the loop.")
 
 
+def disk_free_gb(project):
+    try:
+        return shutil.disk_usage(project).free / 2**30
+    except OSError:
+        return None
+
+
+def disk_episode(root, free_gb):
+    """The low-disk episode on record, or None. Enough free space, or a record older than a day, ends it."""
+    path = os.path.join(root, "disk-low.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            episode = json.load(fh)
+        episode["cycle"], episode["t"] = int(episode["cycle"]), float(episode["t"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    old = time.time() - episode["t"] > DISK_EPISODE_H * 3600
+    if old or (free_gb is not None and free_gb >= DISK_MIN_GB + DISK_CLEAR_GB):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        return None
+    return episode
+
+
+def claim_disk_pass(project, root, cycle):
+    """Lock calls this. The first cycle that starts on a low disk gets the one cache pass of the episode.
+    Only a cycle takes the lock, so a brief that the orchestrator or the human reads claims nothing."""
+    free_gb = disk_free_gb(project)
+    if free_gb is None or free_gb >= DISK_MIN_GB or disk_episode(root, free_gb):
+        return
+    try:
+        with open(os.path.join(root, "disk-low.json"), "w", encoding="utf-8") as fh:
+            json.dump({"cycle": cycle, "t": time.time(), "free_gb": round(free_gb, 1)}, fh)
+    except OSError:
+        pass
+
+
 def armed_goal(root, trail):
     try:
         with open(os.path.join(root, "armed-goal.json"), encoding="utf-8") as fh:
@@ -1279,7 +1336,8 @@ def lock(a):
         print("PAUSED: the human paused the loop. This run does nothing.")
         return 4
     trail = read_trail(root)
-    if not open_cycle(trail):
+    oc = open_cycle(trail)
+    if not oc:
         if not armed_goal(root, trail):
             print("UNARMED: set a goal and a check with state.py arm before a new cycle.")
             return 4
@@ -1309,6 +1367,7 @@ def lock(a):
     token = os.urandom(4).hex()
     with open(path, "w") as fh:
         json.dump({"owner": a.owner, "token": token, "started": now, "agent_pid": me}, fh)
+    claim_disk_pass(a.project, root, oc[0] if oc else max((e.get("cycle", 0) for e in trail), default=0) + 1)
     print(f"LOCKED token={token} (owner {a.owner}, agent pid {me}){why}. Unlock with: unlock --token {token}")
     return 0
 

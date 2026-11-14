@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 
 SCRIPT = Path(__file__).with_name("state.py")
@@ -178,6 +179,57 @@ class StallHoldTest(unittest.TestCase):
         pick = state.read_trail(str(self.root))[0]
         self.assertEqual(pick["target"], self.args.target)
         self.assertEqual(pick["check"], self.args.check)
+
+    def low_disk(self, gb):
+        return mock.patch("shutil.disk_usage", return_value=SimpleNamespace(free=gb * 2**30))
+
+    def test_low_disk_is_one_cache_pass_then_a_note(self):
+        marker = self.root / "disk-low.json"
+        with self.low_disk(10):
+            text = self.brief()  # the orchestrator looks before the spawn: nothing is claimed
+            self.assertIn("DISK-LOW:", text)
+            self.assertNotIn("skill", text.split("DISK-LOW:")[1].splitlines()[0])
+            self.assertFalse(marker.exists())
+            self.assertLoopContinues()  # the cycle's lock claims the one pass
+            self.assertEqual(json.loads(marker.read_text())["cycle"], 1)
+            self.assertIn("DISK-LOW:", self.brief())
+            episode = json.loads(marker.read_text())
+            episode["t"] -= 31 * 60
+            marker.write_text(json.dumps(episode))
+            text = self.brief()  # the same cycle reads the brief again after the pass time
+            self.assertNotIn("DISK-LOW:", text)
+            self.assertIn("DISK: 10.0 GB free", text)
+            self.assertIn("Do not clean again", text)
+
+    def test_next_cycle_on_a_low_disk_does_not_clean_again(self):
+        """Cycle 7 of one run cleaned the caches and stayed below the limit. Cycle 8 got the chore again."""
+        marker = self.root / "disk-low.json"
+        with self.low_disk(10):
+            self.assertLoopContinues()
+            self.write_cycles([(1, "gap", True)])
+            (self.root / "lock").unlink()
+            self.assertLoopContinues()
+            text = self.brief()
+            self.assertNotIn("DISK-LOW:", text)
+            self.assertIn("DISK: 10.0 GB free", text)
+            self.assertIn("Cycle 1", text)
+            self.assertEqual(json.loads(marker.read_text())["cycle"], 1)
+
+    def test_low_disk_episode_ends_with_space_or_after_a_day(self):
+        marker = self.root / "disk-low.json"
+        with self.low_disk(10):
+            self.assertLoopContinues()
+        with self.low_disk(30):
+            self.assertNotIn("DISK", self.brief())
+            self.assertFalse(marker.exists())
+        with self.low_disk(10):
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(state.lock(self.args), 0)
+            episode = json.loads(marker.read_text())
+            episode["t"] -= 25 * 3600
+            marker.write_text(json.dumps(episode))
+            self.assertIn("DISK-LOW:", self.brief())
+            self.assertFalse(marker.exists())
 
     def test_arm_tells_the_orchestrator_to_spawn_on_the_session_model(self):
         self.args.target = "Make branch contact audible to both actors"

@@ -328,3 +328,23 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
       branches. No signal in git finds such a branch, so the check sizes
       each branch that the PR plan names. On that run, the plan rows found
       the two `feat/` branches: 23067 and 5326 changed lines.
+
+## A restart (2026-11-13, one Unity project)
+
+45. **The disk chore used a whole cycle, two cycles in a row.**
+    - Sign: the disk had less than 15 GB free. Cycle 7 cleaned the caches
+      and measured 14 GiB, still below the limit. Cycle 8, a review, got the
+      same chore again, marked `OVERDUE`. It ran a full disk cleanup for
+      7 minutes, and the session closed before its pick. The chore told the
+      cycle to run a separate cleanup procedure, which is not a small chore.
+    - Rule: a low disk gets one pass over the caches that rebuild
+      themselves. When that pass does not reach the limit, more space is a
+      human decision. The cycles continue with their items.
+    - Mechanism: the `lock` call of the first cycle on a low disk claims
+      the pass (`disk-low.json`), and `state.py brief` gives `DISK-LOW` as
+      a chore only to that cycle, for 30 minutes. Later cycles get a `DISK:`
+      line that says not to clean again. The episode ends when the free
+      space is 5 GB above the limit, or after one day. A brief that the
+      orchestrator or the human reads claims nothing.
+      `test_next_cycle_on_a_low_disk_does_not_clean_again` fails on the old
+      code.
