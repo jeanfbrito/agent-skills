@@ -860,6 +860,10 @@ def brief(a):
     if stale:
         chores.append(("STALE-DRIVER", f"STALE-DRIVER: the journal says '{stale[0][:80]}'. The loop runs in the session "
                        "(SKILL.md, Start step 6). Delete that line. Do not start drive.sh."))
+    stale_model = [f"{k}: {v}" for k, v in setup.items() if re.search(r"cycle model", k, re.I)]
+    if stale_model:
+        chores.append(("STALE-MODEL", f"STALE-MODEL: the journal says '{stale_model[0][:80]}'. Each cycle runs on the model "
+                       "of the session that the human started (references/drivers.md, step 1). Delete that line."))
     open_verdicts = [v for v in verdicts if (v.get("Verdict") or "").strip() and not (v.get("Applied") or "").strip()]
     open_answers = [v for v in asks if (v.get("Verdict") or "").strip() and not (v.get("Applied") or "").strip()]
     if open_verdicts or open_answers:
@@ -1263,6 +1267,8 @@ def arm(a):
     with open(os.path.join(root, "armed-goal.json"), "w", encoding="utf-8") as fh:
         json.dump(goal, fh)
     print(f"ARMED: cycle {goal['cycle']} on '{a.row}' targets {a.target}; check: {a.check}")
+    print("SPAWN: one new general subagent with no model argument and no role that has its own model. "
+          "The cycle runs on the model of this session, the one that the human chose.")
     return 0
 
 

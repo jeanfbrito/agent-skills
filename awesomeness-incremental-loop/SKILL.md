@@ -111,7 +111,8 @@ the files that the loop changed.
    entries, the orchestrator asks them first (`references/decisions.md`). For
    each cycle, it spawns one new subagent with the cycle prompt in
    `references/fire-prompt.md`, reads the status line that comes back, and
-   spawns the next one. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. When the human asks for a report, or stops the loop after a milestone, write the feature report and the process retrospective from `references/final-reports.md`, as two separate documents. The feature report starts with the decisions to validate. The orchestrator does no cycle work itself, so its
+   spawns the next one. The subagent gets no model argument: every cycle
+   runs on the model of this session, the one that the human chose. When the human says finish this cycle and stop, finish the open cycle, print the report path, and do not spawn the next one. When the human asks for a report, or stops the loop after a milestone, write the feature report and the process retrospective from `references/final-reports.md`, as two separate documents. The feature report starts with the decisions to validate. The orchestrator does no cycle work itself, so its
    context stays small. Each subagent starts new and reads its state from
    the trail, so no cycle carries the history of the cycles before it.
    A journal line, a memory or an old note that says to start `drive.sh` or a
@@ -148,7 +149,7 @@ that decides nothing new).
    this cycle, before the item: they are small chores (`APPLY` verdicts and
    answers, `MISMATCH`, `NO-DONE-WHEN`, `QUEUED-NO-PROGRESS`, `SENSE-DRIFT`,
    `UNRECORDED-DECISION`, `RECORD-INCOMPLETE`, `PR-SPLIT`, `JOURNAL-LONG`,
-   `STALE-DRIVER`, `DISK-LOW`). A chore marked `OVERDUE` was
+   `STALE-DRIVER`, `STALE-MODEL`, `DISK-LOW`). A chore marked `OVERDUE` was
    skipped in an earlier cycle. For a verdict: `keep` sets the toggle default
    ON, `kill` deletes it and its toggle, `tweak: <note>` queues it. If
    `END-BLOCKED-CYCLE` appears, do not check the same evidence again: end the

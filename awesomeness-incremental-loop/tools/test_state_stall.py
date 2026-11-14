@@ -179,6 +179,25 @@ class StallHoldTest(unittest.TestCase):
         self.assertEqual(pick["target"], self.args.target)
         self.assertEqual(pick["check"], self.args.check)
 
+    def test_arm_tells_the_orchestrator_to_spawn_on_the_session_model(self):
+        self.args.target = "Make branch contact audible to both actors"
+        self.args.check = "Run real recording A/B with two actor contacts"
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(state.arm(self.args), 0)
+        spawn = [line for line in out.getvalue().splitlines() if line.startswith("SPAWN:")]
+        self.assertEqual(len(spawn), 1)
+        self.assertIn("no model", spawn[0])
+        self.assertIn("session", spawn[0])
+
+    def test_journal_cycle_model_line_is_a_stale_chore(self):
+        self.assertNotIn("STALE-MODEL", self.brief())
+        journal = self.project / "docs/awesomeness-loop.md"
+        journal.write_text(JOURNAL.replace("## Direction", "## Setup\n\n- Project: demo\n- Cycle model: sonnet\n\n## Direction"))
+        text = self.brief()
+        self.assertIn("STALE-MODEL", text)
+        self.assertIn("Cycle model: sonnet", text)
+
     def test_cycle_cannot_start_until_orchestrator_arms_a_goal(self):
         self.args.target = "Make branch contact audible to both actors"
         self.args.check = "Run real recording A/B with two actor contacts"

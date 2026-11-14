@@ -269,18 +269,22 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
     - Mechanism: `END-BLOCKED-CYCLE` closes a stranded cycle, `note pick`
       rejects a parked gap row, and `WAITING` checks the last human blocker
       and the idle run. The loop tests reproduce these states.
-42. **The cycles ran on the session model.**
-    - Sign: the orchestrator started each cycle with no role and no model, so
-      each cycle ran on Opus, the model of the session. In 14 days, 608 cycles
-      were 37% of all local spend at list prices (`role-spend.py --top`).
-      Cycles from the same skill also ran as `claude` in one project and as
-      `general-purpose` in another.
-    - Rule: start each cycle as `general-purpose` with the model from the
-      journal's `Cycle model:` line, `sonnet` by default. Use `opus` for a
-      project only when sonnet cycles keep raising `NO-PRODUCT`.
-    - Mechanism: the orchestrator step in `references/drivers.md` names the
-      role and the model, and the journal template has the `Cycle model:`
-      line.
+42. **A cost rule moved the cycles off the model that the human chose.**
+    - Sign: from 2026-10-28 to 2026-11-14, the orchestrator started each
+      cycle with the journal's `Cycle model:`, `sonnet` by default, because
+      the cycles on the session model were 37% of local spend. The human
+      then saw the loop run on Sonnet, which is not good enough for a cycle.
+      In sessions with another alias map, `sonnet` gave a model that nobody
+      chose. In 27 of 163 cycles the orchestrator used a role with its own
+      model.
+    - Rule: the model of the loop is the model of the session that the human
+      started. Each cycle is a subagent with no model argument and no role
+      that has its own model. The human sets the cost when they choose the
+      session model.
+    - Mechanism: `state.py arm` prints the `SPAWN:` line before each cycle,
+      so the rule is in view after a context compaction.
+      `state.py brief` gives `STALE-MODEL` for a journal that has a
+      `Cycle model:` line. The loop tests cover both.
 43. **The loop stopped while work was left.**
     - Sign: since 2026-10-27, the loop stopped overnight after one cycle.
       `AUTO-HOLD` refused every new cycle after one work cycle without a

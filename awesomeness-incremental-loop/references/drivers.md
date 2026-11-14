@@ -27,10 +27,12 @@ The session is the **orchestrator**. It does no cycle work itself:
    be stated because only the human can choose, write that choice in the
    decisions file, and arm another row. Then spawn one new subagent. Give it the prompt in `references/fire-prompt.md`,
    with `{project}` filled. Give it nothing else: its state is on disk.
-   Start it as `general-purpose` with the model from the journal's
-   `Cycle model:` line. If the line is empty, use `sonnet`. A cycle with no
-   model runs on the session model. In one run, that made the cycles more
-   than a third of all spend (lesson 42).
+   Start it as a general subagent (Claude Code: `general-purpose`) with no
+   model argument, so that the cycle runs on the model of this session. The
+   human chose that model for the loop. Do not pass a cheaper model, and do
+   not use a role that has its own model. `state.py arm` prints this rule as
+   its `SPAWN:` line before each cycle. A `Cycle model:` line in a journal is
+   out of date (lesson 42).
 2. Wait for it to end. Read only its last line, the status line.
 3. Print that status line for the human. Run `state.py brief` again. Spawn the
    next new subagent unless the loop is paused or waiting.

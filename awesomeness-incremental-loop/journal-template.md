@@ -23,7 +23,6 @@ handover. To pause every driver, run `state.py pause`.
 - Frame-rate target: 30 | 60 | other (reason)
 - Physics rate: (Hz, substeps, solver iterations, and the metric that proved each raise)
 - Mode: gap | beyond
-- Cycle model: sonnet (`opus` when sonnet cycles keep raising `NO-PRODUCT`)
 - Other repos: (paths of other repos that the loop commits to, or none)
 - PR size limit: 1000 lines, 40 files
 
