@@ -28,15 +28,33 @@ The MCP has no console tool. Type into the **Cmd** box of the editor status bar:
    `{"ref": "tb2", "text": "<command>", "submit": true}`.
 2. `false` after an editor start: call `Observe` and then `Snapshot` (both `{"ref": "", "maxDepth": 60}`), find the
    `textbox` right after the `Cmd` combobox in the snapshot (usually `tb2`), and `Type` again.
-3. Play has the focus and Enter does not submit: `Click` the box, `PressKey` Ctrl+A, `PressKey` BackSpace, `Type`.
+3. If PIE captures input, release it with `Shift+F1` immediately before the Cmd sequence.
+   Select the editor window. Then `Click` Cmd, `PressKey` Ctrl+A, `PressKey` BackSpace, and `Type` in one sequence.
 4. `py "<path>.py" args`: always an **absolute path**. A relative path resolves against the process folder
    (`Engine/Binaries/Win64` after `UE launch`) and fails with "Could not load Python file".
 5. No nested quotes inside one command. Send a second `Type`.
-6. `Type` returns at once. Read the effect from the log: every script logs a unique prefix (`unreal.log("MYTAG: ...")`),
-   then `UE wait-log 'MYTAG|LogPython: Error' [s]` (new lines only) or `UE log 'MYTAG' 20`.
-   Run `wait-log` in the background when it can take more than a minute.
+6. A true `Type` result is not execution evidence. Require a unique start message before waiting for completion.
+   If it is absent, inspect focus and logs before retrying. Execution can be uncertain. Never retry automatically.
+   Stop on editor exit, Python errors, assertions, ensures, or either `Fatal error!` or `Fatal error:`.
+   Run a check in the background when it can take more than a minute.
 7. The sandbox of `execute_tool_script` only has `json`, `math`, `re`, `time`, `copy`, `datetime`: real work goes in
    a `.py` file run with `py`.
+
+### Guarded command runner
+
+Use `UE command '<command>' '<unique start marker>' '<unique completion marker>' [timeout]` for finite scripts.
+It selects the editor, releases PIE capture, clears Cmd and submits exactly once.
+The helper watches only new log lines and ignores command echoes.
+It reports `submitted`, `started`, `completed`, `failed` or `not-submitted`. Missing acknowledgment fails after eight seconds.
+`not-submitted` means execution is unknown, not permission to repeat an action.
+The operation timeout starts at acknowledgment. Completion without a start marker fails.
+
+The helper is `~/Github/agent-skills/unreal-editor-loop/run_command.py`. It uses the existing local MCP endpoint without changing configuration.
+It requires one editor process. Supply distinct markers per run. It never saves assets or changes CPU settings.
+Use direct `Type` for `QUIT_EDITOR`, never the runner or a ProgrammaticToolset script.
+
+Run helper tests with `python -X utf8 -I -B -m unittest discover -s ~/Github/agent-skills/unreal-editor-loop/tests -v`.
+Mocks test state transitions, not keyboard routing. Check the actual PIE capture path after changing submission logic.
 
 ## 2. Compile
 

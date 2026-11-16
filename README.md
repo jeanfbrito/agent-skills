@@ -11,7 +11,7 @@ procedure.
 
 | Skill | What it does | Notes |
 | --- | --- | --- |
-| [commit](commit/SKILL.md) | Groups changes by concern. Checks staged publication against a reviewed task delta and checks each stack node. Reports commits and uncommitted changes. | Uses `shared/tone.md` for PR drafts. |
+| [commit](commit/SKILL.md) | Groups changes by concern and checks the exact staged delta. Handles stale captures and Windows review output without weakening byte checks. | Uses `shared/tone.md` for PR drafts. |
 | [pr-description](pr-description/SKILL.md) | Drafts PR text from exact heads and separates local, CI, and missing proof. Checks batch workflow fanout before authorized publication waves. | Draft-first. Uses `shared/tone.md`. |
 | [babysit](babysit/SKILL.md) | Fixes open PRs until checks pass, reviews threads sequentially, or makes authorized finite corrections while PRs stay closed. | Own worktree for fixes. Verified resolutions and supported declines. Comments are draft-first. Optional `local-config.yml`. |
 | [pr-triage](pr-triage/SKILL.md) | Weekly triage of the repo's open PRs: what blocks your own PRs, review drafts for third-party PRs, duplicate checks for bot PRs. | Draft-first. Keeps head SHAs in `local-state.json`. |
@@ -66,8 +66,8 @@ procedure.
 | [mixamo-download](mixamo-download/SKILL.md) | Searches Mixamo and downloads clips through your logged-in Chrome session. | You approve each download list. |
 | [codex-imagegen](codex-imagegen/SKILL.md) | Generates or edits raster assets through Codex and checks the saved image. | Needs Codex authentication and its built-in imagegen skill. Uses `shared/tone.md`. |
 | [fit-to-object](fit-to-object/SKILL.md) | Runs the test-print loop for a part that must fit a real object: measure at the part's height, label inputs measured or guessed, back up each print, read the fit photos and refit only the measured misfit. | Uses photo-measure, plus freecad-mcp-modeling and freecad-render-check from the private [freecad-skills](https://github.com/jeanfbrito/freecad-skills) repo. |
-| [unreal-editor-loop](unreal-editor-loop/SKILL.md) | Drives an open Unreal editor through the Unreal MCP: console and `py` commands, Live Coding or full build, relaunch, Play, results from the log. `ue.sh` finds the project and engine. | Needs the Unreal MCP plugin on in the project. |
-| [unreal-anim-lab](unreal-anim-lab/SKILL.md) | Builds an in-game Anim Lab (frame clock, reference ghost, bone measures, gizmos, sweeps, screenshots) from a reference implementation, and runs the measure-fix-prove loop until every pose check passes. | Uses unreal-editor-loop. Debug-only code (not in Shipping). |
+| [unreal-editor-loop](unreal-editor-loop/SKILL.md) | Drives an Unreal editor through MCP, builds and Play. Separates command submission, execution acknowledgment and completion, with fatal-error and process-exit checks. | Needs the Unreal MCP plugin. |
+| [unreal-anim-lab](unreal-anim-lab/SKILL.md) | Builds an in-game animation lab and measures poses with captures. Checks startup readiness, measured state and firing cadence before accepting probe results. | Uses unreal-editor-loop. Debug-only code. |
 | [unreal-rig-match](unreal-rig-match/SKILL.md) | Makes a character body follow a reference rig of another size: prop move, hand IK, finger reach, elbow side, with lab proof. | Uses unreal-anim-lab. Keep licensed reference assets out of git. |
 
 ### Moved

@@ -30,7 +30,10 @@ Do not judge a pose from a normal gameplay screenshot when the question is "is t
 
 ## C. Use it
 
-1. `UE launch /Game/Dev/AnimLab/Lvl_AnimLab`, start Play, `UE wait-log '<lab start line>'`.
+1. `UE launch /Game/Dev/AnimLab/Lvl_AnimLab`, then start Play.
+   Wait for startup commands to finish before applying physics or camera settings. Lab registration is not readiness.
+   The reference actor exposes `IsStartupReady(Pawn)`. The runner waits for it and stops if readiness disappears.
+   Older ports use a reported fallback: the configured delay plus two completed game frames.
 2. Batch commands in ONE editor call:
    `py "$SK/scripts/anim_lab_run.py" "clip <c>; time 0.97; cam front; wait 4; shot name; cam fp; wait 4; shot name_fp"`.
    - `wait 4` after `time`, `clip` or `cam`, before `shot`/`snap`. The script waits 2 frames after each shot.
@@ -41,6 +44,15 @@ Do not judge a pose from a normal gameplay screenshot when the question is "is t
    End: `UE wait-log 'ANIM_LAB_RUN: done'`. A sweep ends later: `UE wait-log '<name>.json' 600`, then
    `UE log 'sweep <name>:' 30` (mean, max, time of max per measure).
 4. Read every shot (`Saved/AnimLab/Shots/*.png`) with the Read tool. The MCP Slate screenshot has no lab text.
+5. Assert the measurement conditions. The runner supports `expect physics 0|1`, `expect view fp|external`, and `expect movement <cm/s>`.
+   Put a settle wait before each expectation. Expectations stay active until replaced.
+   Use `expect clear` to finish the current checks before changing the required state.
+   Pawn death, replacement, world loss and clock reversal stop the runner. Slate callbacks do not count as completed game frames.
+   Example: `physics 1; wait 4; expect physics 1; cam fp; wait 4; expect view fp; shot hold`.
+
+For firing and movement checks, read `~/Github/agent-skills/unreal-anim-lab/references/probe-checks.md`.
+Reuse passing evidence until a relevant edit, contradiction or required independent check justifies another run.
+Do not teleport a simulated pawn for a movement test without a deliberate reset and settle procedure.
 
 Checks that work for most pose questions:
 

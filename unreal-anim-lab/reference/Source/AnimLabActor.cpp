@@ -108,6 +108,11 @@ bool AAnimLabActor::GiveWeapon(const FString& ClassPath)
 	return true;
 }
 
+bool AAnimLabActor::IsStartupReady(APawn* Pawn) const
+{
+	return IsValid(Pawn) && Pawn == LastPawn.Get() && bStarted && bStartupSucceeded && PawnFrames >= StartupDelayFrames;
+}
+
 void AAnimLabActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
@@ -134,11 +139,13 @@ void AAnimLabActor::Tick(float DeltaTime)
 		}
 		if (PawnFrames == StartupDelayFrames && !bStarted)
 		{
-			bStarted = true;
+			bStartupSucceeded = true;
 			for (const FString& Command : StartupCommands)
 			{
-				Lab->Command(Command);
+				bStartupSucceeded = Lab->Command(Command) && bStartupSucceeded;
 			}
+			bStarted = true;
+			UE_LOG(LogAnimLab, Display, TEXT("ANIMLAB: startup %s"), bStartupSucceeded ? TEXT("ready") : TEXT("failed"));
 		}
 	}
 

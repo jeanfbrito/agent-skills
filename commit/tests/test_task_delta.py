@@ -88,7 +88,7 @@ class TaskDeltaTests(unittest.TestCase):
 
     def prepare(self, after=None):
         self.ok('capture', '--repo', self.source, '--out', self.baseline, 'file.txt')
-        (self.source / 'file.txt').write_text(self.task if after is None else after)
+        (self.source / 'file.txt').write_bytes((self.task if after is None else after).encode('utf-8'))
         self.ok('review', '--baseline', self.baseline,
                 '--baseline-sha256', hashlib.sha256(self.baseline.read_bytes()).hexdigest(), '--out', self.review)
         sha = hashlib.sha256(self.review.read_bytes()).hexdigest()
@@ -118,7 +118,7 @@ class TaskDeltaTests(unittest.TestCase):
 
     def test_preexisting_concern_is_not_published(self):
         dirty = self.original.replace('line 25\n', 'preexisting concern\n')
-        (self.source / 'file.txt').write_text(dirty)
+        (self.source / 'file.txt').write_bytes(dirty.encode('utf-8'))
         self.prepare(dirty.replace('line 5\n', 'task change\n'))
         self.make_repo(self.publication, {'file.txt': self.original}, {'file.txt': self.task})
         status, output = self.verify()
@@ -129,14 +129,14 @@ class TaskDeltaTests(unittest.TestCase):
 
     def test_source_mutation_after_review_blocks_seal(self):
         self.prepare()
-        (self.source / 'file.txt').write_text(self.task + 'concurrent change\n')
+        (self.source / 'file.txt').write_bytes((self.task + 'concurrent change\n').encode('utf-8'))
         self.rejected('seal', '--review', self.review, '--reviewed-sha256', hashlib.sha256(self.review.read_bytes()).hexdigest(),
                       '--out', self.folder / 'second-seal.json', reason='source changed after review')
 
     def test_source_mutation_after_seal_blocks_verification(self):
         self.prepare()
         self.make_repo(self.publication, {'file.txt': self.original}, {'file.txt': self.task})
-        (self.source / 'file.txt').write_text(self.task + 'concurrent change\n')
+        (self.source / 'file.txt').write_bytes((self.task + 'concurrent change\n').encode('utf-8'))
         status, output = self.verify()
         self.assertEqual(status, 1)
         self.assertIn('source changed after review', output)
@@ -150,7 +150,7 @@ class TaskDeltaTests(unittest.TestCase):
             snapshot = real(repo, paths)
             calls += 1
             if calls == 2:
-                (repo / 'file.txt').write_text('concurrent mutation\n')
+                (repo / 'file.txt').write_bytes(b'concurrent mutation\n')
             return snapshot
 
         with patch.object(delta, 'working', side_effect=mutate):
@@ -197,7 +197,7 @@ class TaskDeltaTests(unittest.TestCase):
         marker = self.folder / 'must-not-exist'
         obj['commands'] = [f'touch {marker}']
         self.baseline.write_text(json.dumps(obj))
-        (self.source / 'file.txt').write_text(self.task)
+        (self.source / 'file.txt').write_bytes(self.task.encode('utf-8'))
         self.ok('review', '--baseline', self.baseline,
                 '--baseline-sha256', hashlib.sha256(self.baseline.read_bytes()).hexdigest(), '--out', self.review)
         self.assertFalse(marker.exists())
@@ -211,7 +211,7 @@ class TaskDeltaTests(unittest.TestCase):
         self.rejected('capture', '--repo', self.source, '--out', self.baseline, 'link', reason='Symbolic links')
         (self.source / 'file.txt').write_bytes(b'a\0b')
         self.rejected('capture', '--repo', self.source, '--out', self.baseline, 'file.txt', reason='Binary')
-        (self.source / 'file.txt').write_text(self.original)
+        (self.source / 'file.txt').write_bytes(self.original.encode('utf-8'))
         self.prepare()
         (self.source / '.git' / 'refs' / 'heads' / 'task').write_text('0' * 40 + '\n')
         self.rejected('seal', '--review', self.review, '--reviewed-sha256', hashlib.sha256(self.review.read_bytes()).hexdigest(),
@@ -221,7 +221,7 @@ class TaskDeltaTests(unittest.TestCase):
         self.ok('capture', '--repo', self.source, '--out', self.baseline, 'file.txt')
         captured = hashlib.sha256(self.baseline.read_bytes()).hexdigest()
         self.baseline.write_bytes(self.baseline.read_bytes() + b' ')
-        (self.source / 'file.txt').write_text(self.task)
+        (self.source / 'file.txt').write_bytes(self.task.encode('utf-8'))
         self.rejected('review', '--baseline', self.baseline, '--baseline-sha256', captured,
                       '--out', self.review, reason='baseline digest does not match capture')
 
@@ -250,6 +250,58 @@ class TaskDeltaTests(unittest.TestCase):
         after = {'mode': '100644', 'text': 'same\n' * 5 + 'task\n' + 'same\n' * 14}
         base = {'mode': '100644', 'text': 'prefix\n' + before['text']}
         self.assertRaises(delta.Rejected, delta.transfer, before, after, base)
+
+    def test_failed_unicode_display_does_not_create_a_review(self):
+        self.ok('capture', '--repo', self.source, '--out', self.baseline, 'file.txt')
+        (self.source / 'file.txt').write_bytes(self.task.replace('task change', 'angle − 5').encode('utf-8'))
+        with io.TextIOWrapper(io.BytesIO(), encoding='cp1252', errors='strict') as console:
+            with patch('sys.argv', ['task_delta.py', 'review', '--baseline', str(self.baseline),
+                                   '--baseline-sha256', hashlib.sha256(self.baseline.read_bytes()).hexdigest(),
+                                   '--out', str(self.review)]), contextlib.redirect_stdout(console), contextlib.redirect_stderr(io.StringIO()):
+                status = delta.main()
+        self.assertEqual(status, 1)
+        self.assertFalse(self.review.exists(), 'An incomplete display must not leave a sealable review.')
+
+    def test_unicode_review_completes_through_utf8_output(self):
+        self.prepare(self.task.replace('task change', 'angle − 5'))
+        review = json.loads(self.review.read_bytes())
+        self.assertIn('angle − 5', review['files']['file.txt']['text'])
+
+    def test_newline_only_staged_change_is_not_normalized_away(self):
+        self.prepare()
+        self.make_repo(self.publication, {'file.txt': self.original},
+                       {'file.txt': self.task.replace('\n', '\r\n')})
+        status, output = self.verify()
+        self.assertEqual(status, 1)
+        self.assertIn('missing or unrelated changes', output)
+
+    def test_valid_head_change_after_capture_rejects_review(self):
+        self.ok('capture', '--repo', self.source, '--out', self.baseline, 'file.txt')
+        captured = hashlib.sha256(self.baseline.read_bytes()).hexdigest()
+        (self.source / 'file.txt').write_bytes(self.task.encode())
+        old_head = delta.git(self.source, 'rev-parse', 'HEAD').decode().strip()
+        payload = delta.git(self.source, 'cat-file', 'commit', old_head).replace(b'Fixture', b'New parent')
+        new_head = self.object(self.source, 'commit', payload).hex()
+        (self.source / '.git/refs/heads/task').write_text(new_head + '\n', encoding='utf-8')
+        self.rejected('review', '--baseline', self.baseline, '--baseline-sha256', captured,
+                      '--out', self.review, reason='source HEAD changed')
+        self.assertFalse(self.review.exists())
+
+    def test_filemode_false_preserves_index_executable_bit(self):
+        path = self.source / 'file.txt'
+        path.write_bytes(self.task.encode('utf-8'))
+        (self.source / '.git/config').write_bytes(b'[core]\nrepositoryformatversion = 0\nbare = false\nfilemode = false\n')
+        real = delta.git
+
+        def indexed_mode(repo, *args):
+            result = real(repo, *args)
+            if args[:3] == ('ls-files', '--stage', '-z'):
+                return result.replace(b'100644 ', b'100755 ')
+            return result
+
+        with patch.object(delta, 'git', side_effect=indexed_mode):
+            current = delta.working(self.source.resolve(), ['file.txt'])
+        self.assertEqual(current['file.txt'], {'mode': '100755', 'text': self.task})
 
     def test_add_delete_and_mode_change(self):
         for before, after, base, expected in [

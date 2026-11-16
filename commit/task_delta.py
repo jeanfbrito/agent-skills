@@ -51,10 +51,13 @@ def write(path, obj, repos):
     require(all(not target.is_relative_to(repo) for repo in repos),
             'Store artifacts outside the source and publication repositories.')
     data = (json.dumps(obj, indent=2, sort_keys=True) + '\n').encode()
+    require(not target.exists(), 'File exists: ' + str(target))
+    # Output must finish before a review can become a sealable artifact.
+    # A UnicodeEncodeError or broken pipe must not leave an apparently reviewed file.
+    print(f'{digest(data)}  {target}', flush=True)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, 'wb') as stream:
         stream.write(data)
-    print(f'{digest(data)}  {target}')
 
 
 def paths_checked(paths):
@@ -77,6 +80,20 @@ def text_snapshot(mode, data):
 
 def working(repo, paths):
     result = {}
+    # Git ignores filesystem executable bits on Windows and other non-POSIX filesystems.
+    # Use the index mode there, including explicit git update-index --chmod changes.
+    config = subprocess.run(['git', '--no-optional-locks', '-C', str(repo),
+                             'config', '--bool', '--get', 'core.filemode'], capture_output=True)
+    require(config.returncode in (0, 1), 'Cannot read core.filemode.')
+    use_index_mode = config.stdout.strip() == b'false'
+    indexed_modes = {}
+    if use_index_mode:
+        for entry in git(repo, 'ls-files', '--stage', '-z', '--', *paths).split(b'\0'):
+            if entry:
+                info, name = entry.split(b'\t', 1)
+                mode, _, stage = info.decode().split()
+                require(stage == '0', 'The source index has unresolved conflicts.')
+                indexed_modes[os.fsdecode(name)] = mode
     for path in paths:
         file = repo / path
         require(file.resolve().is_relative_to(repo) and file.resolve() == file,
@@ -87,7 +104,8 @@ def working(repo, paths):
             result[path] = None
             continue
         require(stat.S_ISREG(mode), 'Only regular text files are supported.')
-        result[path] = text_snapshot('100755' if mode & 0o111 else '100644', file.read_bytes())
+        file_mode = indexed_modes.get(path, '100644') if use_index_mode else ('100755' if mode & 0o111 else '100644')
+        result[path] = text_snapshot(file_mode, file.read_bytes())
     return result
 
 
@@ -145,8 +163,10 @@ def review(args):
     require(current != baseline['files'], 'The task delta is empty.')
     obj = {'version': 1, 'kind': 'review', 'baseline': str(Path(args.baseline).resolve()),
            'baseline_sha256': sha, 'files': current}
-    write(args.out, obj, [repo])
     display(baseline['files'], current)
+    sys.stdout.flush()
+    stable_source(baseline, current)
+    write(args.out, obj, [repo])
 
 
 def display(before, after):

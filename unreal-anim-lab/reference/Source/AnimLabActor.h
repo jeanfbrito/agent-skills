@@ -10,6 +10,7 @@
 #include "AnimLabActor.generated.h"
 
 class AShooterWeapon;
+class APawn;
 
 /** A key of the lab and the lab command it runs */
 USTRUCT(BlueprintType)
@@ -53,6 +54,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Anim Lab")
 	bool GiveWeapon(const FString& ClassPath);
 
+	/** True after startup commands succeed and this pawn passes the startup delay. */
+	UFUNCTION(BlueprintPure, Category="Anim Lab")
+	bool IsStartupReady(APawn* Pawn) const;
+
 	/** Give the player a weapon when the pawn appears */
 	UPROPERTY(EditAnywhere, Category="Anim Lab")
 	bool bGiveWeapon = true;
@@ -79,4 +84,5 @@ private:
 	TWeakObjectPtr<APawn> LastPawn;
 	int32 PawnFrames = 0;
 	bool bStarted = false;
+	bool bStartupSucceeded = false;
 };

@@ -40,6 +40,10 @@ A baseline does not establish authorship. Do not seal unrelated edits, including
 After authorized staging, run the sealed delta check against the publication repository.
 Stop if the source, baseline, or reviewed delta changed, or if application is ambiguous.
 The helper does not stage, commit, push, execute manifest commands, or change source files.
+Keep the captured source HEAD fixed through sealing. A changed HEAD invalidates the capture.
+Never rewrite its recorded HEAD or hashes. Use the bounded recovery in the task-delta reference when ownership is clear.
+On Windows, use `python -X utf8 -I`. Preserve line endings during checkout and patch application.
+Require a successful full review display before sealing. A review file alone does not prove that display completed.
 
 Use context-mode to read the actual diffs — these can be very large and must not flood the context window:
 

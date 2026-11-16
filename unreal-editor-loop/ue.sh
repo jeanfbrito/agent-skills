@@ -8,6 +8,7 @@
 #   ue.sh wait-log <regex> [seconds] wait for a NEW log line that matches (counts lines at the start)
 #   ue.sh log <regex> [n]            last n matching log lines, timestamps cut
 #   ue.sh live-result [seconds]      wait for the result of LiveCoding.Compile
+#   ue.sh command <text> <start> <done> [seconds] submit once and require execution acknowledgment
 # Overrides: UE_PROJECT (.uproject path), UE_ENGINE (engine root, the folder that has Engine/), UE_MCP_PORT (8000).
 set -u
 
@@ -97,6 +98,19 @@ case "${1:-}" in
       sleep 5
     done
     echo "MCP timeout after ${LIMIT}s"; exit 1
+    ;;
+  command)
+    # -I ignores Python environment settings. Enable UTF-8 with the interpreter flag.
+    PYTHON=""
+    for candidate in python3 python; do
+      if "$candidate" -X utf8 -I -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
+        PYTHON="$candidate"; break
+      fi
+    done
+    if [ -z "$PYTHON" ]; then printf 'No Python 3.9+ interpreter found.\n' >&2; exit 1; fi
+    HELPER="$(cd "$(dirname "$0")" && pwd)/run_command.py"
+    "$PYTHON" -X utf8 -I "$HELPER" "${2:?command required}" --log "$LOG" --port "$PORT" \
+      --start-marker "${3:?start marker required}" --done-marker "${4:?completion marker required}" --timeout "${5:-120}"
     ;;
   wait-log)
     PATTERN="$2"; LIMIT="${3:-300}"

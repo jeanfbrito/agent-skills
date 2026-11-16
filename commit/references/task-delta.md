@@ -56,6 +56,42 @@ Artifact digests detect changes after review or seal. They do not authenticate t
 Do not edit artifacts to bypass a rejection. Repeat the workflow with new artifacts and another reviewer inspection.
 If no baseline exists, do not claim that a later capture proves which earlier edits belong to the task.
 
+## Recover a stale capture
+
+A source HEAD change invalidates a capture, even when the selected files did not change.
+Never edit an artifact's HEAD, hashes or paths to bypass that failure.
+
+When ownership is clear, reconstruct only the intended concern in an isolated checkout of its intended parent commit.
+Compare the earlier captured file contents with that parent before claiming they match.
+Capture the isolated baseline before applying the selected patch. Review and seal its complete delta again.
+Reconstruction does not establish authorship. Ask when ownership or the destination is ambiguous.
+
+Keep that isolated source HEAD and files fixed until staged verification finishes in the publication repository.
+Do not commit in the source checkout between capture and verification.
+
+## Windows output and line endings
+
+Use `python -X utf8 -I` for review output on Windows. The `-I` flag ignores Python environment variables.
+A file can use UTF-8 while stdout still uses a narrower encoding.
+A failed review display is not a completed inspection. Never seal its partial output.
+The helper flushes the complete diff and digest before writing the review artifact.
+A display failure therefore leaves no new sealable review file.
+
+Keep the captured line endings unchanged. Git can convert them during patch application as well as checkout.
+For an isolated LF checkout, use command-local settings for both operations:
+
+```bash
+git -C <isolated-source> -c core.autocrlf=false -c core.eol=lf restore --source=<parent> --worktree -- <explicit-paths>
+git -C <isolated-source> -c core.autocrlf=false -c core.eol=lf apply --check <selected.patch>
+git -C <isolated-source> -c core.autocrlf=false -c core.eol=lf apply <selected.patch>
+```
+
+Apply this only to an owned isolated checkout. Preserve the user's working files and global Git settings.
+Inspect `.gitattributes` first. An explicit `eol` attribute can override core settings.
+The final exact staged check rejects accidental line-ending changes. It does not normalize evidence or accept unrelated whitespace edits.
+When `core.filemode=false`, the helper reads tracked modes from the index instead of unreliable filesystem executable bits.
+Use an explicit index mode change for an executable helper, then review that mode change with its content.
+
 ## Check publication
 
 Transfer only the reviewed concern into a separate publication worktree through an authorized process.
