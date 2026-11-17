@@ -71,8 +71,12 @@ case "${1:-}" in
     [ -f "$BUILD" ] || echo "WARNING: no build script at $BUILD (set UE_ENGINE)"
     ;;
   build)
-    "$BUILD" "${2:-${NAME}Editor}" "$PLATFORM" "${3:-Development}" "-Project=$UPROJECT" -WaitMutex 2>&1 \
-      | grep -E "error|warning C|Result:|Total execution|BUILD (SUCCESSFUL|FAILED)" | tail -40
+    if [ "$PLATFORM" = Win64 ]; then
+      # Git Bash cannot run a .bat whose path has spaces (cmd stops at "C:\Program"): go through PowerShell
+      powershell.exe -NoProfile -Command "& '$BUILD' '${2:-${NAME}Editor}' $PLATFORM '${3:-Development}' '-Project=$UPROJECT' -WaitMutex" 2>&1
+    else
+      "$BUILD" "${2:-${NAME}Editor}" "$PLATFORM" "${3:-Development}" "-Project=$UPROJECT" -WaitMutex 2>&1
+    fi | grep -E "error|warning C|Result:|Total execution|BUILD (SUCCESSFUL|FAILED)|not recognized" | tail -40
     ;;
   running)
     if [ "$PLATFORM" = Win64 ]; then tasklist //FI "IMAGENAME eq UnrealEditor.exe" //FO CSV //NH | grep -i unrealeditor || exit 1
