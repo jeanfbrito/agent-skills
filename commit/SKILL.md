@@ -90,6 +90,8 @@ For a sealed task delta, stage only that concern in the publication tree under t
 Run `verify-staged` immediately before each authorized commit. Stop if the check fails.
 Do not stage a whole shared-source file merely because it is a captured task path.
 For other groups, stage the relevant files and commit. Use native git commands only — this ensures the user's configured git identity (name, email, GPG signing) is used correctly.
+Untracked files are the exception to staging without approval. Before `git add`, list each untracked path you will include and ask about it.
+Ask even when a committed change needs the file. Skip the question only for paths the user approved in this session.
 
 ```bash
 git add <file1> <file2> ...
