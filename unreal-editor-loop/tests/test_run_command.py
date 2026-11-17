@@ -10,6 +10,30 @@ subject = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(subject)
 
 
+class PathAndLockTests(unittest.TestCase):
+    def test_git_bash_paths_become_windows_paths(self):
+        # The editor answered "Could not load Python file '/c/Users/...'" for a Git Bash path.
+        home = Path.home().as_posix()
+        self.assertEqual(subject.editor_command('py "/c/Users/me/a b/x.py" /Game/Maps/Lvl', nt=True),
+                         'py "C:/Users/me/a b/x.py" /Game/Maps/Lvl')
+        self.assertEqual(subject.editor_command("py ~/tools/x.py /d/data", nt=True), f"py {home}/tools/x.py D:/data")
+        self.assertEqual(subject.editor_command('py "C:/x.py" /Game/c/Asset', nt=True), 'py "C:/x.py" /Game/c/Asset')
+        self.assertEqual(subject.editor_command("stat fps", nt=True), "stat fps")
+        self.assertEqual(subject.editor_command('py "/c/x.py"', nt=False), 'py "/c/x.py"')
+
+    def test_a_second_command_on_the_same_editor_is_refused(self):
+        # Two runners typed into one Cmd box at once and broke each other's checks.
+        with tempfile.TemporaryDirectory() as folder:
+            with subject.EditorLock(8000, folder):
+                with self.assertRaisesRegex(RuntimeError, "Another runner command"):
+                    with subject.EditorLock(8000, folder):
+                        pass
+                with subject.EditorLock(8001, folder):
+                    pass
+            with subject.EditorLock(8000, folder):
+                pass
+
+
 class CommandTests(unittest.TestCase):
     def watch(self):
         return subject.CommandWatch("PROBE: started", "PROBE: done", 2, 5)
@@ -87,6 +111,26 @@ class CommandTests(unittest.TestCase):
             ("Type", {"ref": "tb2", "text": 'py "/local/probe.py"', "submit": True})])
         with self.assertRaisesRegex(ValueError, "direct Type"):
             subject.submit(client, "QUIT_EDITOR")
+
+    def test_a_type_call_that_times_out_can_be_running(self):
+        class BusyClient:
+            def __init__(self, error):
+                self.error = error
+
+            def call(self, toolset, tool, args):
+                if tool == "Windows" and args["action"] == "list":
+                    return '[{"title":"Fixture - Unreal Editor","index":0}]'
+                if tool == "Snapshot":
+                    return '  text "Cmd" [ref=x1]\n  textbox [ref=tb2]\n'
+                if tool == "Type":
+                    raise self.error
+                return False if tool == "IsPIERunning" else True
+
+        # A long script blocks the game thread: the Type answer comes after the socket timeout.
+        self.assertFalse(subject.submit(BusyClient(TimeoutError("timed out")), "py long.py"))
+        self.assertFalse(subject.submit(BusyClient(subject.urllib.error.URLError(TimeoutError())), "py long.py"))
+        with self.assertRaises(ConnectionRefusedError):
+            subject.submit(BusyClient(ConnectionRefusedError()), "py long.py")
 
 
 if __name__ == "__main__":

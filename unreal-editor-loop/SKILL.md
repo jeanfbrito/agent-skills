@@ -52,6 +52,13 @@ The operation timeout starts at acknowledgment. Completion without a start marke
 The helper is `~/Github/agent-skills/unreal-editor-loop/run_command.py`. It uses the existing local MCP endpoint without changing configuration.
 It requires one editor process. Supply distinct markers per run. It never saves assets or changes CPU settings.
 Use direct `Type` for `QUIT_EDITOR`, never the runner or a ProgrammaticToolset script.
+It changes Git Bash paths (`/c/...`, `~/...`) in the command to Windows paths.
+It refuses a second command while one runs on the same editor (lock file per port).
+A script can block the game thread longer than the 15 s MCP timeout. Then the `Type` answer comes late:
+the runner reports `submitted` and watches the log.
+Run a long command with `run_in_background`, never with `nohup` or `&`: a detached runner dies without a report.
+For `Automation RunTests <filter>` (UE 5.8), use the markers `Ready to start automation` and `Automation Test Queue Empty`.
+The `Found N automation tests` line comes about 6 s later, so it can miss the 8 s start limit.
 
 Run helper tests with `python -X utf8 -I -B -m unittest discover -s ~/Github/agent-skills/unreal-editor-loop/tests -v`.
 Mocks test state transitions, not keyboard routing. Check the actual PIE capture path after changing submission logic.

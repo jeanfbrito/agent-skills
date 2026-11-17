@@ -8,12 +8,56 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 import time
+import urllib.error
 import urllib.request
 
 SLATE = "SlateInspectorToolset.SlateInspectorToolset"
 APP = "EditorToolset.EditorAppToolset"
+GIT_BASH_DRIVE = re.compile(r"(^|[\s\"'])/([A-Za-z])(?=/)")
+GIT_BASH_HOME = re.compile(r"(^|[\s\"'])~(?=/)")
 ERROR = re.compile(r"Fatal error[!:]|=== Critical error|Assertion failed|Ensure condition failed|LogPython: Error:|Live coding failed", re.I)
+
+
+def editor_command(command, nt=os.name == "nt"):
+    """Write Git Bash paths (/c/..., ~/...) as Windows paths: the editor's Python cannot load /c/Users/... ."""
+    if not nt:
+        return command
+    command = GIT_BASH_HOME.sub(lambda m: m[1] + Path.home().as_posix(), command)
+    return GIT_BASH_DRIVE.sub(lambda m: m[1] + m[2].upper() + ":", command)
+
+
+class EditorLock:
+    """One runner command per editor (MCP port) at a time: two runners interleave their Cmd input.
+    The operating system releases the lock when the process ends, also when it is killed."""
+    def __init__(self, port, folder=None):
+        self.path = Path(folder or tempfile.gettempdir()) / f"unreal-run-command-{port}.lock"
+        self.stream = None
+
+    def __enter__(self):
+        self.stream = open(self.path, "a+")
+        try:
+            if os.name == "nt":
+                import msvcrt
+                self.stream.seek(0)
+                msvcrt.locking(self.stream.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(self.stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            self.stream.close()
+            raise RuntimeError("Another runner command is still in progress on this editor. "
+                               "Wait for it: two commands at once interleave their Cmd input.") from None
+        return self
+
+    def __exit__(self, *_exc):
+        if os.name == "nt":
+            import msvcrt
+            self.stream.seek(0)
+            msvcrt.locking(self.stream.fileno(), msvcrt.LK_UNLCK, 1)
+        self.stream.close()
+        return False
 
 
 class CommandWatch:
@@ -127,7 +171,14 @@ def editor_pids():
     return [int(pid) for pid in result.stdout.split()]
 
 
+def is_timeout(error):
+    return isinstance(error, TimeoutError) or (
+        isinstance(error, urllib.error.URLError) and isinstance(error.reason, TimeoutError))
+
+
 def submit(client, command):
+    """True when the editor answered the Type call. False when the call timed out: a long script blocks the
+    game thread, so the answer comes only after the script. The command can be running; watch the log."""
     if re.search(r"\bQUIT_EDITOR\b", command, re.I):
         raise ValueError("Send QUIT_EDITOR through a direct Type call, not this runner.")
     windows = json.loads(client.call(SLATE, "Windows", {"action": "list"}))
@@ -144,10 +195,18 @@ def submit(client, command):
         if client.call(SLATE, "PressKey", {"key": "Shift+F1"}) is not True:
             raise RuntimeError("Cannot release PIE input capture.")
     for tool, args in (("Click", {"ref": match[1]}), ("PressKey", {"key": "Ctrl+A"}),
-                       ("PressKey", {"key": "BackSpace"}),
-                       ("Type", {"ref": match[1], "text": command, "submit": True})):
+                       ("PressKey", {"key": "BackSpace"})):
         if client.call(SLATE, tool, args) is not True:
             raise RuntimeError(f"{tool} failed. Inspect the log before another submission.")
+    try:
+        typed = client.call(SLATE, "Type", {"ref": match[1], "text": command, "submit": True})
+    except (OSError, urllib.error.URLError) as error:
+        if is_timeout(error):
+            return False
+        raise
+    if typed is not True:
+        raise RuntimeError("Type failed. Inspect the log before another submission.")
+    return True
 
 
 def main():
@@ -169,19 +228,23 @@ def main():
         if len(pids) != 1:
             raise RuntimeError("Require exactly one running editor process.")
         watch = CommandWatch(args.start_marker, args.done_marker, args.start_timeout, args.timeout)
-        client = Client(args.port)
-        cursor = LogCursor(args.log)
-        start = time.monotonic()
-        submit(client, args.command)
-        previous = None
-        while True:
-            watch.observe(cursor.read(), time.monotonic() - start, pids[0] in editor_pids())
-            if watch.status != previous:
-                print(json.dumps({"status": watch.status, "reason": watch.reason}), flush=True)
-                previous = watch.status
-            if watch.status in ("completed", "failed", "not-submitted"):
-                return 0 if watch.status == "completed" else 1
-            time.sleep(0.2)
+        with EditorLock(args.port):
+            client = Client(args.port)
+            cursor = LogCursor(args.log)
+            start = time.monotonic()
+            previous = None
+            if not submit(client, editor_command(args.command)):
+                previous = "submitted"
+                print(json.dumps({"status": previous, "reason": "The Type call did not return in time. The editor is "
+                                  "busy, maybe with this command. The runner watches the log for the markers."}), flush=True)
+            while True:
+                watch.observe(cursor.read(), time.monotonic() - start, pids[0] in editor_pids())
+                if watch.status != previous:
+                    print(json.dumps({"status": watch.status, "reason": watch.reason}), flush=True)
+                    previous = watch.status
+                if watch.status in ("completed", "failed", "not-submitted"):
+                    return 0 if watch.status == "completed" else 1
+                time.sleep(0.2)
     except (OSError, ValueError, RuntimeError, KeyError) as error:
         print(json.dumps({"status": "failed", "reason": str(error),
                           "retry": "Inspect the editor log before another submission."}), flush=True)
