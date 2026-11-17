@@ -90,11 +90,36 @@ Full build:
   keeps the old value. Save assets on purpose and say which ones.
 - Prove a visual change with a picture: a viewport screenshot that you read. For animation and poses, build or use
   the lab of the `unreal-anim-lab` skill.
-- Background editor ≈ 3 FPS ("Use Less CPU when in Background"). Frame waits are slow, not broken.
+- Background editor ≈ 3 FPS ("Use Less CPU when in Background", log: "max tick rate 3"). Turn it off with
+  `ConfigSettingsToolset.SetSectionProperties` (container `Editor`, category `General`, section
+  `EditorPerformanceSettings`, `{"bThrottleCPUWhenNotForeground": false}`). It works at once (measured 3 to 59 FPS).
+  The console `set` command and Python do not change it.
 - The user may be using the editor too. Batch commands in one script instead of many `Type` calls.
+
+### GUI checks
+
+1. List each changed control and its observable result before implementation.
+2. Select the editor window. Release Play mouse capture before UI inspection. Obtain current widget refs before clicking.
+3. Click each changed control through the real mouse path. Assert its effect on game state.
+   A successful Slate `Click` response proves event dispatch, not the intended effect. A screenshot alone does not prove behavior.
+4. Test unavailable states. Show a reason instead of leaving a control enabled without an effect.
+5. Check input leakage and UI cleanup after disable and Play restart. Panel clicks must not fire or turn the pawn.
+6. Keep passing checks when a different control or probe fails. Repeat only the affected checks.
+
+Before promoting a mouse helper, test it with a known scaled-geometry fixture.
+Convert snapshot positions and sizes to one coordinate space before comparing them.
+The installed Slate inspector reports desktop positions but local widget sizes. Do not add these values without conversion.
+Keep a one-task probe local until a second task needs it.
 
 ## 4. Rules
 
 - Commit before a large asset change: assets are binary. Close an asset before you restore it with git.
 - Git LFS lockable assets become read-only after checkout: `git config lfs.setlockablereadonly false`.
+- A tag or property set on a level instance of a component that a Blueprint construction script adds does not stay:
+  the script makes the component again. Python cannot tell those components apart (`creation_method` is not exposed).
+  Put per-mesh data on the mesh asset (for example a physical material on its body setup) or on the Blueprint template.
+- Python cannot read some protected struct fields (for example `PhysicalSurfaceName.Name`). Read the value from
+  `Config/Default*.ini`.
+- A mesh loaded in an automation test world can have no collision. Call `GetBodySetup()->CreatePhysicsMeshes()` and
+  `RecreatePhysicsState()`, and assert that the expected hit happened: without the assert the test passes on a miss.
 - Report what you compiled, how (Live Coding or full build), and the log line that proves it ran.

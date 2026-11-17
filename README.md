@@ -66,7 +66,7 @@ procedure.
 | [mixamo-download](mixamo-download/SKILL.md) | Searches Mixamo and downloads clips through your logged-in Chrome session. | You approve each download list. |
 | [codex-imagegen](codex-imagegen/SKILL.md) | Generates or edits raster assets through Codex and checks the saved image. | Needs Codex authentication and its built-in imagegen skill. Uses `shared/tone.md`. |
 | [fit-to-object](fit-to-object/SKILL.md) | Runs the test-print loop for a part that must fit a real object: measure at the part's height, label inputs measured or guessed, back up each print, read the fit photos and refit only the measured misfit. | Uses photo-measure, plus freecad-mcp-modeling and freecad-render-check from the private [freecad-skills](https://github.com/jeanfbrito/freecad-skills) repo. |
-| [unreal-editor-loop](unreal-editor-loop/SKILL.md) | Drives an Unreal editor through MCP, builds and Play. Separates command submission, execution acknowledgment and completion, with fatal-error and process-exit checks. | Needs the Unreal MCP plugin. |
+| [unreal-editor-loop](unreal-editor-loop/SKILL.md) | Drives an Unreal editor through MCP, builds and Play. Checks command execution and observable GUI effects, not only successful tool responses. | Needs the Unreal MCP plugin. |
 | [unreal-anim-lab](unreal-anim-lab/SKILL.md) | Builds an in-game animation lab and measures poses with captures. Checks startup readiness, measured state and firing cadence before accepting probe results. | Uses unreal-editor-loop. Debug-only code. |
 | [unreal-rig-match](unreal-rig-match/SKILL.md) | Makes a character body follow a reference rig of another size: prop move, hand IK, finger reach, elbow side, with lab proof. | Uses unreal-anim-lab. Keep licensed reference assets out of git. |
 
