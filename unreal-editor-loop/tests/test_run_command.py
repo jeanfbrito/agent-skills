@@ -68,6 +68,15 @@ class CommandTests(unittest.TestCase):
         self.assertEqual(watch.observe("", .2, alive=False), "failed")
         self.assertIn("exited", watch.reason)
 
+    def test_deleted_actors_fail_at_once_with_the_undo(self):
+        # 2026-11-18: after Play ended, the clear keys reached the level and deleted the Landscape
+        for line in ("Cmd: DELETE", "Cmd: ACTOR DELETE"):
+            with self.subTest(line=line):
+                watch = self.watch()
+                self.assertEqual(watch.observe("[2026.11.18-01.44.25:100][1]" + line + "\n", 0.5), "failed")
+                self.assertIn("TRANSACTION UNDO", watch.reason)
+        self.assertEqual(self.watch().observe('Cmd: py "/local/delete_probe.py"\n', 0.5), "submitted")
+
     def test_started_command_uses_its_own_timeout(self):
         watch = self.watch()
         watch.observe("PROBE: started\n", 1.9)
@@ -106,7 +115,7 @@ class CommandTests(unittest.TestCase):
         client = FakeClient()
         subject.submit(client, 'py "/local/probe.py"')
         self.assertEqual(client.calls[-5:], [
-            ("PressKey", {"key": "Shift+F1"}), ("Click", {"ref": "tb2"}),
+            ("PressKey", {"key": "Shift+F1"}), ("Type", {"ref": "tb2", "text": " ", "submit": False}),
             ("PressKey", {"key": "Ctrl+A"}), ("PressKey", {"key": "BackSpace"}),
             ("Type", {"ref": "tb2", "text": 'py "/local/probe.py"', "submit": True})])
         with self.assertRaisesRegex(ValueError, "direct Type"):
@@ -122,7 +131,7 @@ class CommandTests(unittest.TestCase):
                     return '[{"title":"Fixture - Unreal Editor","index":0}]'
                 if tool == "Snapshot":
                     return '  text "Cmd" [ref=x1]\n  textbox [ref=tb2]\n'
-                if tool == "Type":
+                if tool == "Type" and args.get("submit"):
                     raise self.error
                 return False if tool == "IsPIERunning" else True
 

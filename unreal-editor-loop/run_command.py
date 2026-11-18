@@ -17,6 +17,8 @@ SLATE = "SlateInspectorToolset.SlateInspectorToolset"
 APP = "EditorToolset.EditorAppToolset"
 GIT_BASH_DRIVE = re.compile(r"(^|[\s\"'])/([A-Za-z])(?=/)")
 GIT_BASH_HOME = re.compile(r"(^|[\s\"'])~(?=/)")
+# The clear keys (Ctrl+A, BackSpace) reached the level, not Cmd: select all, delete. Seen once: the Landscape went.
+DELETED = re.compile(r"\bCmd:\s*(?:ACTOR\s+)?DELETE\b", re.I)
 ERROR = re.compile(r"Fatal error[!:]|=== Critical error|Assertion failed|Ensure condition failed|LogPython: Error:|Live coding failed", re.I)
 
 
@@ -73,6 +75,10 @@ class CommandWatch:
         if self.status in ("completed", "failed", "not-submitted"):
             return self.status
         for line in text.splitlines():
+            if DELETED.search(line):
+                self.status, self.reason = "failed", ("Editor keys deleted actors (" + line.strip() + "). Type "
+                                                      "TRANSACTION UNDO directly into Cmd now, and do not save.")
+                return self.status
             # An echoed command can contain both markers. It is not script execution.
             if re.search(r"\bCmd:", line):
                 continue
@@ -194,7 +200,9 @@ def submit(client, command):
     if client.call(APP, "IsPIERunning", {}):
         if client.call(SLATE, "PressKey", {"key": "Shift+F1"}) is not True:
             raise RuntimeError("Cannot release PIE input capture.")
-    for tool, args in (("Click", {"ref": match[1]}), ("PressKey", {"key": "Ctrl+A"}),
+    # Type gives the box the keyboard focus itself. A Click can land in the viewport, and then Ctrl+A and BackSpace
+    # select and delete actors. The space it types is cleared with the rest.
+    for tool, args in (("Type", {"ref": match[1], "text": " ", "submit": False}), ("PressKey", {"key": "Ctrl+A"}),
                        ("PressKey", {"key": "BackSpace"})):
         if client.call(SLATE, tool, args) is not True:
             raise RuntimeError(f"{tool} failed. Inspect the log before another submission.")

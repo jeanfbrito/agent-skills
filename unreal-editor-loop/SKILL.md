@@ -29,7 +29,8 @@ The MCP has no console tool. Type into the **Cmd** box of the editor status bar:
 2. `false` after an editor start: call `Observe` and then `Snapshot` (both `{"ref": "", "maxDepth": 60}`), find the
    `textbox` right after the `Cmd` combobox in the snapshot (usually `tb2`), and `Type` again.
 3. If PIE captures input, release it with `Shift+F1` immediately before the Cmd sequence.
-   Select the editor window. Then `Click` Cmd, `PressKey` Ctrl+A, `PressKey` BackSpace, and `Type` in one sequence.
+   Select the editor window. Then `Type` one space into Cmd without submit, `PressKey` Ctrl+A, `PressKey` BackSpace,
+   and `Type` the command, in one sequence. The first `Type` sets the focus. A `Click` can land in the viewport.
 4. `py "<path>.py" args`: always an **absolute path**. A relative path resolves against the process folder
    (`Engine/Binaries/Win64` after `UE launch`) and fails with "Could not load Python file".
 5. No nested quotes inside one command. Send a second `Type`.
@@ -44,6 +45,10 @@ The MCP has no console tool. Type into the **Cmd** box of the editor status bar:
 
 Use `UE command '<command>' '<unique start marker>' '<unique completion marker>' [timeout]` for finite scripts.
 It selects the editor, releases PIE capture, clears Cmd and submits exactly once.
+It focuses Cmd with a `Type` of one space, not a `Click`. A click can land in the viewport. Then Ctrl+A and
+BackSpace select and delete actors (once, the Landscape). A `Cmd: DELETE` or `Cmd: ACTOR DELETE` log line fails the
+run at once: type `TRANSACTION UNDO` directly into Cmd, and do not save. When Play state is uncertain, use a direct
+`Type`.
 The helper watches only new log lines and ignores command echoes.
 It reports `submitted`, `started`, `completed`, `failed` or `not-submitted`. Missing acknowledgment fails after eight seconds.
 `not-submitted` means execution is unknown, not permission to repeat an action.
@@ -122,4 +127,14 @@ Keep a one-task probe local until a second task needs it.
   `Config/Default*.ini`.
 - A mesh loaded in an automation test world can have no collision. Call `GetBodySetup()->CreatePhysicsMeshes()` and
   `RecreatePhysicsState()`, and assert that the expected hit happened: without the assert the test passes on a miss.
+- A failed engine call in a script can open a modal dialog that freezes the editor (the log stays on one frame
+  number). Find it by the visible window titles of the editor process (Win32 `EnumWindows`), then ask the user to
+  close it. Never take a desktop screenshot: it captures the user's other windows.
+- To empty a data table, remove its rows by name. `fill_data_table_from_json_string(t, "[]")` fails and opens a dialog.
+- `rename_asset` from a script cancels on the "source code may reference" prompt. Duplicate to the new path, save,
+  then delete the old asset when it has no referencers.
+- After a script saves assets, call `AssetRegistry.scan_paths_synchronous(paths, True)` before you read referencers:
+  without it, removed references still show.
+- Python sees only `UFUNCTION` and `UPROPERTY` members. Do not use `hasattr` as a fallback in a probe: a missing
+  getter then looks like a game failure. Check the getter is a `UFUNCTION`, or read the data another way.
 - Report what you compiled, how (Live Coding or full build), and the log line that proves it ran.
