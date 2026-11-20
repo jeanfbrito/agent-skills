@@ -96,7 +96,9 @@ Full build:
   script changes a Blueprint: a running Play keeps the old values.
 - A script that changes a Blueprint CDO must call `unreal.BlueprintEditorLibrary.compile_blueprint(bp)`, or Play
   keeps the old value. Save assets on purpose and say which ones.
-- Prove a visual change with a picture: a viewport screenshot that you read. For animation and poses, build or use
+- Prove a visual change with a picture: a viewport screenshot that you read. The Slate `Screenshot` result is too big for the
+  context and goes to a file: `py ~/Github/agent-skills/unreal-editor-loop/decode_slate_shot.py <file> <png> [box]`.
+  For animation and poses, build or use
   the lab of the `unreal-anim-lab` skill.
 - Background editor ≈ 3 FPS ("Use Less CPU when in Background", log: "max tick rate 3"). Turn it off with
   `ConfigSettingsToolset.SetSectionProperties` (container `Editor`, category `General`, section
@@ -132,7 +134,10 @@ Keep a one-task probe local until a second task needs it.
   `RecreatePhysicsState()`, and assert that the expected hit happened: without the assert the test passes on a miss.
 - A failed engine call in a script can open a modal dialog that freezes the editor (the log stays on one frame
   number). Find it by the visible window titles of the editor process (Win32 `EnumWindows`), then ask the user to
-  close it. Never take a desktop screenshot: it captures the user's other windows.
+  close it. Never take a desktop screenshot: it captures the user's other windows. A dialog can be part of the
+  requested action (an export or import confirmation). Then capture only that window (`PrintWindow` on its handle)
+  and read it. Click its button with a real cursor click (`SetCursorPos` + `mouse_event`, then restore the cursor):
+  `~/Github/agent-skills/unreal-editor-loop/editor_window.ps1`. Posted mouse messages do not reach Slate.
 - To empty a data table, remove its rows by name. `fill_data_table_from_json_string(t, "[]")` fails and opens a dialog.
 - `rename_asset` from a script cancels on the "source code may reference" prompt. Duplicate to the new path, save,
   then delete the old asset when it has no referencers.
