@@ -1,0 +1,18 @@
+{
+  "sample": "/ProceduralVegetationEditor/SampleAssets/StarterContent/DeciduousTree_01/PVE_Sample_Deciduous_Tree_01",
+  "out": "/Game/Trees/PVE_Emergent_Example",
+  "grower": "PVGrowerSettings_6",
+  "cycles": 45,
+  "changes": {
+    "PlantTargetLength": "16.000000",
+    "AxillaryPriorityGradient": "(EditorCurveData=(Keys=((Time=0.000000,Value=0.000000),(Time=0.400000,Value=0.000000),(Time=0.500000,Value=1.000000),(Time=1.000000,Value=1.000000))))",
+    "BranchTargetLength": "12.000000",
+    "BranchScale": "1.250000",
+    "Corymb": "1.000000",
+    "GravitationalForce": "2.000000",
+    "BranchPhyllotaxy": "(AxilAngle=75.000000,Type=Alternate,Stagger=0.300000)",
+    "Bifurcation": "(bEnableBifurcation=False)",
+    "BranchBifurcation": "(bEnableBifurcation=True,SplitAngle=50.000000,CytokininBuildup=0.439000,CytokininRandomness=0.446000)",
+    "Foliage": "(EndScale=1.600000,Density=2)"
+  }
+}
