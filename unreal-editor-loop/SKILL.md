@@ -53,6 +53,9 @@ The helper watches only new log lines and ignores command echoes.
 It reports `submitted`, `started`, `completed`, `failed` or `not-submitted`. Missing acknowledgment fails after eight seconds.
 `not-submitted` means execution is unknown, not permission to repeat an action.
 The operation timeout starts at acknowledgment. Completion without a start marker fails.
+Write the start marker on the script's first line, before imports or asset work. A script that runs more than 8 s
+before the marker reports `not-submitted` although it runs. Then read the log for the completion marker. Do not submit
+again.
 
 The helper is `~/Github/agent-skills/unreal-editor-loop/run_command.py`. It uses the existing local MCP endpoint without changing configuration.
 It requires one editor process. Supply distinct markers per run. It never saves assets or changes CPU settings.
