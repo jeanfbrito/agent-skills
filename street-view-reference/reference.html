@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob:; media-src blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>View and Frame</title>
+<style>
+:root{color-scheme:light dark;font:1rem/1.5 system-ui;--bg:#f6f5ef;--ink:#212d28;--edge:#a4b3a7;--accent:#116445;--panel:#fffef9}
+@media(prefers-color-scheme:dark){:root{--bg:#17201c;--ink:#edf3ed;--edge:#667b6c;--accent:#9dd6b5;--panel:#202b25}}
+*{box-sizing:border-box}body{margin:0 auto;padding:1.5rem 1rem 3rem;max-width:56rem;background:var(--bg);color:var(--ink)}h1,h2,p{margin:.35rem 0 .75rem}h1{font-size:2.2rem}h2{font-size:1.35rem}section{margin:1rem 0;padding:1rem;background:var(--panel);border:1px solid var(--edge);border-radius:.5rem}label{display:block;margin:.55rem 0}input,button{font:inherit;padding:.3rem;max-width:100%}input[type=url],input[type=text]{display:block;width:100%}input[type=number]{width:6rem}a{color:var(--accent);font-weight:600;overflow-wrap:anywhere}.row{display:flex;align-items:end;flex-wrap:wrap;gap:.45rem 1rem}a:not([href]){opacity:.55}img,video,canvas{max-width:100%;max-height:23rem;margin:.65rem 0;object-fit:contain;display:block}output{display:block;overflow-wrap:anywhere}button:not(:disabled),a[href]{cursor:pointer}[hidden]{display:none!important}small{display:block}
+</style></head><body><main>
+<h1>View and Frame</h1><p>Reopen a map view, or save a still from a file you can reuse. These are separate sources.</p>
+<section><h2>1 · Live view</h2>
+<label>Google Maps link<input id="maps" type="url" autocomplete="off" placeholder="Paste the complete share link"></label>
+<label>Or load a view bookmark <input id="bookmark" type="file" accept=".url"></label>
+<div class="row"><a id="live" target="_blank" rel="noopener noreferrer">Open live view</a><button id="saveView" disabled>Save view bookmark</button></div><output id="viewInfo" aria-live="polite">No view selected.</output>
+</section><section><h2>2 · Local still</h2>
+<p>Choose your own photo, video, or reusable source. This page never reads the Maps tab.</p>
+<label>Local media <input id="file" type="file" accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,video/quicktime,video/ogg"></label>
+<label>Source or credit (optional)<input id="credit" type="text" maxlength="500" placeholder="For example: my drone footage"></label>
+<div id="player"></div>
+<div id="videoTools" hidden><div class="row"><label>Seconds <input id="time" type="number" min="0" step="any" value="0"></label><button id="seek">Seek</button></div></div>
+<label id="panoTools" hidden><input id="pano" type="checkbox"> Frame a 360 photo (2:1 equirectangular)</label>
+<div class="row" id="angles" hidden><label>Yaw ° <input id="yaw" type="number" min="-180" max="180" step="any" value="0"></label><label>Pitch ° <input id="pitch" type="number" min="-90" max="90" step="any" value="0"></label><label>Horizontal FOV ° <input id="fov" type="number" min="10" max="150" step="any" value="70"></label></div>
+<button id="prepare" disabled>Prepare still</button><output id="status" aria-live="polite">No local file selected.</output>
+<div id="result" hidden><canvas id="preview" aria-label="Prepared local still"></canvas><div class="row"><a id="png">Save PNG</a><a id="record">Save frame record</a></div></div>
+</section></main><script>
+'use strict';
+const $=id=>document.getElementById(id);
+let file, media, mediaURL, ready=false, revision=0, bookmarkRead=0;
+const transient=new Map();
+function drop(id){const a=$(id); a.removeAttribute('href'); if(transient.has(id)){URL.revokeObjectURL(transient.get(id));transient.delete(id)}}
+function download(id,blob,name){drop(id);const u=URL.createObjectURL(blob);transient.set(id,u);$(id).href=u;$(id).download=name}
+function forget(){revision++;$('result').hidden=true;drop('png');drop('record')}
+function mapURL(){const raw=$('maps').value.trim();if(!raw)return null;
+ if(/[\s\\\x00-\x1f\x7f]/.test(raw)||raw.length>8192)throw Error('Use one HTTPS Google Maps link.');
+ let u;try{u=new URL(raw)}catch{throw Error('Use a complete HTTPS Google Maps link.')}
+ const short=u.hostname==='maps.app.goo.gl'&&/^\/[^/]+\/?$/.test(u.pathname)||u.hostname==='goo.gl'&&/^\/maps\/[^/]+\/?$/.test(u.pathname);
+ const google=/^(www\.|maps\.)?google\.(com|com\.br|co\.uk|ca|de|fr|es|it|pt|com\.au|co\.jp|co\.in)$/.test(u.hostname)&&/^\/maps(?:\/|$)/.test(u.pathname);
+ if(u.protocol!=='https:'||u.username||u.password||u.port||!(google||short))throw Error('Use a Google Maps share link, not an image or other URL.');
+ return {raw,u,short}}
+function viewChanged(){bookmarkRead++;forget();$('saveView').disabled=true;$('live').removeAttribute('href');try{const m=mapURL();if(!m){$('viewInfo').textContent='No view selected.';return} $('live').setAttribute('href',m.raw);$('saveView').disabled=false;
+ const fields=m.u.searchParams.get('api')==='1'&&m.u.searchParams.get('map_action')==='pano'?['viewpoint','heading','pitch','fov'].filter(k=>m.u.searchParams.has(k)).map(k=>k+' = '+m.u.searchParams.get(k)):[];
+ $('viewInfo').textContent=m.short?'Short link kept unchanged. Google resolves it when opened.':fields.length?fields.join(' · '):'Full browser link kept unchanged, including its framing.'}catch(e){$('viewInfo').textContent=e.message}}
+$('maps').oninput=viewChanged;
+$('bookmark').onchange=async()=>{const f=$('bookmark').files[0];if(!f)return;$('maps').value='';viewChanged();const seq=bookmarkRead;try{if(f.size>16384)throw Error();const text=await f.text();if(seq!==bookmarkRead)return;const urls=text.split(/\r?\n/).filter(l=>/^URL=/i.test(l));if(!/^﻿?\[InternetShortcut\]\s*$/mi.test(text)||urls.length!==1)throw Error();$('maps').value=urls[0].slice(4);viewChanged()}catch{if(seq===bookmarkRead)$('viewInfo').textContent='Choose a .url file with one InternetShortcut URL.'}};
+$('saveView').onclick=()=>{const m=mapURL();if(!m)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['[InternetShortcut]\r\nURL='+m.raw+'\r\n'],{type:'text/plain'}));a.download='maps-view.url';a.click();const url=a.href;setTimeout(()=>URL.revokeObjectURL(url),30000)};
+function video(){return media instanceof HTMLVideoElement}
+function dimensions(){return video()?[media.videoWidth,media.videoHeight]:[media.naturalWidth,media.naturalHeight]}
+function buttons(){$('prepare').disabled=!ready||(video()&&(media.seeking||!media.paused));$('angles').hidden=!$('pano').checked}
+$('file').onchange=()=>{forget();ready=false;$('player').replaceChildren();if(media){if(video())media.pause();media.removeAttribute('src');if(video())media.load()}media=null;if(mediaURL)URL.revokeObjectURL(mediaURL);mediaURL=null;file=$('file').files[0];$('videoTools').hidden=$('panoTools').hidden=true;$('time').value='0';$('pano').checked=false;buttons();
+ if(!file){$('status').textContent='No local file selected.';return}const isVideo=/^video\/(mp4|webm|quicktime|ogg)$/.test(file.type);if(!isVideo&&!/^image\/(jpeg|png|webp|avif)$/.test(file.type)){$('status').textContent='Choose a supported local image or video.';return}
+ const el=document.createElement(isVideo?'video':'img');media=el;if(isVideo){el.controls=true;el.preload='auto';el.muted=true;el.playsInline=true}else el.alt='Selected local photo';$('player').append(el);$('status').textContent='Reading local media…';
+ el.addEventListener(isVideo?'loadeddata':'load',()=>{if(el!==media)return;const [w,h]=dimensions();if(!w||!h||(isVideo&&(!Number.isFinite(el.duration)||el.duration<=0))){$('status').textContent='This file has no usable frame.';return}ready=true;$('videoTools').hidden=!isVideo;$('panoTools').hidden=isVideo||w!==2*h;$('status').textContent=`${w} × ${h}${isVideo?' · '+el.duration.toFixed(3)+' seconds':''}`;buttons()},{once:true});
+ el.onerror=()=>{if(el!==media)return;ready=false;forget();buttons();$('status').textContent='The browser cannot decode this file.'};if(isVideo){for(const kind of ['seeking','play'])el.addEventListener(kind,()=>{if(el===media){forget();buttons()}});for(const kind of ['seeked','pause','loadeddata'])el.addEventListener(kind,()=>{if(el===media)buttons()});el.addEventListener('timeupdate',()=>{if(el===media&&!el.seeking&&document.activeElement!==$('time'))$('time').value=String(el.currentTime)})}
+ mediaURL=URL.createObjectURL(file);el.src=mediaURL};
+$('seek').onclick=()=>{if(!video()||!ready)return;const t=$('time').valueAsNumber;forget();if(!Number.isFinite(t)||t<0||t>=media.duration){$('status').textContent='Enter a time from zero to before the end of the clip.';return}media.pause();media.currentTime=t;$('status').textContent='Requested '+t+' seconds.';buttons()};
+for(const id of ['pano','yaw','pitch','fov','credit','time'])$(id).oninput=()=>{forget();buttons()};
+function viewport(c,el,sw,sh,yaw,pitch,fov){const src=document.createElement('canvas');src.width=Math.min(4096,sw);src.height=src.width/2;const sc=src.getContext('2d',{willReadFrequently:true});sc.drawImage(el,0,0,src.width,src.height);const {data:s}=sc.getImageData(0,0,src.width,src.height);const w=src.width,h=src.height;c.width=960;c.height=540;const ctx=c.getContext('2d'),out=ctx.createImageData(c.width,c.height),d=out.data;
+ const rad=Math.PI/180,cy=Math.cos(yaw*rad),sy=Math.sin(yaw*rad),cp=Math.cos(pitch*rad),sp=Math.sin(pitch*rad),tan=Math.tan(fov*rad/2);
+ for(let j=0;j<c.height;j++){const y=(c.height-2*(j+.5))/c.width*tan;for(let i=0;i<c.width;i++){const x=(2*(i+.5)/c.width-1)*tan,z=cp-sp*y;const lon=Math.atan2(cy*x+sy*z,cy*z-sy*x),lat=Math.atan2(cp*y+sp,Math.hypot(x,z));const u=(.5+lon/(2*Math.PI))*w-.5,v=Math.max(0,Math.min(h-1,(.5-lat/Math.PI)*h-.5));const x0=Math.floor(u),y0=Math.floor(v),a=u-x0,b=v-y0,left=(x0+w)%w,right=(left+1)%w,below=Math.min(y0+1,h-1),dst=(j*c.width+i)*4;for(let k=0;k<4;k++)d[dst+k]=(1-b)*((1-a)*s[(y0*w+left)*4+k]+a*s[(y0*w+right)*4+k])+b*((1-a)*s[(below*w+left)*4+k]+a*s[(below*w+right)*4+k])}}ctx.putImageData(out,0,0)}
+$('prepare').onclick=async()=>{if(!ready||(video()&&(!media.paused||media.seeking)))return;forget();const rev=revision;try{const m=mapURL(),[w,h]=dimensions(),c=$('preview');const r={sourceFile:file.name,sourceBytes:file.size,sourceWidth:w,sourceHeight:h,sourceCredit:$('credit').value.trim()||null,comparisonView:m?.raw||null};
+ if($('pano').checked&&!$('panoTools').hidden){const inputs=['yaw','pitch','fov'].map(id=>$(id));if(inputs.some(i=>!i.value||!i.validity.valid))throw Error('Enter yaw, pitch and field of view within their displayed limits.');const [yaw,pitch,fov]=inputs.map(i=>i.valueAsNumber);r.camera={yaw,pitch,horizontalFov:fov,basis:'degrees relative to image center; yaw right, pitch up'};viewport(c,media,w,h,yaw,pitch,fov)}else{if(video()){if(!Number.isFinite($('time').valueAsNumber)||Math.abs($('time').valueAsNumber-media.currentTime)>.001)throw Error('Select Seek before preparing this time.');r.seconds=media.currentTime}const scale=Math.min(1,4096/Math.max(w,h));c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));c.getContext('2d').drawImage(media,0,0,c.width,c.height)}
+ r.width=c.width;r.height=c.height;const blob=await new Promise(resolve=>c.toBlob(resolve,'image/png'));if(rev!==revision)return;if(!blob?.size)throw Error('No PNG was produced.');const tag=r.camera?`_yaw${r.camera.yaw}_pitch${r.camera.pitch}_fov${r.camera.horizontalFov}`:r.seconds!==undefined?'_t'+r.seconds.toFixed(3):'';const name=(file.name.replace(/\.[^.]+$/,'').replace(/[^\p{L}\p{N}._-]/gu,'_').slice(0,90)||'local')+tag+'-still';r.image=name+'.png';download('png',blob,r.image);download('record',new Blob([JSON.stringify(r,null,2)+'\n'],{type:'application/json'}),name+'.json');$('result').hidden=false;$('status').textContent=`Ready: ${c.width} × ${c.height}. Save the PNG and its frame record.`}catch(e){if(rev===revision)$('status').textContent=e.message}};
+</script></body></html>
