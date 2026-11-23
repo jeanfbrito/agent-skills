@@ -245,12 +245,28 @@ def agent_pid():
     for p, name in chain:
         if name in AGENT_NAMES:
             return p
+    # Windows Git Bash has no `ps -o`, and the fork chain breaks, so the walk finds nothing.
+    # Claude Code exports its own pid to every shell it starts.
+    env_pid = os.environ.get("CLAUDE_PID", "")
+    if env_pid.isdigit() and pid_alive(int(env_pid)):
+        return int(env_pid)
     return None  # unknown agent: the lock falls back to its age check
 
 
 def pid_alive(pid):
     if not pid:
         return False
+    if os.name == "nt":
+        # os.kill(pid, 0) on Windows calls TerminateProcess: it would kill the process it checks.
+        import ctypes
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(0x1000, False, int(pid))  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return k.GetLastError() == 5  # access denied: it exists
+        code = ctypes.c_ulong()
+        ok = k.GetExitCodeProcess(h, ctypes.byref(code))
+        k.CloseHandle(h)
+        return bool(ok) and code.value == 259  # STILL_ACTIVE
     try:
         os.kill(int(pid), 0)
         return True
@@ -1158,7 +1174,7 @@ def note(a):
     if kind in ("predict", "see") and "load1" not in metrics:  # a timing is valid only with its machine load (lesson 39)
         try:
             metrics["load1"] = round(os.getloadavg()[0], 1)
-        except OSError:
+        except (OSError, AttributeError):  # Windows has no getloadavg
             pass
     if kind == "predict" and isinstance(metrics.get("load1"), float) and metrics["load1"] >= LOAD_MAX:
         print(f"LOAD {metrics['load1']} (>= {LOAD_MAX}): the timing counts: record the load next to it and do "
