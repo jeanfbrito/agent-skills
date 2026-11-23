@@ -128,8 +128,17 @@ open ticket on the same subject (step 0 in
 `~/Github/agent-skills/jira/references/workflows.md`):
 
 ```bash
-jira issue create --project <KEY> --type Task --summary "Brief actionable summary" --body "Detailed description (markdown ok)" --no-input
+jira issue create --project <KEY> --type Task --summary "Brief actionable summary" --body "Detailed description (markdown ok)" --no-input </dev/null
 ```
+
+Close stdin (`</dev/null`) on every `jira` write. `--no-input` alone does
+not stop all prompts: a `jira issue create` waited 6 minutes for input in a
+non-TTY session and created nothing. With stdin closed, the same command
+finished in seconds.
+
+Start a `--body` with a `##` heading. When the body starts with a plain
+paragraph and a heading follows it, jira-cli can merge them into one line
+(`…text.h2. Problem`).
 
 **Move** (transition status — target name must exactly match a valid
 transition):
@@ -143,8 +152,8 @@ the CLI opens an interactive prompt that hangs a non-TTY session. For
 multi-line bodies write the text to a file and use `--template`:
 
 ```bash
-jira issue comment add <KEY> "Shipped the dep bumps in PR #1234" --no-input
-jira issue comment add <KEY> --template /path/to/comment.md --no-input
+jira issue comment add <KEY> "Shipped the dep bumps in PR #1234" --no-input </dev/null
+jira issue comment add <KEY> --template /path/to/comment.md --no-input </dev/null
 ```
 
 **Worklog:**
