@@ -149,7 +149,7 @@ that decides nothing new).
    this cycle, before the item: they are small chores (`APPLY` verdicts and
    answers, `MISMATCH`, `NO-DONE-WHEN`, `QUEUED-NO-PROGRESS`, `SENSE-DRIFT`,
    `UNRECORDED-DECISION`, `RECORD-INCOMPLETE`, `PR-SPLIT`, `JOURNAL-LONG`,
-   `STALE-DRIVER`, `STALE-MODEL`, `DISK-LOW`). A chore marked `OVERDUE` was
+   `STALE-DRIVER`, `STALE-MODEL`, `DISK-RUNAWAY`, `DISK-LOW`). A chore marked `OVERDUE` was
    skipped in an earlier cycle. For a verdict: `keep` sets the toggle default
    ON, `kill` deletes it and its toggle, `tweak: <note>` queues it. If
    `END-BLOCKED-CYCLE` appears, do not check the same evidence again: end the

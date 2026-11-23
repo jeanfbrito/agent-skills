@@ -16,7 +16,10 @@ The session is the **orchestrator**. It does no cycle work itself:
    human stopped it: no cycle starts. Nothing else stops the loop while a row
    is left to work on. `DECISIONS` counts the open entries in the decisions
    file. Do not wait for them. Ask them when the human comes back
-   (`references/decisions.md`).
+   (`references/decisions.md`). `DISK-RUNAWAY` names a large file that grows
+   on a low disk. Stop its writer before the spawn, because a cycle cannot
+   finish on a full disk. If the kill is refused, ask the human to stop it,
+   and do not spawn until the disk is safe.
 1. Before a new subagent starts, read the first item under `THIS CYCLE'S ITEM`.
    Choose its row and mode. Write one result this cycle can deliver and one
    real-artifact acceptance check. Run `state.py arm --row "<row>" --mode <mode>

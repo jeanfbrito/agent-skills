@@ -348,3 +348,19 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
       orchestrator or the human reads claims nothing.
       `test_next_cycle_on_a_low_disk_does_not_clean_again` fails on the old
       code.
+
+## A runaway writer (2026-11-22, UnrealTarkov)
+
+46. **A REPL with no input filled the disk while the loop cleaned caches.**
+    - Sign: a background `python3 -` with no heredoc printed a pyrepl
+      traceback in a loop. Its task output grew to 55 GB at 6.5 MB/s, and C:
+      fell to 191 MB free. The brief only said `DISK-LOW` and asked for a
+      cache pass, which could not keep up.
+    - Rule: on a low disk, look for a large file that grows before you clean.
+      Stop its writer first. If the kill is refused, the human stops it, and
+      no cycle starts until the disk is safe.
+    - Mechanism: `state.py brief`, below 2 × the disk limit, lists files of
+      2 GB or more in the temp dir and the project's `Saved/` that changed in
+      the last 10 minutes, as the `DISK-RUNAWAY` chore before `DISK-LOW`.
+      `test_runaway_file_on_a_low_disk_is_a_chore_before_the_cache_pass`
+      fails on the old code.

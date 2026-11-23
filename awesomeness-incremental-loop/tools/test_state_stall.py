@@ -4,7 +4,9 @@ import contextlib
 import importlib.util
 import io
 import json
+import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -180,8 +182,32 @@ class StallHoldTest(unittest.TestCase):
         self.assertEqual(pick["target"], self.args.target)
         self.assertEqual(pick["check"], self.args.check)
 
-    def low_disk(self, gb):
-        return mock.patch("shutil.disk_usage", return_value=SimpleNamespace(free=gb * 2**30))
+    @contextlib.contextmanager
+    def low_disk(self, gb, growing=()):
+        with mock.patch("shutil.disk_usage", return_value=SimpleNamespace(free=gb * 2**30)),                 mock.patch.object(state, "growing_files", return_value=list(growing)):
+            yield
+
+    def test_runaway_file_on_a_low_disk_is_a_chore_before_the_cache_pass(self):
+        """2026-11-22: a REPL with no stdin wrote 55 GB of tracebacks; the cache pass could not keep up."""
+        with self.low_disk(14, growing=[("/tmp/tasks/x.output", 38.8)]):
+            text = self.brief()
+            self.assertIn("DISK-RUNAWAY:", text)
+            self.assertIn("x.output (38.8 GB)", text)
+            self.assertLess(text.index("DISK-RUNAWAY:"), text.index("DISK-LOW:"))
+        with self.low_disk(14):
+            self.assertNotIn("DISK-RUNAWAY", self.brief())
+
+    def test_growing_files_finds_a_large_fresh_file_only(self):
+        with tempfile.TemporaryDirectory() as d:
+            big, old = os.path.join(d, "big.log"), os.path.join(d, "old.log")
+            for path in (big, old):
+                with open(path, "wb") as fh:
+                    fh.truncate(3 * 2**20)
+            os.utime(old, (time.time() - 3600, time.time() - 3600))
+            with open(os.path.join(d, "small.log"), "wb") as fh:
+                fh.write(b"x")
+            found = state.growing_files([d], min_gb=2 / 1024)
+            self.assertEqual([os.path.basename(p) for p, _ in found], ["big.log"])
 
     def test_low_disk_is_one_cache_pass_then_a_note(self):
         marker = self.root / "disk-low.json"

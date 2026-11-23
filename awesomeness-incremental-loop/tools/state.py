@@ -43,6 +43,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -61,6 +62,8 @@ DISK_MIN_GB = 15  # below this, builds and captures fail with ENOSPC in the midd
 DISK_CLEAR_GB = 5  # a low-disk episode ends when the free space is this far above DISK_MIN_GB
 DISK_PASS_MIN = 30  # minutes that the cycle which claimed the cache pass has for it
 DISK_EPISODE_H = 24  # one cache pass for each low-disk episode, and at most one in this many hours
+GROW_MIN_GB = 2  # a file this large that changed in the last GROW_MIN minutes, on a low disk, is a runaway suspect
+GROW_MIN = 10
 TRAIL = "trail.jsonl"
 KINDS = ["pick", "predict", "try", "see", "keep", "revert", "commit", "step-back", "blocked", "end", "ack"]
 MODES = ["gap", "coverage", "unblock", "beyond", "step-back", "critic", "review", "waiting"]
@@ -963,6 +966,16 @@ def brief(a):
     free_gb = disk_free_gb(a.project)
     disk_note = None
     episode = disk_episode(root, free_gb)
+    # A runaway writer (a REPL with no stdin wrote 55 GB of tracebacks) fills the disk faster than any cache pass frees it.
+    growing = growing_files([tempfile.gettempdir(), os.path.join(a.project, "Saved")]) \
+        if free_gb is not None and free_gb < DISK_MIN_GB * 2 else []
+    if growing:
+        names = "; ".join(f"{p} ({gb:.1f} GB)" for p, gb in growing)
+        chores.append(("DISK-RUNAWAY", f"DISK-RUNAWAY: {free_gb:.1f} GB free and a large file grew in the last "
+                       f"{GROW_MIN} min: {names}. A cache pass does not stop it. Find the process that writes it. "
+                       "If this loop or one of its runs started it, stop the process and delete the file. If the kill is "
+                       "refused or you do not know the owner, write a decisions entry that names the process and the file, "
+                       "and do not spawn a cycle until the human answers."))
     if free_gb is not None and free_gb < DISK_MIN_GB:
         this_cycle = oc[0] if oc else max([e.get("cycle", 0) for e in trail] or [0]) + 1
         in_pass = episode and episode["cycle"] == this_cycle and time.time() - episode["t"] < DISK_PASS_MIN * 60
@@ -1275,6 +1288,25 @@ def disk_free_gb(project):
         return shutil.disk_usage(project).free / 2**30
     except OSError:
         return None
+
+
+def growing_files(dirs, min_gb=GROW_MIN_GB, minutes=GROW_MIN, max_entries=200_000):
+    """Files of at least min_gb changed in the last minutes, largest first. The walk stops after max_entries."""
+    cutoff, seen, found = time.time() - minutes * 60, 0, []
+    for top in dirs:
+        for dirpath, _dirs, files in os.walk(top):
+            for name in files:
+                seen += 1
+                if seen > max_entries:
+                    return sorted(found, key=lambda f: -f[1])[:3]
+                path = os.path.join(dirpath, name)
+                try:
+                    st = os.stat(path)
+                except OSError:
+                    continue
+                if st.st_mtime >= cutoff and st.st_size >= min_gb * 2**30:
+                    found.append((path, st.st_size / 2**30))
+    return sorted(found, key=lambda f: -f[1])[:3]
 
 
 def disk_episode(root, free_gb):
