@@ -12,7 +12,7 @@ procedure.
 | Skill | What it does | Notes |
 | --- | --- | --- |
 | [commit](commit/SKILL.md) | Groups changes by concern and checks the exact staged delta. Handles stale captures and Windows review output without weakening byte checks. | Uses `shared/tone.md` for PR drafts. |
-| [pr-description](pr-description/SKILL.md) | Drafts PR text from exact heads and separates local, CI, and missing proof. Checks batch workflow fanout before authorized publication waves. | Draft-first. Uses `shared/tone.md`. |
+| [pr-description](pr-description/SKILL.md) | Drafts PR text from exact heads and separates local, CI, and missing proof. Checks batch workflow fanout before authorized publication waves. | Draft-first. Uses `shared/tone.md`. `check-links.sh` checks every URL. |
 | [babysit](babysit/SKILL.md) | Fixes open PRs until checks pass, reviews threads sequentially, or makes authorized finite corrections while PRs stay closed. | Own worktree for fixes. Verified resolutions and supported declines. Comments are draft-first. Optional `local-config.yml`. |
 | [pr-triage](pr-triage/SKILL.md) | Weekly triage of the repo's open PRs: what blocks your own PRs, review drafts for third-party PRs, duplicate checks for bot PRs. | Draft-first. Keeps head SHAs in `local-state.json`. |
 | [branch-triage](branch-triage/SKILL.md) | Sorts a remote's branches into merged and open, and deletes merged ones after you confirm the list. | |
@@ -26,8 +26,8 @@ procedure.
 | [ticket](commands/ticket.md) | Runs a ticket, Jira task or bug report from start to finish: analyze, research, branch, plan, implement, validate, self-review. Takes a Jira key or URL. | A command (`/ticket`), not a skill. See [Commands](#commands). |
 | [why](why/SKILL.md) | Finds why code, a setting or a behavior is the way it is, from git history, PRs and every connected source. Grades each claim. | |
 | [postmortem](postmortem/SKILL.md) | Writes a post-mortem after a hard task, extracts the lessons, and drafts the write-up and team summary. | Draft-first. Uses `shared/tone.md`. `check-links.sh` checks every URL. |
-| [weekly-digest](weekly-digest/SKILL.md) | Drafts a short weekly update in impact language from real sources (ledger, PRs, git, Jira). | Draft-first. Uses `shared/tone.md`. |
-| [proposal](proposal/SKILL.md) | Drafts a one-page technical proposal backed by evidence from the project. | Draft-first. Uses `shared/tone.md`. |
+| [weekly-digest](weekly-digest/SKILL.md) | Drafts a short weekly update in impact language from real sources (ledger, PRs, git, Jira). | Draft-first. Uses `shared/tone.md`. `check-links.sh` checks every URL. |
+| [proposal](proposal/SKILL.md) | Drafts a one-page technical proposal backed by evidence from the project. | Draft-first. Uses `shared/tone.md`. `check-links.sh` checks every URL. |
 
 ### Daily routine
 
@@ -56,6 +56,7 @@ procedure.
 | [photo-measure](photo-measure/SKILL.md) | Measures objects in photos in millimetres. It makes a printable marker card to ask for, finds the reference points, and checks the fit before it gives lengths and radii. | `photo_measure.py`, `mat_calib.py` (cutting-mat camera calibration and triangulation; run through uv). |
 | [benchmark-checklist](benchmark-checklist/SKILL.md) | Checks a performance number before you report it or act on it. | |
 | [proxmox-lxc-service](proxmox-lxc-service/SKILL.md) | Deploys native LXC services with persistent data, address planning, and recovery checks. Includes read-only inventory and access-policy checks. | Reuses `opnsense` for router changes. Uses `shared/tone.md`. |
+| [searxng-search](searxng-search/SKILL.md) | Searches the web through your self-hosted SearXNG instance and prints numbered results for the agent to read and cite. | `search.py` (stdlib only). Instance URL in `local-config.yml` or `SEARXNG_URL`. |
 
 ### Design and game development
 
