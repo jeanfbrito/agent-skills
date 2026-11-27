@@ -23,7 +23,7 @@ pattern set by `proposal/`, `weekly-digest/`, `jira/`, etc.
 
 Every `SKILL.md` starts with YAML frontmatter:
 
-- `name`: kebab-case, MUST match the directory name exactly (the harness
+- `name`: kebab-case, matching the directory name exactly (the harness
   resolves skills by directory, not by the frontmatter alone).
 - `description`: action verb, third person. Say **what** the skill does
   and **when** to use it: name the categories of request it serves and its
@@ -43,11 +43,11 @@ trigger phrases, first person framing risk.
 ## Repo-specific conventions (read before writing anything)
 
 - **Location**: the skill lives at `<name>/SKILL.md` at the repo root —
-  NOT under a `skills/` subdirectory. Helper scripts live alongside it in
+  not under a `skills/` subdirectory. Helper scripts live alongside it in
   the same directory.
 - **Absolute paths only for cross-file references.** Skills are
   symlink-installed into `~/.claude/skills/<name>`, so any reference to
-  another file in this repo (`shared/tone.md`, a helper script) MUST use
+  another file in this repo (`shared/tone.md`, a helper script) uses
   the absolute path `~/Github/agent-skills/...`. A relative path resolves
   against the symlink target's apparent location and breaks silently.
 - **Tone rules for outward-facing text.** Any skill that drafts text

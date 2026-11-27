@@ -145,7 +145,7 @@ that decides nothing new).
    not repeat the route of those cycles. If it says `IN PROGRESS`,
    continue that cycle from its last note. Do not repeat a step that has a
    note, and do not retry what it lists under `DO NOT RETRY`.
-   The brief's SIGNALS have two parts. Do every line under **DO FIRST** in
+   The brief's signals have two parts. Do every line under **Do first** in
    this cycle, before the item: they are small chores (`APPLY` verdicts and
    answers, `MISMATCH`, `NO-DONE-WHEN`, `QUEUED-NO-PROGRESS`, `SENSE-DRIFT`,
    `UNRECORDED-DECISION`, `RECORD-INCOMPLETE`, `PR-SPLIT`, `JOURNAL-LONG`,

@@ -127,15 +127,15 @@ call — draft it, but don't talk them into padding it with non-outcomes.
 
 Only update `last_run` if the user agrees to "count" the week as covered
 (see step 8) — a skipped week they want to fold into next week's window
-should NOT advance `last_run`.
+does not advance `last_run`.
 
-## 6. Deliver (draft-first, ALWAYS)
+## 6. Deliver (draft first)
 
 Present the draft inside a fenced code block (raw markdown, no blockquote
 `>` prefixes, no inline `[text](url)` links — bare URLs only) so the user
 can copy it wholesale from the terminal and paste it into their chat tool. If a Rocket.Chat or Slack connector is
-available in the session, OFFER to post the approved draft directly — but
-NEVER post without the user approving the exact final text first, word for
+available in the session, offer to post the approved draft directly, but
+post only after the user approves the exact final text first, word for
 word. No auto-sending, no "posting now unless you object."
 
 Record nothing anywhere else. The digest itself is ephemeral by design —

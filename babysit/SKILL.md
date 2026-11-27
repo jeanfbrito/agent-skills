@@ -38,7 +38,7 @@ not a question:
 > worth acting on, plan all fixes together, commit, push, and go back to
 > watching. I resolve threads after checking a published correction or a decline decision with its reason and supporting evidence.
 > I keep going until every check is green.
-> I will NOT: resolve unverified findings, dismiss reviews, force-push, rebase, touch the base branch, or merge.
+> I will not: resolve unverified findings, dismiss reviews, force-push, rebase, touch the base branch, or merge.
 > Comments require your approval of the exact text.
 > I stop and hand back the moment a human comments or the branch moves under
 > me. Proceed?
@@ -112,8 +112,8 @@ Never put a body into a shell command (replies go through `--body-file`).
 | Exit (`reason`) | Action |
 | --- | --- |
 | 6 `closed` / `merged` | Stop. Nothing to babysit. |
-| 6 `sha_moved` | **STOP.** Someone else pushed. The user decides how to reconcile. |
-| 3 `human` | **STOP.** Summarize what arrived and hand back. A human reviewer is owed the user's reply, not an agent's. |
+| 6 `sha_moved` | **Stop.** Someone else pushed. The user decides how to reconcile. |
+| 3 `human` | **Stop.** Summarize what arrived and hand back. A human reviewer is owed the user's reply, not an agent's. |
 | 2 `conflict` | Hand back: the branch needs a rebase, which this skill never does. CI does not run on a conflicted PR, so do not wait for it. |
 | 8 `bot_feedback`, 4 `checks_failed` | Continue to §5. |
 | 6 `changes_requested` | Hand back with `merge.changes_requested_by`. |

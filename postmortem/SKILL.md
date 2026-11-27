@@ -42,8 +42,8 @@ Then identify:
 
 - **What was the goal?** (1 sentence)
 - **What approaches were tried?** List each attempt chronologically.
-- **What failed and WHY?** Root cause per attempt — not the symptom.
-- **What finally worked and WHY?** The key insight that made the difference.
+- **What failed, and why?** Root cause per attempt — not the symptom.
+- **What finally worked, and why?** The key insight that made the difference.
 - **What was the cost of each wrong path?** (only real, observable costs)
 
 ### 2. Write the post-mortem document
@@ -111,7 +111,7 @@ and place new knowledge where it belongs:
 **Rules for writing rules:**
 
 - State the rule as an imperative ("Do X", "Do NOT do Y").
-- Include the WHY — what goes wrong if the rule is violated.
+- Include the reason: what goes wrong if the rule is violated.
 - Include a concrete example if possible.
 - Reference the post-mortem doc for the full story.
 
@@ -146,10 +146,10 @@ to `.localdev/workflow/done.md` (canonical `## YYYY-MM-DD HH:MM — <title>`
 format) with a link to the post-mortem doc, and absorb + delete any handoff
 for the task.
 
-### 7. Publish for visibility (draft-first, ALWAYS)
+### 7. Publish for visibility (draft first)
 
 A post-mortem that dies in `docs/` is invisible. Turn it into artifacts
-people see — but NEVER send or publish anything without the user approving
+people see. Other people read what you publish, so send or publish nothing until the user approves
 the exact draft first:
 
 - **Internal write-up**: offer to create a Confluence page from the
@@ -195,11 +195,11 @@ Before finishing, verify:
 - **Symptom-level explanations**: "The rendering was broken" is a symptom.
   "CheckBoundingBox is a partial order that produces wrong results in
   pairwise comparison sorts" is a root cause.
-- **Missing the WHY**: Every rule needs a WHY. "Do NOT use pairwise
+- **Missing the reason**: Every rule needs its reason. "Do not use pairwise
   comparison" — why? Because CheckBoundingBox returns true in both directions
   for edge/surface pairs, causing the sort to leave them in arbitrary order.
 - **Skipping failed attempts**: The failures are the most valuable part.
-  Future readers (including future Claude sessions) need to know what NOT to
+  Future readers (including future Claude sessions) need to know what not to
   do and why.
 - **Publishing internals externally**: the blog handoff strips proprietary
   detail; never paste the internal doc into a public artifact as-is.

@@ -13,7 +13,7 @@ The user may have passed the ticket as an argument: $ARGUMENTS
 
 - **Jira key or URL** (e.g. `PROJ-123`, `https://…/browse/PROJ-123`): fetch it yourself — use the jira skill / `jira issue view <KEY>` if available. Only ask the user to paste if the fetch fails.
 - **Pasted ticket text**: use it directly.
-- **Nothing provided**: say "Paste the ticket, Jira task, bug report, or feature request below. I'll analyze it and create a plan." and wait. Do NOT proceed until they do.
+- **Nothing provided**: say "Paste the ticket, Jira task, bug report, or feature request below. I'll analyze it and create a plan." and wait for it, because there is nothing to plan yet.
 
 ## Step 2: Analyze the Ticket
 
@@ -115,4 +115,4 @@ Present a summary to the user:
 
 Then say: "All changes are ready. Want me to commit?"
 
-**Do NOT commit until the user explicitly says to commit.**
+Commit only when the user says to commit.

@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Find git worktrees, local branches, and stashes that are safe to remove
 because their work already merged or was abandoned. Always dry-run first
-and STOP for explicit confirmation before deleting anything. This skill
+and stop for explicit confirmation before deleting anything. This skill
 runs from the main checkout (the project root). Use
 `git worktree list --porcelain` as the source of truth for where
 worktrees live — many projects keep them in a sibling
@@ -93,7 +93,7 @@ branch checked out in a worktree cannot be deleted).
 `git branch --merged` only catches ancestor (fast-forward/merge-commit)
 merges — it misses squash-merged branches, whose commits never become
 ancestors of the target branch. To catch those, scan every remaining
-local branch NOT already found in step 3's union with `gh pr list --state
+local branch not already found in step 3's union with `gh pr list --state
 merged --head <b>`. This costs one API call per branch; prefer batching
 instead — pull merged PRs once and match branch names locally:
 
@@ -155,7 +155,7 @@ with `git stash show -h` (look for `-u, --[no-]include-untracked` in the
 usage output) before relying on it; on an older git, drop the flag and
 note in the archive that untracked files were not captured.
 
-### 5. Print the dry-run table and STOP
+### 5. Print the dry-run table and stop
 
 Print three tables and then stop for confirmation — do not proceed to
 step 6 without an explicit go-ahead:
