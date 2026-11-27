@@ -109,6 +109,8 @@ Rules:
      contradicts. Delete it, or reword it so that it permits the ask. A stale stop
      line beats a card: a cycle reads the Direction first and skips the ask.
   The human is the authority, so the new ask wins over the old line.
+- **Lanes.** When the human asks for full cycles in parallel, fork lanes:
+  each lane is this loop in its own worktree (`references/lanes.md`).
 - **Side tracks.** The human can ask for more speed ("fan out", "do all we
   can"). Then the orchestrator can run side tracks beside the serial cycles.
   Researchers take rows that need cited numbers. Builders work in their own

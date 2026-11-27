@@ -46,6 +46,7 @@ approach that cannot reach the reference (`references/signals.md`, "Step back").
 | Views | The one view that the item needs | More angles for 3D (`senses/3d-views.md`) |
 | Checks | The focused senses | Wider gates, then the critic gate |
 | Builders | One | At most 3 in parallel |
+| Lanes | One loop | 2, then 3, only when the human asks (`references/lanes.md`) |
 | Reference | The bar the project can reach | A harder bar when ours wins |
 | Senses, invariants, report | The few that the item needs | More as blockers and complaints show gaps |
 
@@ -55,6 +56,7 @@ Files are in `~/Github/agent-skills/awesomeness-incremental-loop/`:
 | --- | --- |
 | `tools/state.py` | `arm`, `lock`, `brief`, `note`, `unlock`, `pause`, `resume`, `wait`. The brief shows the state, the open cycle and the due signals |
 | `tools/drive.sh` | A loop outside the session, only when the human asks for one |
+| `tools/lanes.py`, `references/lanes.md` | Lanes: forks of this loop that run at the same time, each in its own worktree. `add`, `arm` (one lane for each row), `gate` (the merge check) |
 | `tools/report.py` | Builds the HTML report and `report-data.json`. Each note runs it |
 | `references/drivers.md` | The orchestrator, and what to do on a harness with no subagents |
 | `references/fire-prompt.md` | The fixed prompt that each cycle subagent gets |

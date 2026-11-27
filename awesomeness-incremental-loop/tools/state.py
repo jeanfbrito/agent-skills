@@ -19,7 +19,7 @@ Usage:
       and --why "<what a user will notice>" --target "<product outcome>" --check "<real-artifact test>"
       (required for every cycle)
   state.py arm --row ROW --mode MODE --target "<goal>" --check "<acceptance check>"
-      # Define the next cycle goal before a subagent starts.
+      # Define the next cycle goal before a subagent starts. Refused in a loop that has lanes (lanes.py).
       ack --drift <sha> "<why the check change is right>" clears a SENSE-DRIFT
       ack --decision <sha[,sha]> "no new decision: <why>" clears an UNRECORDED-DECISION
   state.py lock    [--project DIR] [--owner NAME] [--stale-min 90]
@@ -27,7 +27,7 @@ Usage:
       # A lock whose session has ended is taken over. Only another live session gets BUSY (exit 3).
   state.py unlock  --token <t> [--project DIR]    # the holder, or any run of the same agent session
   state.py unlock  --orphan [--project DIR]     # the orchestrator, after its cycle subagent ended
-  state.py pause   [--project DIR]     # the human brake for every driver
+  state.py pause   [--project DIR]     # the human brake for every driver, and for each lane forked from this loop
   state.py resume  [--project DIR]
   state.py wait    [--project DIR] [--poll 60] [--max-hours 0]
       # after a cycle ends --status waiting: block, with no agent run, until a human
@@ -62,6 +62,7 @@ DISK_CLEAR_GB = 5  # a low-disk episode ends when the free space is this far abo
 DISK_PASS_MIN = 30  # minutes that the cycle which claimed the cache pass has for it
 DISK_EPISODE_H = 24  # one cache pass for each low-disk episode, and at most one in this many hours
 TRAIL = "trail.jsonl"
+LANE = "lane.json"  # lanes.py writes it in a lane's data root; a plain loop has none
 KINDS = ["pick", "predict", "try", "see", "keep", "revert", "commit", "step-back", "blocked", "end", "ack"]
 MODES = ["gap", "coverage", "unblock", "beyond", "step-back", "critic", "review", "waiting"]
 NEEDS_WHY = ("gap", "coverage", "unblock", "beyond")  # work that changes the product or the matrix
@@ -700,6 +701,36 @@ def next_exhausted_step(trail, has_blocked, beyond_full=False):
     return step, last
 
 
+def paused(root):
+    """The PAUSE file that stops this loop, or "". A lane (lanes.py add) also stops on its parent loop's PAUSE."""
+    own = os.path.join(root, "PAUSE")
+    if os.path.exists(own):
+        return own
+    try:
+        with open(os.path.join(root, LANE), encoding="utf-8") as fh:
+            parent = os.path.join(json.load(fh)["parent_root"], "PAUSE")
+    except (OSError, ValueError, KeyError, TypeError):
+        return ""  # a plain loop has no lane file
+    return parent if os.path.exists(parent) else ""
+
+
+def lanes_of(project, root):
+    """(data root, lane.json) of each lane forked from this loop (lanes.py add): its worktree has a lane.json for root."""
+    found = []
+    for line in (git(project, "worktree", "list", "--porcelain") or "").splitlines():
+        if not line.startswith("worktree "):
+            continue
+        lane_root = os.path.join(line[len("worktree "):], ".localdev", "awesomeness")
+        try:
+            with open(os.path.join(lane_root, LANE), encoding="utf-8") as fh:
+                meta = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if isinstance(meta, dict) and os.path.realpath(meta.get("parent_root", "")) == os.path.realpath(root):
+            found.append((lane_root, meta))
+    return found
+
+
 def read_trail(root):
     out = []
     path = os.path.join(root, TRAIL)
@@ -767,8 +798,10 @@ def brief(a):
     jpath = os.path.join(a.project, a.journal)
     root = os.path.join(a.project, a.root)
     out = []
-    if os.path.exists(os.path.join(root, "PAUSE")):
-        out.append("PAUSED: the human paused the loop (state.py resume to continue).")
+    stop = paused(root)
+    if stop:
+        where = "" if stop == os.path.join(root, "PAUSE") else f" Lane stopped by its parent loop: {stop}."
+        out.append(f"PAUSED: the human paused the loop (state.py resume to continue).{where}")
     lock_line = lock_status(root, a.stale_min)
     if lock_line:
         out.append(lock_line)
@@ -799,7 +832,7 @@ def brief(a):
     trail = read_trail(root)
     oc = open_cycle(trail)
     hold = auto_hold_state(a.project, root, trail, sense_paths(a.project, senses)) if not oc else []
-    if not oc and not os.path.exists(os.path.join(root, "PAUSE")):
+    if not oc and not stop:
         goal = armed_goal(root, trail)
         out.append(f"ARMED: cycle {goal['cycle']} on '{goal['row']}' targets {goal['target']}; check: {goal['check']}"
                    if goal else "UNARMED: define --row, --target and --check with state.py arm before a new cycle.")
@@ -1066,7 +1099,7 @@ def note(a):
     trail = read_trail(root)
     oc = open_cycle(trail)
     if kind == "pick":
-        if os.path.exists(os.path.join(root, "PAUSE")):
+        if paused(root):
             print("PAUSED: no new cycle starts until state.py resume.")
             return 4
         if oc:
@@ -1310,9 +1343,14 @@ def arm(a):
     if open_cycle(trail) or os.path.exists(os.path.join(root, "lock")):
         print("REFUSED: finish the current cycle before arming another goal.")
         return 2
-    if os.path.exists(os.path.join(root, "PAUSE")):
+    if paused(root):
         print("REFUSED: the human paused the loop.")
         return 4
+    lanes = [meta.get("lane", "?") for _, meta in lanes_of(a.project, root)]
+    if lanes:
+        print(f"REFUSED: this loop has lanes ({', '.join(lanes)}). A parent and its lanes do not run at the same "
+              "time: arm a lane with lanes.py arm, or retire the lanes first (references/lanes.md).")
+        return 2
     if a.mode and a.mode not in MODES:
         print(f"REFUSED: --mode is one of {', '.join(MODES)}.")
         return 2
@@ -1332,7 +1370,7 @@ def arm(a):
 def lock(a):
     root = os.path.join(a.project, a.root)
     os.makedirs(root, exist_ok=True)
-    if os.path.exists(os.path.join(root, "PAUSE")):
+    if paused(root):
         print("PAUSED: the human paused the loop. This run does nothing.")
         return 4
     trail = read_trail(root)
@@ -1405,6 +1443,8 @@ def pause(a, on):
         print("PAUSED: every driver skips its cycles until state.py resume.")
         # A cycle that holds the lock still runs to its end; the human needs to know that before calling it a stop.
         print(lock_status(root, a.stale_min))
+        for lane_root, meta in lanes_of(a.project, root):
+            print(f"LANE {meta.get('lane', '?')}: {lock_status(lane_root, a.stale_min)}")
     else:
         if os.path.exists(path):
             os.remove(path)
