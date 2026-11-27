@@ -46,11 +46,50 @@ def preflight(host, timeout):
         print(f'[{label}]\n{result.stdout.strip()}')
 
 
+WINDOWS_ACL = (
+    '$a = Get-Acl -LiteralPath $env:CHECK_CREDENTIAL_FILE; $sid = [Security.Principal.SecurityIdentifier]; '
+    '@{me = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; owner = $a.GetOwner($sid).Value; '
+    'allow = @($a.GetAccessRules($true, $true, $sid) | Where-Object { $_.AccessControlType -eq "Allow" } '
+    '| ForEach-Object { $_.IdentityReference.Value })} | ConvertTo-Json -Compress')
+
+
+def check_windows_owner_only(path):
+    """The Windows form of mode 0600, as OpenSSH for Windows checks a key: only you, SYSTEM (S-1-5-18) and
+    Administrators (S-1-5-32-544) own or may open the file. SIDs, so localized group names do not matter."""
+    result = subprocess.run(['powershell', '-NoProfile', '-NonInteractive', '-Command', WINDOWS_ACL],
+                            capture_output=True, text=True, timeout=30,
+                            env={**os.environ, 'CHECK_CREDENTIAL_FILE': str(path)})
+    try:
+        acl = json.loads(result.stdout)
+    except ValueError:
+        raise CheckError('Cannot read the access list of the credential file.') from None
+    allowed = {acl.get('me'), 'S-1-5-18', 'S-1-5-32-544'}
+    # OWNER RIGHTS (S-1-3-4) grants the owner, who must already be one of the allowed.
+    if acl.get('owner') not in allowed or not set(acl.get('allow') or []) <= allowed | {'S-1-3-4'}:
+        raise CheckError('Use a credential file that only you can read: '
+                         'icacls <file> /inheritance:r /grant:r "%USERNAME%:R"')
+
+
 def load_headers(filename):
-    fd = os.open(Path(filename).expanduser(), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    with os.fdopen(fd) as handle:
+    path = Path(filename).expanduser()
+    if os.name == 'nt':  # no O_NOFOLLOW, getuid or mode bits
+        fd = os.open(path, os.O_RDONLY)
+        link, opened = os.lstat(path), os.fstat(fd)
+        # Compare after the open: a symlink, or a file swapped in after the check, is a different file.
+        if (stat.S_ISLNK(link.st_mode) or not stat.S_ISREG(opened.st_mode)
+                or (link.st_dev, link.st_ino) != (opened.st_dev, opened.st_ino)):
+            os.close(fd)
+            raise CheckError('Use a regular credential file, not a link.')
+        try:
+            check_windows_owner_only(path)
+        except BaseException:
+            os.close(fd)
+            raise
+    else:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, encoding='utf-8') as handle:
         info = os.fstat(handle.fileno())
-        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077:
+        if os.name != 'nt' and (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o077):
             raise CheckError('Use a regular credential file owned by you with mode 0600 or 0400.')
         if info.st_size > 65536:
             raise CheckError('Credential file exceeds 64 KiB.')

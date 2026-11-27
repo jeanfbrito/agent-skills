@@ -3,6 +3,7 @@ import http.server
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -108,13 +109,19 @@ class Checks(unittest.TestCase):
         self.assertEqual(Handler.seen, [])
 
     def test_reject_world_readable_credential_file(self):
-        self.credentials.chmod(0o644)
+        if os.name == 'nt':  # chmod does not change who can read a file on Windows: grant Everyone (S-1-1-0)
+            subprocess.run(['icacls', str(self.credentials), '/grant', '*S-1-1-0:R'], check=True, capture_output=True)
+        else:
+            self.credentials.chmod(0o644)
         self.assertEqual(self.run_http('/protected', 'protected', self.credentials)[0], 1)
         self.assertEqual(Handler.seen, [])
 
     def test_reject_symlink_credentials(self):
         link = Path(self.tmp.name) / 'link'
-        link.symlink_to(self.credentials)
+        try:
+            link.symlink_to(self.credentials)
+        except OSError:  # Windows without Developer Mode cannot make one
+            self.skipTest('this account cannot make a symlink')
         self.assertEqual(self.run_http('/protected', 'protected', link)[0], 1)
 
     def test_reject_non_authentication_headers_and_newlines(self):
