@@ -74,7 +74,7 @@ class LanesTest(unittest.TestCase):
         lane = self.add("a")
         self.assertIn("awesomeness/day-lane-a", git(lane, "branch", "--show-current"))
         meta = json.loads((lane / ".localdev/awesomeness/lane.json").read_text())
-        self.assertEqual(meta["parent_root"], str(self.proot))
+        self.assertEqual(os.path.normpath(meta["parent_root"]), str(self.proot))  # lanes.py joins ".localdev/awesomeness"
         self.assertEqual(meta["forked_cycle"], 2)
         self.assertEqual((lane / ".localdev/awesomeness/trail.jsonl").read_text(), (self.proot / "trail.jsonl").read_text())
 

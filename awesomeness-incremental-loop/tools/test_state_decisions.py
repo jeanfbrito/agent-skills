@@ -90,16 +90,16 @@ class DesignRecordTest(unittest.TestCase):
         self.journal()
 
     def journal(self, setup="", extra=""):
-        (self.project / "docs/awesomeness-loop.md").write_text(JOURNAL.format(setup=setup, extra=extra))
+        (self.project / "docs/awesomeness-loop.md").write_text(JOURNAL.format(setup=setup, extra=extra), encoding="utf-8")
 
-    def record(self, body):
-        (self.project / "docs/awesomeness-loop-design-record.md").write_text(body)
+    def record(self, body):  # state.py reads UTF-8; the Windows default would write "·" as cp1252
+        (self.project / "docs/awesomeness-loop-design-record.md").write_text(body, encoding="utf-8")
 
     def commit(self, repo, files, message):
         for name, body in files.items():
             path = Path(repo) / name
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(body)
+            path.write_text(body, encoding="utf-8")
         run_git(repo, "add", *files)
         run_git(repo, "commit", "-q", "-m", message)
         return run_git(repo, "rev-parse", "--short=9", "HEAD")
@@ -345,10 +345,10 @@ class DesignRecordTest(unittest.TestCase):
         (self.root / "trail.jsonl").write_text("".join(json.dumps(e) + "\n" for e in self.trail))
         out = self.root / "report"
         report.build(str(self.root), str(self.project / "docs/awesomeness-loop.md"), str(out))
-        data = json.loads((out / "report-data.json").read_text())
+        data = json.loads((out / "report-data.json").read_text(encoding="utf-8"))
         self.assertEqual([r["id"] for r in data["design_record"]], ["R1"])
         self.assertEqual(data["decision_acks"][0]["commits"], "abcdef1")
-        html = (out / "index.html").read_text()
+        html = (out / "index.html").read_text(encoding="utf-8")
         self.assertIn("infra · 1 to validate", html)
         self.assertIn("Acknowledged as no new decision · 1", html)
 
@@ -380,10 +380,10 @@ class PointerTest(unittest.TestCase):
     def test_brief_pointers_name_real_sections(self):
         """Catches a moved section: a brief line that sends the agent to a file or heading that does not exist."""
         skill = Path(__file__).resolve().parent.parent
-        code = (skill / "tools/state.py").read_text()
+        code = (skill / "tools/state.py").read_text(encoding="utf-8")
         for ref in set(re.findall(r"references/[\w-]+\.md", code)):
             self.assertTrue((skill / ref).is_file(), ref)
-        headings = (skill / "references/signals.md").read_text()
+        headings = (skill / "references/signals.md").read_text(encoding="utf-8")
         for name in re.findall(r"references/signals\.md, ([\w ]+)\)", code):
             self.assertRegex(headings, rf"(?m)^## .*{re.escape(name)}", name)
 

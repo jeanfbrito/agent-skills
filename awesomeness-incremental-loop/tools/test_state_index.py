@@ -1,6 +1,7 @@
 """The loop requires a GitNexus index of its checkout: state.py lock, brief and index."""
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -37,7 +38,7 @@ if args[0] == "analyze":
         sys.exit('Registry name "app@app-wt" is already used by "/gone/app-wt".\\nPass --name <alias> to register it.')
     if fail == "all" or (fail == "plain" and "--force" not in args) or (fail == "untilclean" and "clean" not in log):
         sys.exit("boom: the index is locked")
-    top = next(a for a in args[1:] if a.startswith("/"))
+    top = next(a for a in args[1:] if os.path.isabs(a))
     head = subprocess.run(["git", "-C", top, "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     os.makedirs(os.path.join(top, ".gitnexus"), exist_ok=True)
     with open(os.path.join(top, ".gitnexus", "gitnexus.json"), "w") as fh:
@@ -49,11 +50,27 @@ elif args[0] == "cypher":
     print("  GitNexus Cypher (1.6.12)")
     print(os.environ.get("FAKE_GITNEXUS_FILES" if "RETURN f.filePath" in args[-1] else "FAKE_GITNEXUS_COUPLING", "[]"))
 '''
-NO_GITNEXUS = {"AWESOMENESS_GITNEXUS": "", "PATH": "/usr/bin:/bin"}
+WINDOWS = os.name == "nt"
+# A PATH with git and no gitnexus. Windows keeps only the folder of git.exe: the npm folder has gitnexus.cmd.
+NO_GITNEXUS = {"AWESOMENESS_GITNEXUS": "",
+               "PATH": os.path.dirname(shutil.which("git") or "") if WINDOWS else "/usr/bin:/bin"}
 AGENT = "claude"  # state.py finds the agent session by this process name (AGENT_NAMES)
+# The agent pid in an as_agent script. Windows has no `ps -o`, so state.py reads CLAUDE_PID there.
+AGENT_PID = '"$CLAUDE_PID"' if WINDOWS else "$$"
+
+
+def q(path):
+    """A path for an sh script. It is unchanged on POSIX; sh would drop the backslashes of a Windows path."""
+    return shlex.quote(str(path))
 
 
 def write_fake_gitnexus(folder):
+    """The stand-in CLI. On Windows, a .cmd shim that runs a .py, like the gitnexus.cmd that npm installs."""
+    if WINDOWS:
+        (Path(folder) / "gitnexus.py").write_text(FAKE, encoding="utf-8")
+        path = Path(folder) / "gitnexus.cmd"
+        path.write_text(f'@"{sys.executable}" "%~dp0gitnexus.py" %*\r\n')
+        return str(path)
     path = Path(folder) / "gitnexus"
     path.write_text(FAKE)
     path.chmod(0o755)
@@ -87,7 +104,8 @@ class IndexTest(unittest.TestCase):
         self.env = {**os.environ, "AWESOMENESS_GITNEXUS": write_fake_gitnexus(base), "FAKE_GITNEXUS_LOG": str(self.log),
                     "GITNEXUS_SCOPE_DIR": str(self.scope)}
         self.agent = base / AGENT  # a shell named like the agent, so that the scope marks have a known pid
-        self.agent.symlink_to("/bin/sh")
+        if not WINDOWS:
+            self.agent.symlink_to("/bin/sh")
 
     def journal(self, setup=""):
         (self.repo / "docs/awesomeness-loop.md").write_text(JOURNAL.format(setup=setup))
@@ -103,8 +121,15 @@ class IndexTest(unittest.TestCase):
                               env={**self.env, **env})
 
     def as_agent(self, script, **env):
-        """Run a shell script under a process named like the agent. It prints the agent pid first."""
-        r = subprocess.run([str(self.agent), "-c", f"echo $$; {script}"], capture_output=True, text=True,
+        """Run a shell script under a process named like the agent. It prints the agent pid first.
+        On Windows, Git's sh runs it, and this test process is the agent (CLAUDE_PID)."""
+        shell = str(self.agent)
+        if WINDOWS:
+            shell = shutil.which("sh")
+            if not shell:
+                self.skipTest("needs the sh of Git for Windows on PATH")
+            env = {"CLAUDE_PID": str(os.getpid()), **env}
+        r = subprocess.run([shell, "-c", f"echo {AGENT_PID}; {script}"], capture_output=True, text=True,
                            env={**self.env, **env})
         pid, _, out = r.stdout.partition("\n")
         return pid.strip(), out
@@ -139,7 +164,7 @@ class IndexTest(unittest.TestCase):
         self.assertIn("INDEX: missing", self.state("brief").stdout)
         r = self.lock()
         self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn(f"INDEX: GitNexus has {self.repo} at", r.stdout)
+        self.assertIn(f"INDEX: GitNexus has {self.repo.as_posix()} at", r.stdout)  # git prints / on Windows too
         self.assertIn("INDEX: fresh at HEAD", self.state("brief").stdout)
         self.assertEqual(self.git("status", "--porcelain"), "")  # .gitnexus/ went to .git/info/exclude
         (self.repo / "a.txt").write_text("a\n")
@@ -195,23 +220,24 @@ class IndexTest(unittest.TestCase):
         subprocess.run(["git", "-C", str(task), "add", "b.txt"])
         subprocess.run(["git", "-C", str(task), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "b"])
         sha = subprocess.run(["git", "-C", str(task), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+        cli, repo = f"{q(sys.executable)} {q(HERE / 'state.py')}", q(self.repo)
         pid, out = self.as_agent(
-            f"{sys.executable} {HERE / 'state.py'} lock --project {self.repo} && "
-            f"{sys.executable} {HERE / 'state.py'} note pick x --row 'R1 search' --mode gap --why w --target t --check c "
-            f"--project {self.repo} && "
-            f"{sys.executable} {HERE / 'state.py'} note commit 'fix b' --commit {sha} --project {self.repo} && "
-            f"cat {self.scope}/$$.json")
-        self.assertIn(f"INDEX: GitNexus has {task} at {sha[:9]}", out)
-        self.assertIn(f"analyze --index-only {task} --name app@app-task", self.log.read_text())
-        self.assertIn(f'"{task}"', out)  # the hook now fills this checkout for the session
+            f"{cli} lock --project {repo} && "
+            f"{cli} note pick x --row 'R1 search' --mode gap --why w --target t --check c --project {repo} && "
+            f"{cli} note commit 'fix b' --commit {sha} --project {repo} && "
+            f"cat {q(self.scope)}/{AGENT_PID}.json")
+        self.assertIn(f"INDEX: GitNexus has {task.as_posix()} at {sha[:9]}", out)
+        self.assertIn(f"analyze --index-only {task.as_posix()} --name app@app-task", self.log.read_text())
+        marks = json.loads(out.strip().splitlines()[-1])
+        self.assertIn(str(task), marks.values())  # the hook now fills this checkout for the session
 
     def test_the_lock_tells_the_hook_which_checkout_the_cycle_uses(self):
         self.state("arm", "--row", "R1 search", "--target", "t", "--check", "c")
-        lock = HERE / "state.py"
-        pid, out = self.as_agent(f"{sys.executable} {lock} lock --project {self.repo} >/dev/null && cat {self.scope}/$$.json")
+        lock = f"{q(sys.executable)} {q(HERE / 'state.py')}"
+        pid, out = self.as_agent(f"{lock} lock --project {q(self.repo)} >/dev/null && cat {q(self.scope)}/{AGENT_PID}.json")
         self.assertEqual(json.loads(out), {str(self.repo / ".localdev/awesomeness/lock"): str(self.repo)})
         token = json.loads((self.repo / ".localdev/awesomeness/lock").read_text())["token"]
-        self.as_agent(f"{sys.executable} {lock} unlock --token {token} --project {self.repo}")
+        self.as_agent(f"{lock} unlock --token {token} --project {q(self.repo)}")
         self.assertEqual(self.marks(pid), {})
 
     def test_an_index_that_changes_the_checkout_is_broken(self):

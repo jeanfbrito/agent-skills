@@ -254,6 +254,7 @@ class StallHoldTest(unittest.TestCase):
             self.assertNotIn("DISK", self.brief())
             self.assertFalse(marker.exists())
         with self.low_disk(10):
+            (self.root / "lock").unlink()  # with no agent pid (no claude parent, no CLAUDE_PID), the lock is BUSY
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(state.lock(self.args), 0)
             episode = json.loads(marker.read_text())
