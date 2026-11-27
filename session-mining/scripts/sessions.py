@@ -435,7 +435,8 @@ def main():
     p.set_defaults(func=cmd_grep)
 
     args = parser.parse_args()
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    if hasattr(signal, "SIGPIPE"):  # Windows has no SIGPIPE
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     return args.func(args)
 
 

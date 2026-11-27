@@ -38,7 +38,7 @@ PREFLIGHT_GATES = {
 
 class SkillContracts(unittest.TestCase):
     def read(self, path):
-        return (ROOT / path).read_text()
+        return (ROOT / path).read_text(encoding="utf-8")
 
     def test_frontmatter_line_limits_and_readme_rows(self):
         readme = self.read("README.md")
