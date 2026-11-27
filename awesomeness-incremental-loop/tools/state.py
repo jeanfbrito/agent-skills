@@ -19,21 +19,24 @@ Usage:
       and --why "<what a user will notice>" --target "<product outcome>" --check "<real-artifact test>"
       (required for every cycle)
   state.py arm --row ROW --mode MODE --target "<goal>" --check "<acceptance check>"
-      # Define the next cycle goal before a subagent starts.
+      # Define the next cycle goal before a subagent starts. Refused in a loop that has lanes (lanes.py).
       ack --drift <sha> "<why the check change is right>" clears a SENSE-DRIFT
       ack --decision <sha[,sha]> "no new decision: <why>" clears an UNRECORDED-DECISION
   state.py lock    [--project DIR] [--owner NAME] [--stale-min 90]
+      # Refused when gitnexus is missing and the journal Setup has no '- GitNexus: none (<reason>)'.
+      # After the lock, it brings the checkout's GitNexus index to HEAD (state.py index does only that).
       # The same agent session takes its own lock back (after a compaction).
       # A lock whose session has ended is taken over. Only another live session gets BUSY (exit 3).
   state.py unlock  --token <t> [--project DIR]    # the holder, or any run of the same agent session
   state.py unlock  --orphan [--project DIR]     # the orchestrator, after its cycle subagent ended
-  state.py pause   [--project DIR]     # the human brake for every driver
+  state.py pause   [--project DIR]     # the human brake for every driver, and for each lane forked from this loop
   state.py resume  [--project DIR]
+  state.py index   [--project DIR]     # bring the GitNexus index to HEAD now; exit 1 while it is broken
   state.py wait    [--project DIR] [--poll 60] [--max-hours 0]
       # after a cycle ends --status waiting: block, with no agent run, until a human
       # changes the journal, git HEAD, the working tree or .localdev/workflow
 
-Exit codes: 0 ok. 3 another cycle holds the lock. 4 the loop is paused. 5 wait timed out.
+Exit codes: 0 ok. 2 refused. 3 another cycle holds the lock. 4 the loop is paused. 5 wait timed out.
 Standard library only.
 """
 import argparse
@@ -65,6 +68,8 @@ DISK_EPISODE_H = 24  # one cache pass for each low-disk episode, and at most one
 GROW_MIN_GB = 2  # a file this large that changed in the last GROW_MIN minutes, on a low disk, is a runaway suspect
 GROW_MIN = 10
 TRAIL = "trail.jsonl"
+LANE = "lane.json"  # lanes.py writes it in a lane's data root; a plain loop has none
+INDEX_TIMEOUT_S = 900  # a first GitNexus index of Rocket.Chat.Electron took 24 s, an update with no change 3 s
 KINDS = ["pick", "predict", "try", "see", "keep", "revert", "commit", "step-back", "blocked", "end", "ack"]
 MODES = ["gap", "coverage", "unblock", "beyond", "step-back", "critic", "review", "waiting"]
 NEEDS_WHY = ("gap", "coverage", "unblock", "beyond")  # work that changes the product or the matrix
@@ -719,6 +724,232 @@ def next_exhausted_step(trail, has_blocked, beyond_full=False):
     return step, last
 
 
+def paused(root):
+    """The PAUSE file that stops this loop, or "". A lane (lanes.py add) also stops on its parent loop's PAUSE."""
+    own = os.path.join(root, "PAUSE")
+    if os.path.exists(own):
+        return own
+    try:
+        with open(os.path.join(root, LANE), encoding="utf-8") as fh:
+            parent = os.path.join(json.load(fh)["parent_root"], "PAUSE")
+    except (OSError, ValueError, KeyError, TypeError):
+        return ""  # a plain loop has no lane file
+    return parent if os.path.exists(parent) else ""
+
+
+def lanes_of(project, root):
+    """(data root, lane.json) of each lane forked from this loop (lanes.py add): its worktree has a lane.json for root."""
+    found = []
+    for line in (git(project, "worktree", "list", "--porcelain") or "").splitlines():
+        if not line.startswith("worktree "):
+            continue
+        lane_root = os.path.join(line[len("worktree "):], ".localdev", "awesomeness")
+        try:
+            with open(os.path.join(lane_root, LANE), encoding="utf-8") as fh:
+                meta = json.load(fh)
+        except (OSError, ValueError):
+            continue
+        if isinstance(meta, dict) and os.path.realpath(meta.get("parent_root", "")) == os.path.realpath(root):
+            found.append((lane_root, meta))
+    return found
+
+
+def gitnexus_cmd():
+    """The GitNexus CLI that the loop needs: AWESOMENESS_GITNEXUS (a path: a wrapper, or the tests' stand-in), else PATH."""
+    return os.environ.get("AWESOMENESS_GITNEXUS") or shutil.which("gitnexus")
+
+
+def index_optout(setup):
+    """The journal Setup line `- GitNexus: none (<reason>)`: the one way a loop runs with no index. "" when absent."""
+    cell = setup.get("GitNexus", "")
+    return cell if norm(cell).startswith("none") else ""
+
+
+def git_paths(project):
+    """(top level, git dir, common dir) of a checkout, or None outside git."""
+    out = git(project, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir")
+    parts = (out or "").splitlines()
+    return parts if len(parts) == 3 else None
+
+
+def indexed_commit(top):
+    try:
+        with open(os.path.join(top, ".gitnexus", "gitnexus.json"), encoding="utf-8") as fh:
+            return json.load(fh).get("lastCommit", "")
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def ensure_index(project):
+    """Index the checkout with GitNexus when its index is missing or behind HEAD. Returns "" or the error.
+
+    Each checkout keeps its own index. A linked worktree registers as <main checkout>@<worktree>: under the main
+    checkout's name, every lookup by that name fails (references/lanes.md, GitNexus)."""
+    paths, exe = git_paths(project), gitnexus_cmd()
+    if not paths:
+        return ""  # not a git repository: nothing to index
+    if not exe:
+        return "gitnexus is not installed (npm i -g gitnexus)"
+    top, gdir, common = paths
+    head = (git(top, "rev-parse", "HEAD") or "").strip()
+    if not head or indexed_commit(top) == head:
+        return ""
+    exclude = os.path.join(common, "info", "exclude")  # local to this clone, never committed
+    try:
+        have = open(exclude, encoding="utf-8").read().split() if os.path.exists(exclude) else []
+        need = [p for p in (".gitnexus/", ".gitnexusrc", ".claude/skills/gitnexus/") if p not in have]
+        if need:
+            os.makedirs(os.path.dirname(exclude), exist_ok=True)
+            with open(exclude, "a", encoding="utf-8") as fh:
+                fh.write("\n# GitNexus index (awesomeness loop)\n" + "".join(p + "\n" for p in need))
+    except OSError as e:
+        return f"cannot write {exclude}: {e}"
+    analyze = ["analyze", "--index-only", top]
+    if gdir != common:
+        analyze += ["--name", f"{os.path.basename(os.path.dirname(common))}@{os.path.basename(top)}"]
+
+    def run(args):
+        """"" when the command worked (an analyze must also reach HEAD), else (the error line, the full output)."""
+        try:
+            r = subprocess.run([exe, *args], cwd=top, capture_output=True, text=True, timeout=INDEX_TIMEOUT_S)
+        except (OSError, subprocess.SubprocessError) as e:
+            return str(e), ""
+        if r.returncode == 0 and (args[0] != "analyze" or indexed_commit(top) == head):
+            return "", ""
+        text = r.stderr + r.stdout
+        lines_ = [l.strip() for l in text.splitlines() if l.strip() and not l.strip().startswith("at ")]
+        first = next((l for l in lines_ if re.search(r"error|fail|already used", l, re.I)), lines_[-1] if lines_ else "no output")
+        return f"exit {r.returncode}: {first[:200]}", text
+
+    before = git(top, "status", "--porcelain")
+    err, text = run(analyze)
+    gone = re.search(r'Registry name "[^"]+" is already used by "([^"]+)"', text or "")
+    if err and gone and not os.path.exists(gone.group(1)):  # a removed checkout kept its registry entry
+        run(["remove", "--force", gone.group(1)])
+        err, text = run(analyze)
+    if err:
+        err, text = run(analyze + ["--force"])  # rebuild the graph
+    if err:
+        run(["clean", "--force"])  # delete this checkout's index, then build it new
+        err, text = run(analyze)
+    if err:
+        return f"gitnexus analyze failed: {err}"
+    after = git(top, "status", "--porcelain")
+    if after != before:
+        new = sorted(set((after or "").splitlines()) - set((before or "").splitlines()))
+        return f"gitnexus analyze changed the checkout: {'; '.join(new)[:200]}. Revert that, and keep --index-only"
+    return ""
+
+
+def index_now(project, root):
+    """Bring the index to HEAD and record the result for the brief. Returns the line to print."""
+    err = ensure_index(project)
+    paths = git_paths(project)
+    if not paths:
+        return ""
+    head = (git(paths[0], "rev-parse", "HEAD") or "").strip()
+    try:
+        with open(os.path.join(root, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"head": head, "error": err, "t": time.time()}, fh)
+    except OSError:
+        pass
+    return f"INDEX-BROKEN: {err}" if err else f"INDEX: GitNexus has {paths[0]} at {head[:9]}."
+
+
+def index_brief(project, root, setup):
+    """(INDEX line, DO FIRST chore or None) for the brief. Reads files only: lock does the indexing."""
+    reason = index_optout(setup)
+    if reason:
+        return f"INDEX: off ({reason[:120]}).", None
+    paths = git_paths(project)
+    if not paths:
+        return "", None
+    if not gitnexus_cmd():
+        return ("INDEX: REQUIRED. gitnexus is not installed, so state.py lock refuses every cycle. Install it "
+                "(npm i -g gitnexus), or write '- GitNexus: none (<reason>)' in the journal Setup."), None
+    top = paths[0]
+    head, have = (git(top, "rev-parse", "HEAD") or "").strip(), indexed_commit(top)
+    try:
+        with open(os.path.join(root, "index.json"), encoding="utf-8") as fh:
+            rec = json.load(fh)
+    except (OSError, ValueError):
+        rec = {}
+    if rec.get("error") and rec.get("head") == head:  # state.py index clears it
+        return "", ("INDEX-BROKEN", f"INDEX-BROKEN: the GitNexus index of HEAD failed: {rec['error']}. Fix the "
+                    "index before the item, then run state.py index until it prints INDEX. Do not work without it.")
+    if have == head:
+        return f"INDEX: fresh at HEAD. Pass repo: \"{top}\" to each GitNexus call of this cycle.", None
+    return f"INDEX: {'behind HEAD' if have else 'missing'}. state.py lock reindexes it.", None
+
+
+def mark_scope(pid, lock_path, checkout):
+    """Tell the GitNexus scope hook (agentic-workflow-framework, hooks/gitnexus-scope.cjs) which checkout the cycle
+    that holds lock_path works in, so that a GitNexus call with no repo reads that index. None removes the mark.
+    The hook trusts a mark only while lock_path exists and names this agent pid."""
+    if not pid:
+        return
+    folder = os.environ.get("GITNEXUS_SCOPE_DIR") or os.path.expanduser("~/.local/state/gitnexus-scope")
+    path = os.path.join(folder, f"{pid}.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            marks = json.load(fh)
+    except (OSError, ValueError):
+        marks = {}
+    if not isinstance(marks, dict):
+        marks = {}
+    if checkout:
+        marks[os.path.abspath(lock_path)] = os.path.abspath(checkout)
+    else:
+        marks.pop(os.path.abspath(lock_path), None)
+    try:
+        os.makedirs(folder, exist_ok=True)
+        if not marks:
+            if os.path.exists(path):
+                os.remove(path)
+            return
+        with open(path + ".tmp", "w", encoding="utf-8") as fh:
+            json.dump(marks, fh)
+        os.replace(path + ".tmp", path)  # two lanes of one session write this file
+    except OSError:
+        pass  # the hook then fills no repo; the brief still names it
+
+
+def commit_checkout(project, setup, sha):
+    """The checkout whose HEAD is this commit: the loop's own, or a task worktree, in the project or an Other repo."""
+    for repo in repos_of(project, setup):
+        full = (git(repo, "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}") or "").strip()
+        if not full:
+            continue
+        if (git(repo, "rev-parse", "HEAD") or "").strip() == full:
+            return repo
+        tree = None
+        for line in (git(repo, "worktree", "list", "--porcelain") or "").splitlines():
+            if line.startswith("worktree "):
+                tree = line[len("worktree "):]
+            elif line == f"HEAD {full}":
+                return tree
+    return None
+
+
+def index_after_commit(a, root, sha):
+    """After a commit note: bring the index of the checkout that holds the commit to HEAD, so that the rest of the
+    cycle finds its own new code. In pr-per-task mode that checkout is the task worktree."""
+    jpath = os.path.join(a.project, a.journal)
+    setup = md_setup(open(jpath, encoding="utf-8").read()) if os.path.isfile(jpath) else {}
+    if index_optout(setup):
+        return ""
+    tree = commit_checkout(a.project, setup, sha)
+    if not tree:
+        return ""
+    if os.path.realpath(tree) == os.path.realpath(a.project):
+        return index_now(a.project, root)
+    err = ensure_index(tree)
+    if err:
+        return f"INDEX-BROKEN: {tree}: {err}. Fix it before the next GitNexus call (state.py index --project {tree})."
+    mark_scope(agent_pid(), os.path.join(root, "lock"), tree)
+    return f"INDEX: GitNexus has {tree} at {sha[:9]}. Pass repo: \"{tree}\" for the code of this commit."
+
+
 def read_trail(root):
     out = []
     path = os.path.join(root, TRAIL)
@@ -786,8 +1017,10 @@ def brief(a):
     jpath = os.path.join(a.project, a.journal)
     root = os.path.join(a.project, a.root)
     out = []
-    if os.path.exists(os.path.join(root, "PAUSE")):
-        out.append("PAUSED: the human paused the loop (state.py resume to continue).")
+    stop = paused(root)
+    if stop:
+        where = "" if stop == os.path.join(root, "PAUSE") else f" Lane stopped by its parent loop: {stop}."
+        out.append(f"PAUSED: the human paused the loop (state.py resume to continue).{where}")
     lock_line = lock_status(root, a.stale_min)
     if lock_line:
         out.append(lock_line)
@@ -808,6 +1041,9 @@ def brief(a):
 
     head = " | ".join(f"{k}: {setup[k]}" for k in ("Project", "Reference (current bar)", "Mode", "Branch") if setup.get(k))
     out.append(head[:400] or "(no Setup)")
+    index_line, index_chore = index_brief(a.project, root, setup)
+    if index_line:
+        out.append(index_line)
     direction = section(text, "Direction")
     lines = [l for l in direction.splitlines() if l.strip() and not l.startswith(("The review", "A review", "Each cycle"))]
     if lines:
@@ -818,7 +1054,7 @@ def brief(a):
     trail = read_trail(root)
     oc = open_cycle(trail)
     hold = auto_hold_state(a.project, root, trail, sense_paths(a.project, senses)) if not oc else []
-    if not oc and not os.path.exists(os.path.join(root, "PAUSE")):
+    if not oc and not stop:
         goal = armed_goal(root, trail)
         out.append(f"ARMED: cycle {goal['cycle']} on '{goal['row']}' targets {goal['target']}; check: {goal['check']}"
                    if goal else "UNARMED: define --row, --target and --check with state.py arm before a new cycle.")
@@ -879,6 +1115,8 @@ def brief(a):
             out.append(f"  log: {cells[:170]}")
 
     chores, items = [], []  # chores: small, done first in this cycle. items: decide this cycle's work.
+    if index_chore:
+        chores.append(index_chore)
     stale = [f"{k}: {v}" for k, v in setup.items() if re.search(r"drive\.sh|detach|scheduler", f"{k} {v}", re.I)]
     if stale:
         chores.append(("STALE-DRIVER", f"STALE-DRIVER: the journal says '{stale[0][:80]}'. The loop runs in the session "
@@ -1095,7 +1333,7 @@ def note(a):
     trail = read_trail(root)
     oc = open_cycle(trail)
     if kind == "pick":
-        if os.path.exists(os.path.join(root, "PAUSE")):
+        if paused(root):
             print("PAUSED: no new cycle starts until state.py resume.")
             return 4
         if oc:
@@ -1233,6 +1471,9 @@ def note(a):
         advice = record_now(a, root, trail + [entry], str(commit).strip().lower())
         if advice:
             print(advice)
+        line = index_after_commit(a, root, str(commit).strip().lower())
+        if line:
+            print(line)
     return 0
 
 
@@ -1358,9 +1599,14 @@ def arm(a):
     if open_cycle(trail) or os.path.exists(os.path.join(root, "lock")):
         print("REFUSED: finish the current cycle before arming another goal.")
         return 2
-    if os.path.exists(os.path.join(root, "PAUSE")):
+    if paused(root):
         print("REFUSED: the human paused the loop.")
         return 4
+    lanes = [meta.get("lane", "?") for _, meta in lanes_of(a.project, root)]
+    if lanes:
+        print(f"REFUSED: this loop has lanes ({', '.join(lanes)}). A parent and its lanes do not run at the same "
+              "time: arm a lane with lanes.py arm, or retire the lanes first (references/lanes.md).")
+        return 2
     if a.mode and a.mode not in MODES:
         print(f"REFUSED: --mode is one of {', '.join(MODES)}.")
         return 2
@@ -1380,7 +1626,7 @@ def arm(a):
 def lock(a):
     root = os.path.join(a.project, a.root)
     os.makedirs(root, exist_ok=True)
-    if os.path.exists(os.path.join(root, "PAUSE")):
+    if paused(root):
         print("PAUSED: the human paused the loop. This run does nothing.")
         return 4
     trail = read_trail(root)
@@ -1412,11 +1658,22 @@ def lock(a):
             return 3
         else:
             why = f" (taken over: the lock had no note for {age:.0f} min)"
+    jpath = os.path.join(a.project, a.journal)
+    setup = md_setup(open(jpath, encoding="utf-8").read()) if os.path.isfile(jpath) else {}
+    optout = index_optout(setup)
+    if not optout and not gitnexus_cmd() and git_paths(a.project):
+        print("REFUSED: the loop needs a GitNexus index, and gitnexus is not installed. Install it (npm i -g gitnexus), "
+              "or write '- GitNexus: none (<reason>)' in the journal Setup.")
+        return 2
     token = os.urandom(4).hex()
     with open(path, "w") as fh:
         json.dump({"owner": a.owner, "token": token, "started": now, "agent_pid": me}, fh)
     claim_disk_pass(a.project, root, oc[0] if oc else max((e.get("cycle", 0) for e in trail), default=0) + 1)
     print(f"LOCKED token={token} (owner {a.owner}, agent pid {me}){why}. Unlock with: unlock --token {token}")
+    line = "" if optout else index_now(a.project, root)
+    if line:
+        print(line)
+        mark_scope(me, path, a.project)
     return 0
 
 
@@ -1431,6 +1688,7 @@ def unlock(a):
         held = {}
     if a.orphan:
         os.remove(path)
+        mark_scope(held.get("agent_pid"), path, None)
         print(f"UNLOCKED: removed the lock of {held.get('owner', '?')}, a run that has ended.")
         return 0
     me = agent_pid()
@@ -1440,6 +1698,7 @@ def unlock(a):
               f"(--token from its LOCKED line).")
         return 3
     os.remove(path)
+    mark_scope(held.get("agent_pid") or me, path, None)
     print("UNLOCKED")
     return 0
 
@@ -1453,6 +1712,8 @@ def pause(a, on):
         print("PAUSED: every driver skips its cycles until state.py resume.")
         # A cycle that holds the lock still runs to its end; the human needs to know that before calling it a stop.
         print(lock_status(root, a.stale_min))
+        for lane_root, meta in lanes_of(a.project, root):
+            print(f"LANE {meta.get('lane', '?')}: {lock_status(lane_root, a.stale_min)}")
     else:
         if os.path.exists(path):
             os.remove(path)
@@ -1509,7 +1770,7 @@ def wait(a):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("cmd", nargs="?", default="brief", choices=["brief", "arm", "note", "lock", "unlock", "pause", "resume", "wait"])
+    ap.add_argument("cmd", nargs="?", default="brief", choices=["brief", "arm", "note", "lock", "unlock", "pause", "resume", "wait", "index"])
     ap.add_argument("rest", nargs="*", help="for note: KIND, then the text")
     ap.add_argument("--row")
     ap.add_argument("--file", action="append")
@@ -1551,6 +1812,12 @@ def main():
         return unlock(a)
     if a.cmd == "wait":
         return wait(a)
+    if a.cmd == "index":
+        root = os.path.join(a.project, a.root)
+        os.makedirs(root, exist_ok=True)
+        line = index_now(a.project, root) or "INDEX: not a git repository, nothing to index."
+        print(line)
+        return 1 if line.startswith("INDEX-BROKEN") else 0
     return pause(a, a.cmd == "pause")
 
 

@@ -30,6 +30,11 @@ JOURNAL = """# Loop
 """
 
 
+def setUpModule():
+    from test_state_index import isolated_gitnexus  # no test reaches the real gitnexus
+    unittest.addModuleCleanup(isolated_gitnexus())
+
+
 class BlockedCycleTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

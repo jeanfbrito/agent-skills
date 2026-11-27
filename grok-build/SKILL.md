@@ -14,7 +14,7 @@ which grok && grok --version
 grok models     # auth check — prints "You are logged in with grok.com." + model list when authenticated
 ```
 
-- Not authenticated → tell the user to run `! grok login` themselves (interactive browser flow) or `! grok login --device-auth` (device-code flow for headless/remote), or export `XAI_API_KEY`. Do NOT attempt `grok login` from a non-interactive shell.
+- Not authenticated → tell the user to run `! grok login` themselves (interactive browser flow) or `! grok login --device-auth` (device-code flow for headless/remote), or export `XAI_API_KEY`. Do not attempt `grok login` from a non-interactive shell.
 - Default model: `grok-4.5` (currently the only model on this account). Override with `-m <model>`.
 - `grok doctor` diagnoses terminal/env problems; `grok inspect` shows the config Grok discovers for a directory (rules files, MCP, plugins).
 
@@ -24,7 +24,7 @@ grok models     # auth check — prints "You are logged in with grok.com." + mod
 grok -p "<task prompt>" --cwd <project-dir> --output-format json --always-approve
 ```
 
-- `-p/--single` = single-turn headless: runs the agent with full tool access, prints result to stdout, exits. This is the ONLY mode to use from Claude Code — never launch bare `grok` (interactive TUI, will hang the shell).
+- `-p/--single` = single-turn headless: runs the agent with full tool access, prints result to stdout, exits. This is the only mode to use from Claude Code — never launch bare `grok` (interactive TUI, will hang the shell).
 - `--output-format json` → parse with `jq -r '.text'`. Result object fields (verified): `text`, `thought`, `num_turns`, `sessionId` (reusable with `-r`), `stopReason`, `requestId`, `total_cost_usd`, `usage`, `modelUsage`.
 - `--always-approve` auto-approves Grok's tool executions (file edits, commands). Required for unattended edit tasks; omit for read-only analysis prompts so Grok can't mutate anything it wasn't asked to. Finer control: `--permission-mode <default|acceptEdits|auto|dontAsk|bypassPermissions|plan>`, `--allow <RULE>` / `--deny <RULE>`.
 - `--prompt-file <path>` when the prompt is long — write it to the scratchpad first, avoids shell-quoting pain. `--verbatim` sends the prompt exactly as given.
@@ -32,7 +32,7 @@ grok -p "<task prompt>" --cwd <project-dir> --output-format json --always-approv
 
 ## Run it backgrounded — always
 
-Grok tasks take minutes. NEVER run in foreground Bash (the smoke-test-sized prompts above are the only exception):
+Grok tasks take minutes, so do not run them in foreground Bash (the smoke-test-sized prompts above are the only exception):
 
 - Preferred: `Bash` with `run_in_background: true`, stdout redirected to a scratchpad file:
   ```bash

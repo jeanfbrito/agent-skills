@@ -98,7 +98,7 @@ Capture it NOW before the context scrolls away.
    - **General engineering** → `~/.claude/lessons.md` under technology-agnostic sections
      Principles that apply regardless of language, framework, or platform. Examples: "test all configurations not just default", "A/B test against baseline before declaring success"
      **Test**: Does this apply even if you swap out every technology in the stack? If yes → general.
-   - **Skill-specific** → the skill's own `SKILL.md` in the repository that owns it (`update-skill` for `~/Github/agent-skills`; for a skill symlinked from another repository, edit that repository's clone), NOT a lessons.md
+   - **Skill-specific** → the skill's own `SKILL.md` in the repository that owns it (`update-skill` for `~/Github/agent-skills`; for a skill symlinked from another repository, edit that repository's clone), not a lessons.md
      The lesson is about one of the user's own Claude Code skills (symlinked into `~/.claude/skills/` from `~/Github/agent-skills` or another skills repository), not about the codebase. Signals: a skill that should have triggered didn't (or triggered wrongly); the agent followed a skill but its instructions were missing a rule/step/edge case this session exposed; a skill's description did not name the kind of request the user made; a skill's step produced output the user had to correct. Examples: "postmortem skill: add a step to check for an existing Confluence page before drafting", "weekly-digest: the description did not cover requests for a personal weekly summary"
      **Test**: Would the fix be an edit to a SKILL.md rather than a note about code/tech? If yes → skill-specific.
    - **New skill** → a proposal (step 5b), built only after approval
@@ -108,7 +108,7 @@ Capture it NOW before the context scrolls away.
 
 3. **For struggles/bugs — use this structure in project `lessons.md`:**
    ```
-   ## <short title> (Cost: ~Xmin or ~N attempts)
+   ## <short title> (Cost: N corrections, N failed attempts)
    **What happened**: What went wrong or took too long
    **Root cause**: The real reason
    **What solved it**: The fix or guidance
@@ -123,7 +123,7 @@ Capture it NOW before the context scrolls away.
    **Implication**: How this changes how we work
    ```
 
-5. **For skill-specific lessons — do NOT write to lessons.md.** Use this
+5. **For skill-specific lessons, do not write to lessons.md.** Use this
    structure to scope the fix, then invoke `update-skill` to apply it (it
    holds the repo conventions: README bullet sync, absolute paths, ≤200
    lines):
@@ -135,7 +135,7 @@ Capture it NOW before the context scrolls away.
    ```
    Show the proposed diff-in-words first; the user approves before
    `update-skill` edits anything. Never commit. If the lesson is about a
-   skill NOT in the user's repo (a plugin/superpowers/built-in skill),
+   skill that is not in the user's repo (a plugin/superpowers/built-in skill),
    fall back to a general-engineering rule in `~/.claude/lessons.md`
    noting the workaround, since those files aren't ours to edit.
 
@@ -169,11 +169,11 @@ Capture it NOW before the context scrolls away.
 
 ## Rules
 - Be honest about mistakes — don't euphemize
-- User corrections are ALWAYS right
+- Record a user correction as the rule the user stated. Do not soften it or argue with it in the entry
 - Focus on actionable RULES, not just stories
 - Discoveries are just as valuable as bug lessons — capture both
 - Keep entries concise (under 10 lines each)
-- For struggles: estimate cost (user corrections x ~2min, or count failed attempts)
+- For struggles: record the cost as counts (user corrections, failed attempts). Do not convert the counts to minutes
 - Skill lessons go into the skill, not lessons.md — a rule the agent only reads when it remembers to is weaker than a rule inside the skill that triggers
 - A procedure that repeats belongs in a skill, not in a long lessons.md entry — but one session is not a pattern
 </content>

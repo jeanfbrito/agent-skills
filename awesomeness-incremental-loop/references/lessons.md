@@ -349,9 +349,59 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
       `test_next_cycle_on_a_low_disk_does_not_clean_again` fails on the old
       code.
 
+## Lanes trial (2026-11-27, two lanes of one Electron loop)
+
+46. **Each lane did the chores of its parent again.**
+    - Sign: the orchestrator forked lanes a and b while the parent had two
+      `DO FIRST` chores. Each lane wrote design-record entries for the same 4 commits
+      and shortened the same journal rows. The two lane branches then
+      conflicted: add/add on the design record, and the journal.
+    - Rule: clear the chores of the parent in one parent cycle, then fork.
+    - Mechanism: `lanes.py add` refuses a parent with a `DO FIRST` chore
+      (`--allow-chores` overrides).
+      `test_add_refuses_a_parent_with_chores_that_each_lane_would_repeat`
+      fails on the old code.
+47. **One session's lock does not keep its cycles apart.**
+    - Sign: both lane locks named agent pid 13047 at the same time. A
+      session and its subagents share that pid, so on one data root the
+      second cycle takes back the lock of the first. `state.py lock` run
+      from the orchestrator's shell takes over a running cycle's lock too.
+    - Rule: cycles that run at the same time need separate data roots. The
+      orchestrator does not run `state.py lock` on a lane.
+    - Mechanism: a lane is a worktree, and `.localdev/` does not follow
+      worktrees. `references/lanes.md` names the lock rule.
+48. **A pause before the pick lost the work of a cycle.**
+    - Sign: lane b cycle 59 took its lock, then read source for 7 minutes
+      before its `pick` note. The pause came in that time, and `pick` was
+      refused. Its findings were only in its status line, not in the trail.
+    - Rule: when the orchestrator armed the goal, write the `pick` note right
+      after the brief, before any research.
+    - Mechanism: none yet. A candidate: `lock` prints "pick next" when it
+      finds an armed goal.
+49. **The GitNexus index did not have the loop's code.**
+    - Sign: the only Electron index was the main checkout on `dev`. The loop
+      worked on `awesomeness/2026-10-27` in a linked worktree, so the graph
+      did not have its commits or the new files of its lanes. The gate then
+      printed "unknown coupling" or "git only", and nothing fixed the index.
+    - Rule: the index is a requirement of the loop, and a broken index is
+      work to fix, not a reason to work without it.
+    - Mechanism: `state.py lock` refuses with no `gitnexus` CLI, unless
+      Setup has `- GitNexus: none (<reason>)`. It brings the checkout's own
+      index to HEAD at each cycle start, and retries once with `--force`. A
+      linked worktree uses `--name <main>@<worktree>`, so lookups by the
+      main name still work. A failed update gets each fix in turn: it
+      frees a name that a removed checkout kept, rebuilds, then builds a new
+      index. Each `commit` note indexes the checkout of its commit, and the
+      lock records that checkout for the GitNexus scope hook.
+      `lanes.py retire` and the `worktree-gc` skill remove the index of a
+      checkout that goes away.
+      A failure is the `INDEX-BROKEN` chore. The gate exits 3 on an index that
+      does not work. `test_state_index.py` covers each rule. On Electron, a
+      first index took 24 s and an update with no change took 3 s.
+
 ## A runaway writer (2026-11-22, UnrealTarkov)
 
-46. **A REPL with no input filled the disk while the loop cleaned caches.**
+50. **A REPL with no input filled the disk while the loop cleaned caches.**
     - Sign: a background `python3 -` with no heredoc printed a pyrepl
       traceback in a loop. Its task output grew to 55 GB at 6.5 MB/s, and C:
       fell to 191 MB free. The brief only said `DISK-LOW` and asked for a

@@ -28,7 +28,7 @@ Do not draft from memory of the session alone.
   `gh issue list --search` / `gh pr list --search` on the main keywords. A
   Jira ticket is often a copy of a GitHub issue or a review comment on
   another PR. The Jira text stays internal, but the GitHub links in it are
-  public and MUST go in the body (see §3, Related).
+  public and go in the body (see §3, Related).
 - **Evidence:** test, lint, type-check and build output from this session,
   with the actual counts. Also every live or manual check, its platform and
   what it showed, and what was not run.

@@ -13,7 +13,9 @@ The session is the **orchestrator**. It does no cycle work itself:
 0. Before the first spawn, after each cycle, and after any long gap, run
    `state.py brief` and read its `LOCK`, `PAUSED` and `DECISIONS` lines.
    `LOCK: BUSY` means another live session runs the loop. `PAUSED` means the
-   human stopped it: no cycle starts. Nothing else stops the loop while a row
+   human stopped it: no cycle starts. `INDEX: REQUIRED` means that the machine
+   has no GitNexus: `lock` refuses every cycle. Tell the human to install it,
+   or to opt out in the journal Setup. Nothing else stops the loop while a row
    is left to work on. `DECISIONS` counts the open entries in the decisions
    file. Do not wait for them. Ask them when the human comes back
    (`references/decisions.md`). `DISK-RUNAWAY` names a large file that grows
@@ -112,6 +114,8 @@ Rules:
      contradicts. Delete it, or reword it so that it permits the ask. A stale stop
      line beats a card: a cycle reads the Direction first and skips the ask.
   The human is the authority, so the new ask wins over the old line.
+- **Lanes.** When the human asks for full cycles in parallel, fork lanes:
+  each lane is this loop in its own worktree (`references/lanes.md`).
 - **Side tracks.** The human can ask for more speed ("fan out", "do all we
   can"). Then the orchestrator can run side tracks beside the serial cycles.
   Researchers take rows that need cited numbers. Builders work in their own

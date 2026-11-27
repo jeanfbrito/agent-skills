@@ -69,6 +69,11 @@ def lines(n):
     return "".join(f"line {i}\n" for i in range(n))
 
 
+def setUpModule():
+    from test_state_index import isolated_gitnexus  # no test reaches the real gitnexus
+    unittest.addModuleCleanup(isolated_gitnexus())
+
+
 class DesignRecordTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

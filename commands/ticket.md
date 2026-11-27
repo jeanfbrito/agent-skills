@@ -13,7 +13,7 @@ The user may have passed the ticket as an argument: $ARGUMENTS
 
 - **Jira key or URL** (e.g. `PROJ-123`, `https://…/browse/PROJ-123`): fetch it yourself — use the jira skill / `jira issue view <KEY>` if available. Only ask the user to paste if the fetch fails.
 - **Pasted ticket text**: use it directly.
-- **Nothing provided**: say "Paste the ticket, Jira task, bug report, or feature request below. I'll analyze it and create a plan." and wait. Do NOT proceed until they do.
+- **Nothing provided**: say "Paste the ticket, Jira task, bug report, or feature request below. I'll analyze it and create a plan." and wait for it, because there is nothing to plan yet.
 
 ## Step 2: Analyze the Ticket
 
@@ -53,7 +53,7 @@ git checkout -b <branch-name> origin/<base>
 
 Branch naming convention: `<type>/<short-description>` (e.g., `fix/screen-picker-crash`, `feat/outlook-calendar-sync`)
 
-Confirm the branch name with the user before creating it.
+Pick the branch name from the convention and state it in the plan.
 
 ## Step 5: Present the Plan
 
@@ -66,13 +66,11 @@ Present a detailed, numbered plan with:
 - **Testing strategy**: How we'll verify the changes work
 - **Risk areas**: What could break and how we'll mitigate it
 
-Format it clearly and ask: "Does this plan look good? Should I adjust anything before starting?"
-
-**Do NOT start implementation until the user explicitly approves the plan.**
+Present the plan. Wait for approval only when the plan has a product or preference choice that no experiment settles, or when the user asked to review the plan first. Otherwise, start the implementation.
 
 ## Step 6: Implement
 
-Once the plan is approved:
+Once the plan is ready (and approved, when step 5 asked):
 
 1. Implement changes following the plan, one step at a time
 2. After each significant change, briefly state what was done
@@ -117,4 +115,4 @@ Present a summary to the user:
 
 Then say: "All changes are ready. Want me to commit?"
 
-**Do NOT commit until the user explicitly says to commit.**
+Commit only when the user says to commit.
