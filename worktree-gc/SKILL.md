@@ -58,7 +58,7 @@ git -C <path> status --porcelain --ignored=matching | grep '^!! '
 ```
 
 Put them in the step 5 table. Show regenerable output (`node_modules/`,
-build output) as one summary entry. List every other ignored path by
+build output, a `.gitnexus/` index) as one summary entry. List every other ignored path by
 name. The user must review these paths before you remove the worktree.
 
 ### 1. Merge targets
@@ -187,6 +187,7 @@ go-ahead on the table satisfies the "explicit ask" requirement for that
 branch. No separate confirmation step is needed beyond the one in step 5.
 
 ```bash
+gitnexus remove --force <path>      # only when <path>/.gitnexus exists: its index and registry entry
 git worktree remove <path>          # never --force (see Safety rules)
 git branch -d <branch>              # ancestor-merge rows
 git branch -D <branch>              # squash-merged rows only, PR number must be in the table
@@ -195,6 +196,11 @@ git worktree prune
 
 Never use `-D` on a branch that isn't in the table with a merged PR
 number attached.
+
+The audit also lists GitNexus index entries whose checkout is gone. Put
+them in the step 5 table. Each one keeps its index on disk and its name,
+and a later `gitnexus analyze` under that name fails. On confirmation, run
+`gitnexus remove --force <path>` for each one.
 
 Stashes: drop only the specific stash(es) the user names, one at a time.
 Never reuse a ref from the step 4 list. Before each drop, list the

@@ -137,3 +137,14 @@ done < <(git worktree list --porcelain | awk '/^worktree /{print $2}')
 if [ -n "$untracked_report" ]; then
 	printf '\nUntracked files in deletable-untracked worktrees:%s\n' "$untracked_report"
 fi
+
+# GitNexus: a registry entry whose checkout is gone keeps its name, and a later
+# analyze under that name fails. Read-only here; step 6 removes them.
+if command -v gitnexus >/dev/null 2>&1; then
+	orphans=$(gitnexus list 2>/dev/null | sed -n 's/^ *Path: *//p' | while IFS= read -r p; do
+		[ -e "$p" ] || printf '   %s\n' "$p"
+	done)
+	if [ -n "$orphans" ]; then
+		printf '\nGitNexus index entries whose checkout is gone (gitnexus remove --force <path>):\n%s\n' "$orphans"
+	fi
+fi
