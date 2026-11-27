@@ -24,4 +24,5 @@ You are a new run. Your state is on disk, not in this prompt.
 
 Do not create, change or delete a schedule. Do not spawn another cycle. Do not send a message. Push and open pull requests only for task branches, and only when the journal's shipping mode or human rules approve it. Never push the loop branch.
 Commit with `git commit -- <paths>` or a private `GIT_INDEX_FILE`. Never `git add -A`, never amend.
+Give every long run a hard time limit: a game run, a test run, a capture or a wait loop. Choose the shortest run that answers the check (`timeout 1500 <cmd>`; 30 min at most), and a timeout for each wait. A run that is not limited can block the loop for hours.
 ```
