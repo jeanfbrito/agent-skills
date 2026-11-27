@@ -108,7 +108,7 @@ Capture it NOW before the context scrolls away.
 
 3. **For struggles/bugs — use this structure in project `lessons.md`:**
    ```
-   ## <short title> (Cost: ~Xmin or ~N attempts)
+   ## <short title> (Cost: N corrections, N failed attempts)
    **What happened**: What went wrong or took too long
    **Root cause**: The real reason
    **What solved it**: The fix or guidance
@@ -169,11 +169,11 @@ Capture it NOW before the context scrolls away.
 
 ## Rules
 - Be honest about mistakes — don't euphemize
-- User corrections are ALWAYS right
+- Record a user correction as the rule the user stated. Do not soften it or argue with it in the entry
 - Focus on actionable RULES, not just stories
 - Discoveries are just as valuable as bug lessons — capture both
 - Keep entries concise (under 10 lines each)
-- For struggles: estimate cost (user corrections x ~2min, or count failed attempts)
+- For struggles: record the cost as counts (user corrections, failed attempts). Do not convert the counts to minutes
 - Skill lessons go into the skill, not lessons.md — a rule the agent only reads when it remembers to is weaker than a rule inside the skill that triggers
 - A procedure that repeats belongs in a skill, not in a long lessons.md entry — but one session is not a pattern
 </content>
