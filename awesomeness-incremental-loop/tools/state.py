@@ -491,7 +491,7 @@ def record_problems(records):
 def unrecorded(a, tables, trail, records, rpath, index, shas):
     """[(sha, subject, contract paths)] for each commit that changes a contract surface with no record and no ack."""
     surface = surface_matcher(find(tables, "Contract surfaces") or [])
-    record_file = os.path.relpath(rpath, a.project)
+    record_file = os.path.relpath(rpath, a.project).replace(os.sep, "/")  # git names files with / on Windows too
     covered = set()
     for rec in records:
         covered |= {s.lower() for s in re.findall(r"\b[0-9a-f]{7,40}\b", rec.get("Commits", ""), re.I)}
