@@ -106,6 +106,12 @@ the files that the loop changed.
    all commits go on the loop branch. When the project rules ask for one
    worktree and one PR for each task, the mode is `pr-per-task`. Write the
    mode in the journal's Setup section.
+   The loop needs a GitNexus index of its checkout. `S lock` refuses every
+   cycle when the `gitnexus` CLI is missing. Otherwise, it brings the index
+   to HEAD at each cycle start, and each `commit` note does the same for the
+   checkout of that commit. A linked worktree gets its own index, under
+   the name `<main checkout>@<worktree>`. For a project that GitNexus cannot
+   read, write `- GitNexus: none (<reason>)` in Setup.
 6. **Run the loop in this session.** Print one line:
    `Awesomeness loop: [PROJECT] against [REFERENCE]. Next: [row]. Report: [path]. You are the brake.`
    Then this session is the **orchestrator** (`references/drivers.md`).
@@ -139,19 +145,32 @@ that decides nothing new).
 1. **Lock and read.** The orchestrator sets this cycle's goal with `S arm`
    before it starts the subagent. Run `S lock`. It knows your agent session.
    After a context compaction, it gives your session its lock back. It also takes
-   over the lock of a session that has ended. Exit 3 means that another live
-   session holds the lock. Exit 4 means paused. On 3 or 4, print the line and
-   end the run.
+   over the lock of a session that has ended. Exit 2 means that the machine
+   has no GitNexus. Exit 3 means that another live session holds the lock.
+   Exit 4 means paused. On 2, 3 or 4, print the line and end the run.
+   For each GitNexus call of the cycle, pass the `repo` that the brief's
+   `INDEX` line names. After a `commit` note, use the `repo` that the note
+   prints: it indexed the checkout of that commit (in `pr-per-task` mode,
+   the task worktree). A call with no `repo` reads the checkout that `lock`
+   recorded for this session, when the session has the GitNexus scope hook.
    Each note renews the lock. Before a step that can take more than an hour,
    write its `try` note first. Run `S brief`. If it says `NO-PRODUCT`, do
    not repeat the route of those cycles. If it says `IN PROGRESS`,
    continue that cycle from its last note. Do not repeat a step that has a
    note, and do not retry what it lists under `DO NOT RETRY`.
    The brief's signals have two parts. Do every line under **Do first** in
-   this cycle, before the item: they are small chores (`APPLY` verdicts and
-   answers, `MISMATCH`, `NO-DONE-WHEN`, `QUEUED-NO-PROGRESS`, `SENSE-DRIFT`,
-   `UNRECORDED-DECISION`, `RECORD-INCOMPLETE`, `PR-SPLIT`, `JOURNAL-LONG`,
-   `STALE-DRIVER`, `STALE-MODEL`, `DISK-LOW`). A chore marked `OVERDUE` was
+   this cycle, before the item. They are small chores of three kinds:
+   - Decisions: `APPLY` verdicts and answers, `UNRECORDED-DECISION`,
+     `RECORD-INCOMPLETE`, `PR-SPLIT`.
+   - Journal: `MISMATCH`, `NO-DONE-WHEN`, `QUEUED-NO-PROGRESS`,
+     `SENSE-DRIFT`, `JOURNAL-LONG`, `STALE-DRIVER`, `STALE-MODEL`.
+   - Machine: `DISK-LOW`, `INDEX-BROKEN`.
+
+   `lock` already tried each automatic fix of the index: an update, a
+   name that a deleted checkout kept, a rebuild, and a new index. For
+   `INDEX-BROKEN`, find the cause in the error (a GitNexus bug: `gitnexus
+   update`), then run `S index` until it prints `INDEX:`. Do not work
+   around a broken index. A chore marked `OVERDUE` was
    skipped in an earlier cycle. For a verdict: `keep` sets the toggle default
    ON, `kill` deletes it and its toggle, `tweak: <note>` queues it. If
    `END-BLOCKED-CYCLE` appears, do not check the same evidence again: end the

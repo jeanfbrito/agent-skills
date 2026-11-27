@@ -17,13 +17,20 @@ parts that the lanes share (references/lanes.md):
       state.py arm, but refused when another lane of the same parent owns the
       row. A lane owns each row that it armed, or wrote a note on, after the fork.
       A review cycle (--mode review) is free: each lane has its own review.
+  lanes.py retire --project LANE [--keep-worktree]
+      End a lane: copy its data root (trail, report) into the parent's
+      lanes/NAME/, remove its GitNexus index and registry entry, then remove
+      the worktree (git worktree remove, never forced). Its branch keeps its
+      journal. Refused while the lane has an open cycle or a lock.
   lanes.py gate --project REPO --base REF --ref REF --against REF [...] [--no-graph]
       Before a merge: text conflicts (git merge-tree), files that both sides
-      change and, when GitNexus indexes the repo, files that call or import each
-      other. Exit 0 clean, 1 rerun the checks of both sides after the merge,
-      2 resolve a product conflict first, 3 the gate failed (a git error).
+      change, and files that call or import each other. For the last part, it
+      brings the GitNexus index of each side's worktree to HEAD and queries
+      both. Exit 0 clean, 1 rerun the checks of both sides after the merge,
+      2 resolve a product conflict first, 3 the gate failed (git, or an index
+      that does not work: fix it, do not skip it).
 
-Standard library only. GitNexus is optional: without it, the gate uses git only.
+Standard library only, plus the gitnexus CLI that the loop requires (state.py lock).
 """
 import argparse
 import json
@@ -62,11 +69,6 @@ def read_lane(path):
             return json.load(fh)
     except (OSError, ValueError):
         return None
-
-
-def worktrees(repo):
-    out = git(repo, "worktree", "list", "--porcelain").stdout
-    return [os.path.realpath(l[len("worktree "):]) for l in out.splitlines() if l.startswith("worktree ")]
 
 
 def busy(root):
@@ -172,6 +174,35 @@ def arm(a):
     return subprocess.run(cmd).returncode
 
 
+def retire(a):
+    path = os.path.realpath(a.project)
+    me = read_lane(path)
+    if not me:
+        print("REFUSED: this worktree is not a lane (it has no lane.json).")
+        return 2
+    root = os.path.join(path, ROOT)
+    if state.open_cycle(state.read_trail(root)) or os.path.exists(os.path.join(root, "lock")):
+        print("REFUSED: the lane has an open cycle or a lock. Let its cycle end first.")
+        return 2
+    if not a.keep_worktree and git(path, "status", "--porcelain").stdout.strip():
+        print("REFUSED: the lane worktree has changes that are not committed. Commit them, or pass --keep-worktree.")
+        return 2
+    keep = os.path.join(me["parent_root"], "lanes", me["lane"])
+    shutil.copytree(root, keep, ignore=shutil.ignore_patterns("lock", state.LANE), dirs_exist_ok=True)
+    exe = state.gitnexus_cmd()
+    if exe:
+        r = subprocess.run([exe, "remove", "--force", path], capture_output=True, text=True)
+        if r.returncode != 0:
+            fail(f"gitnexus remove failed for {path}: {(r.stderr or r.stdout).strip()[:200]}")
+    if a.keep_worktree:
+        os.remove(os.path.join(root, state.LANE))
+    else:
+        git(me["parent"], "worktree", "remove", path)
+    print(f"RETIRED lane {me['lane']}: its trail and report are in {keep}. Branch {me['branch']} keeps its journal: "
+          "copy the status changes of its rows into the parent's journal.")
+    return 0
+
+
 def changed(repo, base, ref):
     names = git(repo, "diff", "--name-only", f"{base}...{ref}").stdout.splitlines()
     return {f for f in names if f and not LOOP_DOC.search(f)}
@@ -183,7 +214,7 @@ def lit(items):
 
 def graph(repo, query):
     """The rows of a GitNexus Cypher query, as lists of cells, and "" or the reason that it gave none."""
-    exe = shutil.which("gitnexus")
+    exe = state.gitnexus_cmd()
     if not exe:
         return None, "gitnexus is not installed"
     try:
@@ -207,9 +238,50 @@ def graph(repo, query):
     return [[c.strip() for c in l.strip().strip("|").split("|")] for l in lines[2:]], ""
 
 
+def checkouts(repo):
+    """{branch: worktree} for each branch that a worktree has checked out."""
+    out, tree = {}, None
+    for line in git(repo, "worktree", "list", "--porcelain").stdout.splitlines():
+        if line.startswith("worktree "):
+            tree = line[len("worktree "):]
+        elif line.startswith("branch refs/heads/"):
+            out[line[len("branch refs/heads/"):]] = tree
+    return out
+
+
+def coupling(trees, mine, theirs):
+    """(changed files that an index has, coupled rows): each side's index holds its own new files and edges."""
+    for tree in trees:
+        err = state.ensure_index(tree)
+        if err:
+            fail(f"the GitNexus index of {tree} does not work: {err}. Fix it (state.py index --project {tree}).")
+    seen, rows_out = set(), set()
+    left, right = mine - theirs, theirs - mine
+    for tree in trees:
+        rows, why = graph(tree, f"MATCH (f:File) WHERE f.filePath IN {lit(mine | theirs)} RETURN f.filePath")
+        if rows is None:
+            fail(f"the GitNexus query failed: {why}")
+        seen |= {r[0] for r in rows if r}
+        if left and right:
+            rows, why = graph(tree, (
+                f"WITH {lit(left)} AS a, {lit(right)} AS b MATCH (s1)-[r:CodeRelation]->(s2) "
+                f"WHERE r.type IN {lit(EDGES)} AND ((s1.filePath IN a AND s2.filePath IN b) "
+                "OR (s1.filePath IN b AND s2.filePath IN a)) "
+                "RETURN DISTINCT s1.filePath AS src, s2.filePath AS dst, r.type AS rel ORDER BY src, dst"))
+            if rows is None:
+                fail(f"the GitNexus coupling query failed: {why}")
+            rows_out |= {tuple(r) for r in rows if len(r) == 3}
+    return seen, sorted(rows_out)
+
+
 def gate(a):
     repo = os.path.realpath(a.project)
-    index = a.graph_repo or worktrees(repo)[0]  # the main checkout holds the index
+    trees = checkouts(repo)
+    if not a.no_graph:
+        missing = [r for r in [a.ref, *a.against] if r not in trees]
+        if missing:
+            fail(f"no worktree has {', '.join(missing)} checked out. The gate reads the GitNexus index of each "
+                 "side's worktree: give the branch one (git worktree add <path> <branch>), or pass a branch name.")
     mine = changed(repo, a.base, a.ref)
     worst = 0
     for other in a.against:
@@ -232,25 +304,11 @@ def gate(a):
         if a.no_graph:
             print("  GRAPH: off (--no-graph)")
         else:
-            rows, why = graph(index, f"MATCH (f:File) WHERE f.filePath IN {lit(mine | theirs)} RETURN count(f)")
-            if rows is None:
-                print(f"  GRAPH: not available ({why}). This gate is git only.")
-            else:
-                seen = rows[0][0] if rows else "0"
-                print(f"  GRAPH: the index of {index} has {seen} of {len(mine | theirs)} changed files. "
-                      "The coupling of a file that it does not have is unknown.")
-                left, right = mine - theirs, theirs - mine
-                if left and right:
-                    rows, why = graph(index, (
-                        f"WITH {lit(left)} AS a, {lit(right)} AS b MATCH (s1)-[r:CodeRelation]->(s2) "
-                        f"WHERE r.type IN {lit(EDGES)} AND ((s1.filePath IN a AND s2.filePath IN b) "
-                        "OR (s1.filePath IN b AND s2.filePath IN a)) "
-                        "RETURN DISTINCT s1.filePath AS src, s2.filePath AS dst, r.type AS rel ORDER BY src, dst"))
-                    if rows is None:
-                        print(f"  GRAPH: the coupling query failed ({why}). Coupling is unknown.")
-                    coupled = rows or []
-                for src, dst, rel in coupled:
-                    print(f"  COUPLED {src} -> {dst} ({rel})")
+            seen, coupled = coupling([trees[a.ref], trees[other]], mine, theirs)
+            print(f"  GRAPH: the indexes of both sides have {len(seen)} of {len(mine | theirs)} changed files. "
+                  "A file that no index has (a doc, a config) has unknown coupling.")
+            for src, dst, rel in coupled:
+                print(f"  COUPLED {src} -> {dst} ({rel})")
         verdict = 2 if product else 1 if shared or coupled else 0
         print(f"  VERDICT: {VERDICTS[verdict]}")
         worst = max(worst, verdict)
@@ -271,15 +329,17 @@ def main():
     p.add_argument("--mode")
     p.add_argument("--target")
     p.add_argument("--check")
+    p = sub.add_parser("retire", help="end a lane: keep its trail, remove its index and worktree")
+    p.add_argument("--project", required=True, help="the worktree of the lane")
+    p.add_argument("--keep-worktree", action="store_true", help="keep the worktree; remove only lane.json and the index")
     p = sub.add_parser("gate", help="check a merge between lanes or task branches")
     p.add_argument("--project", required=True, help="any worktree of the repo")
     p.add_argument("--base", required=True, help="the branch that both sides started from")
     p.add_argument("--ref", required=True, help="the branch to merge")
     p.add_argument("--against", action="append", required=True, help="a branch of another lane (repeat)")
-    p.add_argument("--graph-repo", help="the indexed checkout for GitNexus (default: the main worktree)")
-    p.add_argument("--no-graph", action="store_true", help="git only")
+    p.add_argument("--no-graph", action="store_true", help="git only, for a loop with '- GitNexus: none' in Setup")
     a = ap.parse_args()
-    return {"add": add, "arm": arm, "gate": gate}[a.cmd](a)
+    return {"add": add, "arm": arm, "retire": retire, "gate": gate}[a.cmd](a)
 
 
 if __name__ == "__main__":

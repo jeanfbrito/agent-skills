@@ -11,7 +11,7 @@ do not change. `tools/lanes.py` adds only what the lanes share:
 | One lane for each row | `lanes.py arm` refuses a row that another lane armed, or wrote a note on, after the fork. A review cycle is free: each lane has its own review |
 | The parent waits | `state.py arm` refuses in a loop that has lanes, and `lanes.py add` refuses a parent with an armed goal. The parent and its lanes never work the same row |
 | The brake | `state.py pause --project <parent>` stops every lane: `lock`, `arm` and `pick` read `lane.json` |
-| The merge check | `lanes.py gate`: text conflicts, files that both sides change, and files that call or import each other (GitNexus, when the repo has an index) |
+| The merge check | `lanes.py gate`: text conflicts, files that both sides change, and files that call or import each other (the GitNexus index of each side's worktree) |
 
 Use lanes only when the human asks for more speed with full cycles. They cost
 one cycle on the session model for each lane, so the cost grows with the
@@ -83,7 +83,7 @@ python3 ~/Github/agent-skills/awesomeness-incremental-loop/tools/lanes.py gate \
 | `LOOP-DOC` | Both lanes change their journal or decisions file | Do not merge it. Each lane keeps its own copy |
 | `SHARED` | Both sides change the file, with no conflict | Merge, then run the checks of both sides on the merged tree |
 | `COUPLED` | One side changes a file that the other side's file calls or imports | Merge, then run the checks of both sides on the merged tree |
-| `GRAPH` | How many changed files the index has | A file that the index does not have has unknown coupling |
+| `GRAPH` | How many changed files the indexes of both sides have | A file that no index has (a doc, a config) has unknown coupling |
 
 - `loop-branch` mode: merge a lane's product commits into the integration
   branch only between that lane's cycles. Do not merge the loop docs. A pass
@@ -96,30 +96,35 @@ python3 ~/Github/agent-skills/awesomeness-incremental-loop/tools/lanes.py gate \
 
 ## GitNexus
 
-The gate uses the GitNexus index of the main checkout, if that index exists. It
-sees only code that is in that checkout. A lane's new files have unknown
-coupling until they land there. Reindex the main checkout at a quiet point
-after a batch of merges. Never run `gitnexus analyze` inside a lane worktree:
-it registers a second index under the same name, and lookups by that name
-then fail.
+Each lane has its own GitNexus index, as each loop does (SKILL.md, Start step
+5). `state.py lock` brings it to HEAD at each cycle start, under the name
+`<main checkout>@<lane worktree>`. The gate brings the index of each side's
+worktree to HEAD, then queries both. Each index has the new files of its own
+side, so the gate sees the coupling of new files too. The gate needs a
+worktree for each branch that it checks. When an index does not work, the
+gate exits 3: fix the index, then run the gate again. `--no-graph` is only
+for a loop with `- GitNexus: none` in its Setup.
 
 ## Stop and retire
 
 - The human runs `state.py pause --project <parent>`. Each lane stops at its
   next `lock` or `arm`. A cycle that holds its lock runs to its end, as in
   one loop. `state.py resume --project <parent>` starts them again.
-- Retire a lane when it has no open row, or when the human stops the run. Copy the
-  status changes of its rows into the parent's journal. The rows are separate
-  lines, so a merge of the journals conflicts only in the sections that each
-  lane appends to. Keep the lane's worktree while someone needs its trail or
-  its report. Then remove it with `git worktree remove`.
+- Retire a lane when it has no open row, or when the human stops the run:
+  `lanes.py retire --project <lane>`. It copies the lane's trail and report
+  to the parent's `.localdev/awesomeness/lanes/<name>/`, removes the lane's
+  GitNexus index and registry entry, and removes the worktree. Its branch
+  keeps its journal. `--keep-worktree` keeps the worktree and removes only
+  `lane.json` and the index.
+- Then copy the status changes of its rows into the parent's journal. The
+  rows are separate lines, so a merge of the journals conflicts only in the
+  sections that each lane appends to.
 - The parent arms again only when it has no lane. `state.py arm` finds a lane
-  by the `lane.json` in its worktree. To keep a retired lane's worktree, remove
-  its `.localdev/awesomeness/lane.json`.
+  by the `lane.json` in its worktree.
 
 ## Limits
 
-- A lane's trail stays in its worktree. The parent's brief does not see the
-  cycles of its lanes.
+- The parent's brief does not see the cycles of its lanes. `retire` copies
+  each lane's trail to the parent's data root.
 - Cycle numbers repeat across lanes. The status line names the lane.
 - A row stays in the lane that worked it. To move a row, retire that lane.

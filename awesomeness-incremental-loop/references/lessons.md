@@ -378,3 +378,23 @@ cycles). Each one now has a mechanism. The prose is for the judgment around it.
       after the brief, before any research.
     - Mechanism: none yet. A candidate: `lock` prints "pick next" when it
       finds an armed goal.
+49. **The GitNexus index did not have the loop's code.**
+    - Sign: the only Electron index was the main checkout on `dev`. The loop
+      worked on `awesomeness/2026-10-27` in a linked worktree, so the graph
+      did not have its commits or the new files of its lanes. The gate then
+      printed "unknown coupling" or "git only", and nothing fixed the index.
+    - Rule: the index is a requirement of the loop, and a broken index is
+      work to fix, not a reason to work without it.
+    - Mechanism: `state.py lock` refuses with no `gitnexus` CLI, unless
+      Setup has `- GitNexus: none (<reason>)`. It brings the checkout's own
+      index to HEAD at each cycle start, and retries once with `--force`. A
+      linked worktree uses `--name <main>@<worktree>`, so lookups by the
+      main name still work. A failed update gets each fix in turn: it
+      frees a name that a removed checkout kept, rebuilds, then builds a new
+      index. Each `commit` note indexes the checkout of its commit, and the
+      lock records that checkout for the GitNexus scope hook.
+      `lanes.py retire` and the `worktree-gc` skill remove the index of a
+      checkout that goes away.
+      A failure is the `INDEX-BROKEN` chore. The gate exits 3 on an index that
+      does not work. `test_state_index.py` covers each rule. On Electron, a
+      first index took 24 s and an update with no change took 3 s.

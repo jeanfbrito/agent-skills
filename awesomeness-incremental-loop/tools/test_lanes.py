@@ -6,6 +6,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
+
+from test_state_index import write_fake_gitnexus
 
 HERE = Path(__file__).parent
 LANES = [sys.executable, str(HERE / "lanes.py")]
@@ -40,6 +43,11 @@ class LanesTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
+        env = mock.patch.dict(os.environ, {"AWESOMENESS_GITNEXUS": write_fake_gitnexus(self.tmp.name),
+                                           "FAKE_GITNEXUS_LOG": os.path.join(self.tmp.name, "calls.log"),
+                                           "GITNEXUS_SCOPE_DIR": os.path.join(self.tmp.name, "scope")})
+        env.start()  # no test indexes a real checkout or adds it to the GitNexus registry
+        self.addCleanup(env.stop)
         self.parent = Path(os.path.realpath(self.tmp.name)) / "app"
         (self.parent / "docs").mkdir(parents=True)
         (self.parent / "docs/awesomeness-loop.md").write_text(JOURNAL)
@@ -129,6 +137,31 @@ class LanesTest(unittest.TestCase):
         self.assertEqual(r.returncode, 2, r.stdout)
         self.assertIn("this loop has lanes (a)", r.stdout)
 
+    def test_retire_keeps_the_trail_and_frees_the_parent(self):
+        a = self.add("a")
+        r = run(LANES + ["retire", "--project", str(a)])
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertFalse(a.exists())
+        self.assertTrue((self.proot / "lanes/a/trail.jsonl").exists())  # the lane's history outlives its worktree
+        self.assertIn(f"remove --force {a}", Path(os.environ["FAKE_GITNEXUS_LOG"]).read_text())
+        r = run(STATE + ["arm", "--project", str(self.parent), "--row", "R3 export", "--target", "t", "--check", "c"])
+        self.assertEqual(r.returncode, 0, r.stdout)
+
+    def test_retire_refuses_a_lane_that_runs_a_cycle(self):
+        a = self.add("a")
+        with open(a / ".localdev/awesomeness/trail.jsonl", "a") as fh:
+            fh.write(json.dumps({"cycle": 3, "kind": "pick", "row": "R1 search"}) + "\n")
+        r = run(LANES + ["retire", "--project", str(a)])
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertTrue(a.exists())
+
+    def test_retire_can_keep_the_worktree(self):
+        a = self.add("a")
+        r = run(LANES + ["retire", "--project", str(a), "--keep-worktree"])
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue(a.exists())
+        self.assertFalse((a / ".localdev/awesomeness/lane.json").exists())
+
     def test_the_parent_pause_stops_every_lane(self):
         a = self.add("a")
         self.assertEqual(self.arm(a, "R1 search").returncode, 0)
@@ -182,37 +215,39 @@ class LanesTest(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("SHARED a.txt", r.stdout)
 
-    def fake_gitnexus(self, coupling_output):
-        """A gitnexus on PATH that prints the real CLI's banner, then JSON, like version 1.6.12."""
-        bin_dir = Path(self.tmp.name) / "bin"
-        bin_dir.mkdir(exist_ok=True)
-        count = json.dumps({"markdown": "| count(f) |\n| --- |\n| 2 |", "row_count": 1})
-        (bin_dir / "gitnexus").write_text(
-            "#!/bin/sh\necho '  GitNexus Cypher (1.6.12)'\n"  # printf, because echo in sh can expand \n
-            f"case \"$4\" in *'count(f)'*) printf '%s\\n' '{count}' ;; *) printf '%s\\n' '{coupling_output}' ;; esac\n")
-        (bin_dir / "gitnexus").chmod(0o755)
-        return {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}"}
-
-    def graph_gate(self, env):
-        cmd = LANES + ["gate", "--project", str(self.parent), "--base", "awesomeness/day", "--ref", "x",
-                       "--against", "y", "--graph-repo", str(self.parent)]
-        return subprocess.run(cmd, capture_output=True, text=True, env=env)
+    def graph_gate(self, ref="x", **env):
+        files = json.dumps({"markdown": "| f.filePath |\n| --- |\n| src/p.txt |\n| src/q.txt |", "row_count": 2})
+        cmd = LANES + ["gate", "--project", str(self.parent), "--base", "awesomeness/day", "--ref", ref, "--against", "y"]
+        return subprocess.run(cmd, capture_output=True, text=True, env={**os.environ, "FAKE_GITNEXUS_FILES": files, **env})
 
     def test_gate_reads_a_graph_query_with_no_rows(self):
         self.branch("x", {"src/p.txt": "p\n"})
         self.branch("y", {"src/q.txt": "q\n"})
-        r = self.graph_gate(self.fake_gitnexus("[]"))
+        r = self.graph_gate()  # the coupling query prints [] for no rows
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("has 2 of 2 changed files", r.stdout)
-        self.assertNotIn("failed", r.stdout)
+        self.assertIn("have 2 of 2 changed files", r.stdout)
 
     def test_gate_reports_coupled_files_from_the_graph(self):
         self.branch("x", {"src/p.txt": "p\n"})
         self.branch("y", {"src/q.txt": "q\n"})
         rows = json.dumps({"markdown": "| src | dst | rel |\n| --- | --- | --- |\n| src/q.txt | src/p.txt | IMPORTS |"})
-        r = self.graph_gate(self.fake_gitnexus(rows))
+        r = self.graph_gate(FAKE_GITNEXUS_COUPLING=rows)
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("COUPLED src/q.txt -> src/p.txt (IMPORTS)", r.stdout)
+
+    def test_gate_stops_on_an_index_that_does_not_work(self):
+        self.branch("x", {"src/p.txt": "p\n"})
+        self.branch("y", {"src/q.txt": "q\n"})
+        r = self.graph_gate(FAKE_GITNEXUS_FAIL="all")
+        self.assertEqual(r.returncode, 3, r.stdout + r.stderr)  # not a quiet gate with git only
+        self.assertIn("does not work", r.stderr)
+
+    def test_gate_needs_a_worktree_for_each_side(self):
+        self.branch("y", {"src/q.txt": "q\n"})
+        git(self.parent, "branch", "z", "awesomeness/day")
+        r = self.graph_gate(ref="z")
+        self.assertEqual(r.returncode, 3, r.stdout + r.stderr)
+        self.assertIn("no worktree has z checked out", r.stderr)
 
     def test_a_gate_error_is_not_a_verdict(self):
         self.branch("x", {"src/p.txt": "p\n"})
