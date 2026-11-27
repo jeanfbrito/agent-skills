@@ -18,6 +18,7 @@ and writes PLAN.json (format: references/plan-schema.md).
 """
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -402,7 +403,10 @@ def main():
         path = render(Path(a.plan), fragment=a.fragment, out=a.out)
         print(path)
         if a.open:
-            subprocess.run(["open", str(path)])
+            if sys.platform == "win32":
+                os.startfile(path)  # Windows has no `open` command
+            else:
+                subprocess.run(["open", str(path)])
     elif a.cmd == "save":
         save(cfg, a.plan)
 
